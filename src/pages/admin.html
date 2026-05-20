@@ -1,3 +1,142 @@
-<h1>
-    Admin Page funciona! Você está logado como administrador.
-</h1>
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Painel Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="min-h-screen bg-slate-100 text-slate-900">
+    <header class="border-b border-slate-200 bg-white">
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
+            <div>
+                <h1 class="text-2xl font-bold">Painel do Restaurante</h1>
+                <p class="text-sm text-slate-500">Gerenciamento de mesas e reservas</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="adminUserName" class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span>
+                <button id="logoutButton"
+                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[360px_1fr]">
+        <section class="rounded-2xl bg-white p-6 shadow-sm">
+            <div class="mb-6">
+                <h2 class="text-xl font-bold">Cadastrar ou editar mesa</h2>
+                <p class="text-sm text-slate-500">Defina capacidade e posição visual da mesa</p>
+            </div>
+
+            <form id="tableForm" class="space-y-4">
+                <input id="tableId" type="hidden" />
+
+                <div>
+                    <label for="numero" class="mb-1 block text-sm font-medium">Número da mesa</label>
+                    <input id="numero" type="number" min="1"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900"
+                        required />
+                </div>
+
+                <div>
+                    <label for="capacidade" class="mb-1 block text-sm font-medium">Capacidade</label>
+                    <input id="capacidade" type="number" min="1"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900"
+                        required />
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="posicaoX" class="mb-1 block text-sm font-medium">Posição X</label>
+                        <input id="posicaoX" type="number" min="0"
+                            class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900"
+                            required />
+                    </div>
+                    <div>
+                        <label for="posicaoY" class="mb-1 block text-sm font-medium">Posição Y</label>
+                        <input id="posicaoY" type="number" min="0"
+                            class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900"
+                            required />
+                    </div>
+                </div>
+
+                <div>
+                    <label for="status" class="mb-1 block text-sm font-medium">Status</label>
+                    <select id="status"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900">
+                        <option value="disponivel">Disponível</option>
+                        <option value="indisponivel">Indisponível</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-3">
+                    <button type="submit"
+                        class="flex-1 rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-700">Salvar
+                        mesa</button>
+                    <button type="button" id="resetFormButton"
+                        class="rounded-xl border border-slate-300 px-4 py-3 font-semibold transition hover:bg-slate-100">Limpar</button>
+                </div>
+            </form>
+
+            <div id="adminMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm"></div>
+        </section>
+
+        <section class="space-y-6">
+            <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+                <article class="rounded-2xl bg-white p-6 shadow-sm">
+                    <div class="mb-4 flex items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold">Layout do restaurante</h2>
+                            <p class="text-sm text-slate-500">Visualização da distribuição das mesas</p>
+                        </div>
+                        <div class="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-700">
+                            <span id="tableCount">0</span> mesas cadastradas
+                        </div>
+                    </div>
+
+                    <div class="overflow-auto rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                        <div id="restaurantMap" class="relative h-[520px] min-w-[700px] rounded-2xl bg-white"></div>
+                    </div>
+                </article>
+
+                <article class="rounded-2xl bg-white p-6 shadow-sm">
+                    <div class="mb-4">
+                        <h2 class="text-xl font-bold">Lista de mesas</h2>
+                        <p class="text-sm text-slate-500">Edite ou remova uma mesa cadastrada</p>
+                    </div>
+                    <div id="tablesList" class="space-y-3"></div>
+                </article>
+            </div>
+
+            <article class="rounded-2xl bg-white p-6 shadow-sm">
+                <div class="mb-4 flex items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold">Reservas do restaurante</h2>
+                        <p class="text-sm text-slate-500">Visão completa das reservas criadas pelos clientes</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full border-separate border-spacing-y-2">
+                        <thead>
+                            <tr class="text-left text-sm text-slate-500">
+                                <th class="px-3 py-2">Cliente</th>
+                                <th class="px-3 py-2">Mesa</th>
+                                <th class="px-3 py-2">Data</th>
+                                <th class="px-3 py-2">Horário</th>
+                                <th class="px-3 py-2">Pessoas</th>
+                                <th class="px-3 py-2">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminReservationsTable"></tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <script type="module" src="../js/admin.js"></script>
+</body>
+
+</html>

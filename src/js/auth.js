@@ -37,3 +37,25 @@ export function redirectByUserRole(user) {
 
     window.location.href = './pages/reservas.html';
 }
+
+export function protectRoute(allowedProfiles = []) {
+    const user = getCurrentUser();
+
+    if (!user) {
+        const isPagesRoute = window.location.pathname.includes('/pages/');
+        window.location.href = isPagesRoute ? '../index.html' : './index.html';
+        return null;
+    }
+
+    if (allowedProfiles.length && !allowedProfiles.includes(user.perfil)) {
+        if (user.perfil === 'admin') {
+            window.location.href = './admin.html';
+            return null;
+        }
+
+        window.location.href = './reservas.html';
+        return null;
+    }
+
+    return user;
+}

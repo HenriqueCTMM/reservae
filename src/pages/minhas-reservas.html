@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minhas Reservas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="min-h-screen bg-slate-100 text-slate-900">
+    <header class="border-b border-slate-200 bg-white">
+        <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between">
+            <div>
+                <h1 class="text-2xl font-bold">Minhas Reservas</h1>
+                <p class="text-sm text-slate-500">Consulte as reservas realizadas na plataforma</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <a href="./reservas.html"
+                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100">Nova
+                    reserva</a>
+                <span id="clientReservationsUserName"
+                    class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span>
+                <button id="logoutButton"
+                    class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-6">
+        <section class="rounded-2xl bg-white p-6 shadow-sm">
+            <div class="mb-4 flex items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-bold">Histórico de reservas</h2>
+                    <p class="text-sm text-slate-500">Veja suas reservas atuais</p>
+                </div>
+            </div>
+
+            <div id="myReservationsList" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"></div>
+        </section>
+    </main>
+
+    <script type="module" src="../js/minhas-reservas.js"></script>
+</body>
+
+</html>

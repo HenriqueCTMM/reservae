@@ -1,3 +1,96 @@
-<h1>
-    Reservas Page funciona! Você está logado como cliente.
-</h1>
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reservar Mesa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="min-h-screen bg-slate-100 text-slate-900">
+    <header class="border-b border-slate-200 bg-white">
+        <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between">
+            <div>
+                <h1 class="text-2xl font-bold">Reserva de Mesas</h1>
+                <p class="text-sm text-slate-500">Escolha a data, horário e a mesa desejada</p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+                <a href="./minhas-reservas.html"
+                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100">Minhas
+                    reservas</a>
+                <span id="clientUserName" class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span>
+                <button id="logoutButton"
+                    class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[360px_1fr]">
+        <section class="rounded-2xl bg-white p-6 shadow-sm">
+            <div class="mb-6">
+                <h2 class="text-xl font-bold">Dados da reserva</h2>
+                <p class="text-sm text-slate-500">Selecione os dados antes de escolher a mesa</p>
+            </div>
+
+            <form id="reservationForm" class="space-y-4">
+                <div>
+                    <label for="reservationDate" class="mb-1 block text-sm font-medium">Data</label>
+                    <input id="reservationDate" type="date"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900"
+                        required />
+                </div>
+
+                <div>
+                    <label for="reservationTime" class="mb-1 block text-sm font-medium">Horário</label>
+                    <input id="reservationTime" type="time"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900"
+                        required />
+                </div>
+
+                <div>
+                    <label for="reservationPeople" class="mb-1 block text-sm font-medium">Quantidade de pessoas</label>
+                    <input id="reservationPeople" type="number" min="1"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900"
+                        required />
+                </div>
+
+                <div>
+                    <label class="mb-1 block text-sm font-medium">Mesa selecionada</label>
+                    <div id="selectedTableBox"
+                        class="rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-500">Nenhuma mesa
+                        selecionada</div>
+                </div>
+
+                <button type="submit"
+                    class="w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-700">Confirmar
+                    reserva</button>
+            </form>
+
+            <div id="reservationMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm"></div>
+        </section>
+
+        <section class="rounded-2xl bg-white p-6 shadow-sm">
+            <div class="mb-4 flex items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-bold">Mapa de mesas</h2>
+                    <p class="text-sm text-slate-500">Clique em uma mesa disponível para selecionar</p>
+                </div>
+                <div class="flex items-center gap-2 text-sm text-slate-500">
+                    <span class="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Disponível</span>
+                    <span class="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Reservada</span>
+                    <span class="rounded-full bg-slate-200 px-3 py-1 text-slate-700">Indisponível</span>
+                </div>
+            </div>
+
+            <div class="overflow-auto rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                <div id="clientRestaurantMap" class="relative h-[560px] min-w-[760px] rounded-2xl bg-white"></div>
+            </div>
+        </section>
+    </main>
+
+    <script type="module" src="../js/reservas.js"></script>
+</body>
+
+</html>
