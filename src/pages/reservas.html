@@ -12,29 +12,29 @@
     <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between">
             <div>
-                <h1 class="text-2xl font-bold">Reserva de Mesas</h1>
+                <h1 id="reservation-page-title" class="text-2xl font-bold">Reserva de Mesas</h1>
                 <p class="text-sm text-slate-500">Escolha a data, horário e a mesa desejada</p>
             </div>
 
-            <div class="flex flex-wrap items-center gap-3">
+            <nav class="flex flex-wrap items-center gap-3" aria-label="Navegação do cliente">
                 <a href="./minhas-reservas.html"
                     class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100">Minhas
                     reservas</a>
                 <span id="clientUserName" class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span>
                 <button id="logoutButton"
                     class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">Sair</button>
-            </div>
+            </nav>
         </div>
     </header>
 
-    <main class="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[360px_1fr]">
-        <section class="rounded-2xl bg-white p-6 shadow-sm">
+    <main class="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[360px_1fr]" aria-labelledby="reservation-page-title">
+        <section class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="reservation-form-title">
             <div class="mb-6">
-                <h2 class="text-xl font-bold">Dados da reserva</h2>
+                <h2 id="reservation-form-title" class="text-xl font-bold">Dados da reserva</h2>
                 <p class="text-sm text-slate-500">Selecione os dados antes de escolher a mesa</p>
             </div>
 
-            <form id="reservationForm" class="space-y-4">
+            <form id="reservationForm" class="space-y-4" aria-labelledby="reservation-form-title">
                 <div>
                     <label for="reservationDate" class="mb-1 block text-sm font-medium">Data</label>
                     <input id="reservationDate" type="date"
@@ -71,13 +71,13 @@
             <div id="reservationMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm"></div>
         </section>
 
-        <section class="rounded-2xl bg-white p-6 shadow-sm">
+        <section class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="tables-map-title">
             <div class="mb-4 flex items-center justify-between gap-4">
                 <div>
-                    <h2 class="text-xl font-bold">Mapa de mesas</h2>
+                    <h2 id="tables-map-title" class="text-xl font-bold">Mapa de mesas</h2>
                     <p class="text-sm text-slate-500">Clique em uma mesa disponível para selecionar</p>
                 </div>
-                <div class="flex items-center gap-2 text-sm text-slate-500">
+                <div class="flex items-center gap-2 text-sm text-slate-500" role="group" aria-label="Legenda de status das mesas">
                     <span class="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Disponível</span>
                     <span class="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Reservada</span>
                     <span class="rounded-full bg-slate-200 px-3 py-1 text-slate-700">Indisponível</span>

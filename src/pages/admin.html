@@ -12,25 +12,25 @@
     <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
             <div>
-                <h1 class="text-2xl font-bold">Painel do Restaurante</h1>
+                <h1 id="admin-page-title" class="text-2xl font-bold">Painel do Restaurante</h1>
                 <p class="text-sm text-slate-500">Gerenciamento de mesas e reservas</p>
             </div>
-            <div class="flex items-center gap-3">
+            <nav class="flex items-center gap-3" aria-label="Navegação do administrador">
                 <span id="adminUserName" class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span>
                 <button id="logoutButton"
                     class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100">Sair</button>
-            </div>
+            </nav>
         </div>
     </header>
 
-    <main class="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[360px_1fr]">
-        <section class="rounded-2xl bg-white p-6 shadow-sm">
+    <main class="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[360px_1fr]" aria-labelledby="admin-page-title">
+        <section class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="table-form-title">
             <div class="mb-6">
-                <h2 class="text-xl font-bold">Cadastrar ou editar mesa</h2>
+                <h2 id="table-form-title" class="text-xl font-bold">Cadastrar ou editar mesa</h2>
                 <p class="text-sm text-slate-500">Defina capacidade e posição visual da mesa</p>
             </div>
 
-            <form id="tableForm" class="space-y-4">
+            <form id="tableForm" class="space-y-4" aria-labelledby="table-form-title">
                 <input id="tableId" type="hidden" />
 
                 <div>
@@ -83,12 +83,12 @@
             <div id="adminMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm"></div>
         </section>
 
-        <section class="space-y-6">
+        <section class="space-y-6" aria-label="Áreas de gestão do restaurante">
             <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                <article class="rounded-2xl bg-white p-6 shadow-sm">
+                <article class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="restaurant-layout-title">
                     <div class="mb-4 flex items-center justify-between gap-4">
                         <div>
-                            <h2 class="text-xl font-bold">Layout do restaurante</h2>
+                            <h2 id="restaurant-layout-title" class="text-xl font-bold">Layout do restaurante</h2>
                             <p class="text-sm text-slate-500">Visualização da distribuição das mesas</p>
                         </div>
                         <div class="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-700">
@@ -101,24 +101,24 @@
                     </div>
                 </article>
 
-                <article class="rounded-2xl bg-white p-6 shadow-sm">
+                <article class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="tables-list-title">
                     <div class="mb-4">
-                        <h2 class="text-xl font-bold">Lista de mesas</h2>
+                        <h2 id="tables-list-title" class="text-xl font-bold">Lista de mesas</h2>
                         <p class="text-sm text-slate-500">Edite ou remova uma mesa cadastrada</p>
                     </div>
                     <div id="tablesList" class="space-y-3"></div>
                 </article>
             </div>
 
-            <article class="rounded-2xl bg-white p-6 shadow-sm">
+            <article class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="admin-reservations-title">
                 <div class="mb-4 flex items-center justify-between gap-4">
                     <div>
-                        <h2 class="text-xl font-bold">Reservas do restaurante</h2>
+                        <h2 id="admin-reservations-title" class="text-xl font-bold">Reservas do restaurante</h2>
                         <p class="text-sm text-slate-500">Visão completa das reservas criadas pelos clientes</p>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full border-separate border-spacing-y-2">
+                    <table class="min-w-full border-separate border-spacing-y-2" aria-labelledby="admin-reservations-title">
                         <thead>
                             <tr class="text-left text-sm text-slate-500">
                                 <th class="px-3 py-2">Cliente</th>

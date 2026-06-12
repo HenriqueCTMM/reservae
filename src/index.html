@@ -9,14 +9,14 @@
 </head>
 
 <body class="min-h-screen bg-slate-100 text-slate-900">
-    <main class="flex min-h-screen items-center justify-center px-4 py-10">
-        <section class="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
+    <main class="flex min-h-screen items-center justify-center px-4 py-10" aria-labelledby="login-title">
+        <section class="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg" aria-labelledby="login-title">
             <div class="mb-8 text-center">
-                <h1 class="text-3xl font-bold">Reserva Restaurante</h1>
+                <h1 id="login-title" class="text-3xl font-bold">Reserva Restaurante</h1>
                 <p class="mt-2 text-sm text-slate-500">Acesse como administrador ou cliente</p>
             </div>
 
-            <form id="loginForm" class="space-y-4">
+            <form id="loginForm" class="space-y-4" aria-labelledby="login-title">
                 <div>
                     <label for="email" class="mb-1 block text-sm font-medium">E-mail</label>
                     <input id="email" name="email" type="email"
@@ -37,8 +37,8 @@
 
             <div id="loginMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm"></div>
 
-            <div class="mt-8 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-                <p class="font-semibold text-slate-800">Usuários de teste</p>
+            <aside class="mt-8 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600" aria-labelledby="test-users-title">
+                <p id="test-users-title" class="font-semibold text-slate-800">Usuários de teste</p>
                 <div class="mt-3 space-y-2">
                     <div>
                         <p><strong>Admin:</strong> admin@restaurante.com</p>
@@ -49,7 +49,7 @@
                         <p><strong>Senha:</strong> 123456</p>
                     </div>
                 </div>
-            </div>
+            </aside>
         </section>
     </main>
 
