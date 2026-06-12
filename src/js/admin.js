@@ -28,9 +28,13 @@ function getFormValues() {
     };
 }
 
-function resetForm() {
+function resetForm({ focusFirstField = false } = {}) {
     tableForm.reset();
     document.getElementById('tableId').value = '';
+
+    if (focusFirstField) {
+        document.getElementById('numero').focus();
+    }
 }
 
 function renderMap() {
@@ -50,7 +54,7 @@ function renderMap() {
             : 'bg-slate-200 text-slate-700 border-slate-300';
 
         card.type = 'button';
-        card.className = `absolute flex h-24 w-24 flex-col items-center justify-center rounded-2xl border-2 text-sm font-semibold shadow-sm transition hover:scale-[1.02] ${statusClasses}`;
+        card.className = `absolute flex h-24 w-24 flex-col items-center justify-center rounded-2xl border-2 text-sm font-semibold shadow-sm transition hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 ${statusClasses}`;
         card.style.left = `${table.posicaoX}px`;
         card.style.top = `${table.posicaoY}px`;
         card.innerHTML = `
@@ -84,8 +88,8 @@ function renderTablesList() {
           <p class="mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${table.status === 'disponivel' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}">${table.status}</p>
         </div>
         <div class="flex flex-col gap-2">
-          <button data-edit="${table.id}" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold transition hover:bg-slate-100">Editar</button>
-          <button data-delete="${table.id}" class="rounded-xl border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50">Excluir</button>
+          <button data-edit="${table.id}" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Editar</button>
+          <button data-delete="${table.id}" class="rounded-xl border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Excluir</button>
         </div>
       </div>
     `;
@@ -148,6 +152,7 @@ function fillForm(tableId) {
     document.getElementById('posicaoY').value = String(table.posicaoY);
     document.getElementById('status').value = table.status;
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.getElementById('numero').focus({ preventScroll: true });
 }
 
 function deleteTable(tableId) {
@@ -225,7 +230,7 @@ tableForm.addEventListener('submit', (event) => {
 
 resetFormButton.addEventListener('click', () => {
     clearMessage(adminMessage);
-    resetForm();
+    resetForm({ focusFirstField: true });
 });
 
 renderAll();

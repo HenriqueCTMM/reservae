@@ -85,7 +85,8 @@ function renderMap() {
         };
 
         button.type = 'button';
-        button.className = `absolute flex h-24 w-24 flex-col items-center justify-center rounded-2xl border-2 text-sm font-semibold shadow-sm transition ${statusClassMap[visualStatus]} ${isSelected ? 'ring-4 ring-slate-300' : ''}`;
+        button.dataset.tableId = String(table.id);
+        button.className = `absolute flex h-24 w-24 flex-col items-center justify-center rounded-2xl border-2 text-sm font-semibold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:opacity-80 ${statusClassMap[visualStatus]} ${isSelected ? 'ring-4 ring-slate-300' : ''}`;
         button.style.left = `${table.posicaoX}px`;
         button.style.top = `${table.posicaoY}px`;
         button.innerHTML = `
@@ -98,7 +99,10 @@ function renderMap() {
                 selectedTableId = table.id;
                 updateSelectedTableBox();
                 renderMap();
+                clientRestaurantMap.querySelector(`[data-table-id="${table.id}"]`)?.focus();
             });
+        } else {
+            button.disabled = true;
         }
 
         clientRestaurantMap.appendChild(button);
