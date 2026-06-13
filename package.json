@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "firebase emulators:start --only hosting",
+    "build": "firebase deploy --only hosting"
+
   },
   "keywords": [],
   "author": "",

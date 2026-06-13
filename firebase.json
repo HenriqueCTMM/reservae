@@ -1,7 +1,9 @@
 {
   "hosting": {
-    "public": "public",
+    "public": "./src",
+    "cleanUrls": true,
     "ignore": [
+      "assets/docs",
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
