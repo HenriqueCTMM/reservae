@@ -1,60 +1,101 @@
+import {
+    onAuthStateChanged,
+    signOut
+} from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
+import { auth } from './firebaseConfig.js';
 import { STORAGE_KEYS, getStorageData, setStorageData } from './storage.js';
-import { getUsers } from './data.js';
+import { getUserProfile } from './services/users-service.js';
 
-export function login(email, senha) {
-    const users = getUsers();
-    const user = users.find((item) => item.email === email && item.senha === senha);
+function waitForAuthUser() {
+    return new Promise((resolve) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            unsubscribe();
+            resolve(user);
+        });
+    });
+}
 
-    if (!user) {
-        return null;
-    }
-
+function saveCurrentUser(profile) {
+    const storedUser = getCurrentUser();
     const sessionUser = {
-        id: user.id,
-        nome: user.nome,
-        email: user.email,
-        perfil: user.perfil
+        id: profile.uid,
+        nome: profile.nome,
+        email: profile.email,
+        perfil: profile.perfil,
+        authProvider: profile.authProvider || (storedUser?.id === profile.uid ? storedUser.authProvider : null) || 'password'
     };
 
     setStorageData(STORAGE_KEYS.currentUser, sessionUser);
     return sessionUser;
 }
 
+function clearCurrentUser() {
+    localStorage.removeItem(STORAGE_KEYS.currentUser);
+}
+
+function stopAfterRedirect(url) {
+    window.location.replace(url);
+    return new Promise(() => {});
+}
+
+function getLoginUrl() {
+    return window.location.pathname.includes('/pages/') ? '../index.html' : './index.html';
+}
+
+function getRoleUrl(user) {
+    const isPagesRoute = window.location.pathname.includes('/pages/');
+
+    if (user.perfil === 'admin') {
+        return isPagesRoute ? './admin.html' : './pages/admin.html';
+    }
+
+    return isPagesRoute ? './reservas.html' : './pages/reservas.html';
+}
+
 export function getCurrentUser() {
     return getStorageData(STORAGE_KEYS.currentUser, null);
 }
 
-export function logout() {
-    localStorage.removeItem(STORAGE_KEYS.currentUser);
-    window.location.href = '../index.html';
+export async function logout() {
+    await signOut(auth);
+    clearCurrentUser();
+    window.location.href = getLoginUrl();
 }
 
 export function redirectByUserRole(user) {
-    if (user.perfil === 'admin') {
-        window.location.href = './pages/admin.html';
-        return;
-    }
-
-    window.location.href = './pages/reservas.html';
+    window.location.href = getRoleUrl(user);
 }
 
-export function protectRoute(allowedProfiles = []) {
-    const user = getCurrentUser();
+export async function protectRoute(allowedProfiles = []) {
+    const firebaseUser = await waitForAuthUser();
 
-    if (!user) {
-        const isPagesRoute = window.location.pathname.includes('/pages/');
-        window.location.href = isPagesRoute ? '../index.html' : './index.html';
-        return null;
+    if (!firebaseUser) {
+        clearCurrentUser();
+        return stopAfterRedirect(getLoginUrl());
     }
 
-    if (allowedProfiles.length && !allowedProfiles.includes(user.perfil)) {
-        if (user.perfil === 'admin') {
-            window.location.href = './admin.html';
-            return null;
-        }
+    let profile = await getUserProfile(firebaseUser.uid);
 
-        window.location.href = './reservas.html';
-        return null;
+    if (!profile) {
+        clearCurrentUser();
+        await signOut(auth);
+        return stopAfterRedirect(getLoginUrl());
+    }
+
+    const storedUser = getCurrentUser();
+
+    if (storedUser?.id === firebaseUser.uid && storedUser.authProvider === 'google') {
+        profile = {
+            ...profile,
+            perfil: 'cliente',
+            authProvider: 'google'
+        };
+    }
+
+    const user = saveCurrentUser(profile);
+
+    if (allowedProfiles.length && !allowedProfiles.includes(user.perfil)) {
+        return stopAfterRedirect(getRoleUrl(user));
     }
 
     return user;

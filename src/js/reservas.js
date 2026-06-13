@@ -1,10 +1,8 @@
-import { getCurrentUser, logout, protectRoute } from './auth.js';
+import { logout, protectRoute } from './auth.js';
 import { getReservations, getTables, saveReservations } from './data.js';
 import { clearMessage, formatDate, showMessage } from './ui.js';
 
-protectRoute(['cliente']);
-
-const currentUser = getCurrentUser();
+const currentUser = await protectRoute(['cliente']);
 const clientUserName = document.getElementById('clientUserName');
 const logoutButton = document.getElementById('logoutButton');
 const reservationForm = document.getElementById('reservationForm');

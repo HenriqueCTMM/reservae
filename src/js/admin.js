@@ -2,7 +2,7 @@ import { protectRoute, logout } from './auth.js';
 import { getReservations, getTables, getUsers, saveTables } from './data.js';
 import { clearMessage, formatDate, showMessage } from './ui.js';
 
-const user = protectRoute(['admin']);
+const user = await protectRoute(['admin']);
 
 const adminUserName = document.getElementById('adminUserName');
 const logoutButton = document.getElementById('logoutButton');

@@ -5,7 +5,12 @@ import {
 import { auth, googleProvider } from './js/firebaseConfig.js';
 import { STORAGE_KEYS, setStorageData } from './js/storage.js';
 import { clearMessage, showMessage } from './js/ui.js';
-import { ensureClientProfile, getUserProfile } from './js/services/users-service.js';
+import {
+    ADMIN_EMAIL,
+    ensureClientProfile,
+    getUserProfile,
+    saveAdminProfile
+} from './js/services/users-service.js';
 
 const loginForm = document.getElementById('loginForm');
 const googleLoginButton = document.getElementById('googleLoginButton');
@@ -16,7 +21,8 @@ function saveSession(profile) {
         id: profile.uid,
         nome: profile.nome,
         email: profile.email,
-        perfil: profile.perfil
+        perfil: profile.perfil,
+        authProvider: profile.authProvider || 'password'
     };
 
     setStorageData(STORAGE_KEYS.currentUser, sessionUser);
@@ -59,7 +65,11 @@ loginForm.addEventListener('submit', async (event) => {
 
     try {
         const credential = await signInWithEmailAndPassword(auth, email, senha);
-        const profile = await getUserProfile(credential.user.uid);
+        let profile = await getUserProfile(credential.user.uid);
+
+        if (credential.user.email === ADMIN_EMAIL) {
+            profile = await saveAdminProfile(credential.user);
+        }
 
         if (!profile) {
             showMessage(loginMessage, 'Perfil do usuário não encontrado no banco de dados.', 'error');
@@ -81,7 +91,8 @@ googleLoginButton.addEventListener('click', async () => {
 
         redirectByProfile({
             ...profile,
-            perfil: 'cliente'
+            perfil: 'cliente',
+            authProvider: 'google'
         });
     } catch (error) {
         showMessage(loginMessage, getLoginErrorMessage(error), 'error');
