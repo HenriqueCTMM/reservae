@@ -1,26 +1,53 @@
-# Restaurante App
+# Reservae
 
 Aplicacao web simples para gerenciamento e reserva de mesas de restaurante.
 
 ## Sobre
 
-O projeto permite que clientes reservem mesas e que administradores gerenciem mesas e acompanhem reservas. Os dados sao armazenados no `localStorage` do navegador.
+O projeto permite que clientes reservem mesas e que administradores gerenciem mesas e acompanhem reservas. A autenticacao usa Firebase Authentication e os dados ficam no Firebase Realtime Database.
 
 ## Funcionalidades
 
-- Login com perfil de administrador ou cliente
+- Login com e-mail/senha ou Google
+- Cadastro de cliente
+- Controle de acesso por perfil de administrador ou cliente
 - Cadastro, edicao e remocao de mesas pelo administrador
 - Visualizacao do mapa de mesas do restaurante
 - Criacao de reservas por clientes
+- Bloqueio de reservas duplicadas para a mesma mesa, data e horario
 - Consulta das reservas feitas pelo cliente
 - Listagem de reservas no painel administrativo
+- Filtros dinamicos para mesas e reservas
+
+## Filtros
+
+Na tela `src/pages/reservas.html`, o cliente pode filtrar a disponibilidade das mesas por:
+
+- Data da reserva
+- Horario da reserva
+- Quantidade de pessoas
+
+Na tela `src/pages/admin.html`, o administrador pode filtrar reservas por:
+
+- Data
+- Status
+- Nome do cliente ou numero da mesa
+
+Os filtros do administrador podem ser combinados e possuem contador de resultados e botao para limpar filtros.
+
+Exemplo para validar:
+
+- No cliente, altere data, horario e quantidade de pessoas; mesas ja reservadas ou com capacidade menor ficam indisponiveis.
+- No admin, filtre uma data, escolha um status e pesquise pelo nome do cliente ou pelo numero da mesa; o contador deve atualizar sem recarregar a pagina.
 
 ## Tecnologias
 
 - HTML
 - CSS com Tailwind via CDN
 - JavaScript ES Modules
-- LocalStorage
+- Firebase Authentication
+- Firebase Realtime Database
+- Firebase Hosting
 
 ## Estrutura
 
@@ -28,50 +55,37 @@ O projeto permite que clientes reservem mesas e que administradores gerenciem me
 src/
   index.html
   app.js
-  style.css
   js/
     admin.js
     auth.js
-    data.js
+    cadastro.js
+    firebaseConfig.js
     minhas-reservas.js
     reservas.js
-    storage.js
+    services/
     ui.js
   pages/
     admin.html
+    cadastro.html
     minhas-reservas.html
     reservas.html
 ```
 
 ## Como executar
 
-Abra o arquivo `src/index.html` em um navegador moderno.
-
-Se preferir usar um servidor local, execute na raiz do projeto:
+Instale as dependencias e inicie o hosting local do Firebase:
 
 ```bash
-npx serve src
+npm install
+npm run dev
 ```
 
 Depois acesse a URL exibida no terminal.
 
-## Usuarios de teste
+## Firebase
 
-Administrador:
+- Realtime Database: `https://reservae-5874f-default-rtdb.firebaseio.com/`
+- Hosting publico: `https://realtime25-c5f73.web.app/`
+- Administrador inicial: `henriquemamprim.m@gmail.com`
 
-```text
-E-mail: admin@restaurante.com
-Senha: 123456
-```
-
-Cliente:
-
-```text
-E-mail: cliente@restaurante.com
-Senha: 123456
-```
-
-## Observacoes
-
-- As informacoes ficam salvas apenas no navegador usado.
-- Para resetar os dados, limpe o `localStorage` do navegador.
+O login com Google sempre cria ou acessa perfil de cliente.

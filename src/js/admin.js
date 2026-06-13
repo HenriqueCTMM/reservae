@@ -15,6 +15,12 @@ const tablesList = document.getElementById('tablesList');
 const tableCount = document.getElementById('tableCount');
 const adminReservationsTable = document.getElementById('adminReservationsTable');
 const refreshReservationsButton = document.getElementById('refreshReservationsButton');
+const reservationFiltersForm = document.getElementById('reservationFiltersForm');
+const clearReservationFiltersButton = document.getElementById('clearReservationFiltersButton');
+const reservationDateFilter = document.getElementById('reservationDateFilter');
+const reservationStatusFilter = document.getElementById('reservationStatusFilter');
+const reservationSearchFilter = document.getElementById('reservationSearchFilter');
+const reservationResultsCount = document.getElementById('reservationResultsCount');
 
 adminUserName.textContent = user.nome;
 logoutButton.addEventListener('click', logout);
@@ -109,25 +115,70 @@ function renderTablesList() {
     });
 }
 
-function renderReservations() {
-    adminReservationsTable.innerHTML = '';
+function getReservationTableNumber(reservation) {
+    const table = tables.find((item) => item.id === reservation.mesaId);
 
-    if (!reservations.length) {
-        adminReservationsTable.innerHTML = '<tr><td colspan="6" class="rounded-2xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">Nenhuma reserva cadastrada.</td></tr>';
+    return table?.numero || reservation.mesaNumero || '-';
+}
+
+function getFilteredReservations() {
+    const date = reservationDateFilter.value;
+    const status = reservationStatusFilter.value;
+    const search = reservationSearchFilter.value.trim().toLowerCase();
+
+    return reservations.filter((reservation) => {
+        const tableNumber = getReservationTableNumber(reservation);
+        const clientName = (reservation.usuarioNome || '').toLowerCase();
+        const tableText = `mesa ${tableNumber} ${tableNumber}`.toLowerCase();
+
+        const matchesDate = !date || reservation.data === date;
+        const matchesStatus = !status || reservation.status === status;
+        const matchesSearch = !search || clientName.includes(search) || tableText.includes(search);
+
+        return matchesDate && matchesStatus && matchesSearch;
+    });
+}
+
+function updateReservationResultsCount(total) {
+    reservationResultsCount.textContent = `${total} ${total === 1 ? 'reserva encontrada' : 'reservas encontradas'}`;
+}
+
+function getReservationStatusClasses(status) {
+    if (status === 'cancelada') {
+        return 'bg-rose-100 text-rose-700';
+    }
+
+    if (status === 'expirada') {
+        return 'bg-slate-200 text-slate-700';
+    }
+
+    return 'bg-emerald-100 text-emerald-700';
+}
+
+function renderReservations() {
+    const filteredReservations = getFilteredReservations();
+
+    adminReservationsTable.innerHTML = '';
+    updateReservationResultsCount(filteredReservations.length);
+
+    if (!filteredReservations.length) {
+        const emptyMessage = reservations.length ? 'Nenhuma reserva encontrada para os filtros.' : 'Nenhuma reserva cadastrada.';
+        adminReservationsTable.innerHTML = `<tr><td colspan="6" class="rounded-2xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">${emptyMessage}</td></tr>`;
         return;
     }
 
-    reservations.forEach((reservation) => {
-        const table = tables.find((item) => item.id === reservation.mesaId);
+    filteredReservations.forEach((reservation) => {
+        const tableNumber = getReservationTableNumber(reservation);
+        const statusClasses = getReservationStatusClasses(reservation.status);
         const row = document.createElement('tr');
         row.className = 'bg-slate-50 text-sm';
         row.innerHTML = `
         <td class="rounded-l-2xl px-3 py-3">${reservation.usuarioNome || 'Usuário'}</td>
-        <td class="px-3 py-3">Mesa ${table?.numero || reservation.mesaNumero || '-'}</td>
+        <td class="px-3 py-3">Mesa ${tableNumber}</td>
         <td class="px-3 py-3">${formatDate(reservation.data)}</td>
         <td class="px-3 py-3">${reservation.horario}</td>
         <td class="px-3 py-3">${reservation.pessoas}</td>
-        <td class="rounded-r-2xl px-3 py-3"><span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">${reservation.status}</span></td>
+        <td class="rounded-r-2xl px-3 py-3"><span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${reservation.status}</span></td>
       `;
         adminReservationsTable.appendChild(row);
     });
@@ -235,5 +286,20 @@ resetFormButton.addEventListener('click', () => {
 });
 
 refreshReservationsButton.addEventListener('click', refreshReservations);
+
+reservationFiltersForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+});
+
+reservationDateFilter.addEventListener('change', renderReservations);
+reservationStatusFilter.addEventListener('change', renderReservations);
+reservationSearchFilter.addEventListener('input', renderReservations);
+
+clearReservationFiltersButton.addEventListener('click', () => {
+    reservationDateFilter.value = '';
+    reservationStatusFilter.value = '';
+    reservationSearchFilter.value = '';
+    renderReservations();
+});
 
 await loadData();

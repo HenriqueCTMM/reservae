@@ -116,14 +116,42 @@
             </div>
 
             <article class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="admin-reservations-title">
-                <div class="mb-4 flex items-center justify-between gap-4">
+                <div class="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <h2 id="admin-reservations-title" class="text-xl font-bold">Reservas do restaurante</h2>
                         <p class="text-sm text-slate-500">Visão completa das reservas criadas pelos clientes</p>
                     </div>
-                    <button id="refreshReservationsButton" type="button"
-                        class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Atualizar</button>
+                    <div class="flex flex-wrap gap-3">
+                        <button id="refreshReservationsButton" type="button"
+                            class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Atualizar</button>
+                        <button id="clearReservationFiltersButton" type="button"
+                            class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Limpar filtros</button>
+                    </div>
                 </div>
+                <form id="reservationFiltersForm" class="mb-4 grid gap-3 md:grid-cols-3" aria-label="Filtros de reservas">
+                    <div>
+                        <label for="reservationDateFilter" class="mb-1 block text-sm font-medium">Data</label>
+                        <input id="reservationDateFilter" type="date"
+                            class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
+                    </div>
+                    <div>
+                        <label for="reservationStatusFilter" class="mb-1 block text-sm font-medium">Status</label>
+                        <select id="reservationStatusFilter"
+                            class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
+                            <option value="">Todos</option>
+                            <option value="ativa">Ativa</option>
+                            <option value="cancelada">Cancelada</option>
+                            <option value="expirada">Expirada</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="reservationSearchFilter" class="mb-1 block text-sm font-medium">Cliente ou mesa</label>
+                        <input id="reservationSearchFilter" type="search"
+                            class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                            placeholder="Ex.: Maria ou Mesa 2" />
+                    </div>
+                </form>
+                <p id="reservationResultsCount" class="mb-3 text-sm text-slate-500" aria-live="polite">0 reservas encontradas</p>
                 <div class="overflow-x-auto">
                     <table class="min-w-full border-separate border-spacing-y-2" aria-labelledby="admin-reservations-title">
                         <thead>

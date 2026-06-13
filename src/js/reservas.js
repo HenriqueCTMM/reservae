@@ -37,8 +37,13 @@ function isTableReserved(tableId, date, time) {
 function getTableVisualStatus(table) {
     const date = reservationDate.value;
     const time = reservationTime.value;
+    const people = Number(reservationPeople.value);
 
     if (table.status === 'indisponivel') {
+        return 'indisponivel';
+    }
+
+    if (people && people > table.capacidade) {
         return 'indisponivel';
     }
 
@@ -214,6 +219,14 @@ reservationTime.addEventListener('change', () => {
 
 reservationPeople.addEventListener('input', () => {
     clearMessage(reservationMessage);
+    const table = getSelectedTable();
+
+    if (table && Number(reservationPeople.value) > table.capacidade) {
+        selectedTableId = null;
+        updateSelectedTableBox();
+    }
+
+    renderMap();
 });
 
 setMinDate();
