@@ -206,16 +206,34 @@ function renderClientMessages() {
 async function loadData() {
     clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando mesas...</div>';
     clientMessagesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Carregando mensagens...</div>';
+    let tablesLoaded = false;
 
     try {
         tables = await getTables();
-        reservations = await getReservations();
-        messages = await getMessagesByUser(currentUser.id);
+        tablesLoaded = true;
         updateSelectedTableBox();
         renderMap();
+    } catch (error) {
+        clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-rose-600">Não foi possível carregar as mesas.</div>';
+        showMessage(reservationMessage, 'Não foi possível carregar as mesas.', 'error');
+    }
+
+    try {
+        reservations = await getReservations();
+        if (tablesLoaded) {
+            renderMap();
+        }
+    } catch (error) {
+        reservations = [];
+        if (tablesLoaded) {
+            showMessage(reservationMessage, 'Mesas carregadas, mas não foi possível conferir reservas existentes.', 'error');
+        }
+    }
+
+    try {
+        messages = await getMessagesByUser(currentUser.id);
         renderClientMessages();
     } catch (error) {
-        showMessage(reservationMessage, 'Não foi possível carregar as mesas.', 'error');
         clientMessagesList.innerHTML = '<div class="rounded-2xl border border-rose-200 p-4 text-sm text-rose-600">Não foi possível carregar as mensagens.</div>';
     }
 }
