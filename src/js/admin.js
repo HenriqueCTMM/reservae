@@ -14,6 +14,7 @@ const restaurantMap = document.getElementById('restaurantMap');
 const tablesList = document.getElementById('tablesList');
 const tableCount = document.getElementById('tableCount');
 const adminReservationsTable = document.getElementById('adminReservationsTable');
+const refreshReservationsButton = document.getElementById('refreshReservationsButton');
 
 adminUserName.textContent = user.nome;
 logoutButton.addEventListener('click', logout);
@@ -168,6 +169,17 @@ async function loadData() {
     }
 }
 
+async function refreshReservations() {
+    adminReservationsTable.innerHTML = '<tr><td colspan="6" class="rounded-2xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">Carregando reservas...</td></tr>';
+
+    try {
+        reservations = await getReservations();
+        renderReservations();
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível atualizar as reservas.', 'error');
+    }
+}
+
 async function deleteTable(tableId) {
     clearMessage(adminMessage);
 
@@ -221,5 +233,7 @@ resetFormButton.addEventListener('click', () => {
     clearMessage(adminMessage);
     resetForm({ focusFirstField: true });
 });
+
+refreshReservationsButton.addEventListener('click', refreshReservations);
 
 await loadData();

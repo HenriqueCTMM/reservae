@@ -1,6 +1,6 @@
 import { logout, protectRoute } from './auth.js';
 import { clearMessage, formatDate, showMessage } from './ui.js';
-import { createReservation, getReservations } from './services/reservations-service.js';
+import { createReservation, getActiveReservationConflict, getReservations } from './services/reservations-service.js';
 import { getTables } from './services/tables-service.js';
 
 const currentUser = await protectRoute(['cliente']);
@@ -169,6 +169,7 @@ reservationForm.addEventListener('submit', async (event) => {
         usuarioEmail: currentUser.email,
         mesaId: table.id,
         mesaNumero: table.numero,
+        mesaCapacidade: table.capacidade,
         data: reservationDate.value,
         horario: reservationTime.value,
         pessoas: Number(reservationPeople.value),
@@ -176,6 +177,15 @@ reservationForm.addEventListener('submit', async (event) => {
     };
 
     try {
+        const conflict = await getActiveReservationConflict(newReservation);
+
+        if (conflict) {
+            reservations = await getReservations();
+            renderMap();
+            showMessage(reservationMessage, 'Esta mesa acabou de ser reservada para a data e horário selecionados. Escolha outra mesa.', 'error');
+            return;
+        }
+
         const createdReservation = await createReservation(newReservation);
         reservations.push(createdReservation);
         showMessage(reservationMessage, `Reserva confirmada para a Mesa ${table.numero} em ${formatDate(newReservation.data)} às ${newReservation.horario}.`);

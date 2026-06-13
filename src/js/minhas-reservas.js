@@ -32,7 +32,7 @@ async function renderMyReservations() {
       <div class="mb-4 flex items-start justify-between gap-3">
         <div>
           <h3 class="text-lg font-bold">Mesa ${table?.numero || reservation.mesaNumero || '-'}</h3>
-          <p class="text-sm text-slate-500">${table?.capacidade || '-'} lugares</p>
+          <p class="text-sm text-slate-500">${table?.capacidade || reservation.mesaCapacidade || '-'} lugares</p>
         </div>
         <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">${reservation.status}</span>
       </div>
