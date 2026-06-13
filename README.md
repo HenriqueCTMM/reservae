@@ -4,7 +4,15 @@ Aplicacao web simples para gerenciamento e reserva de mesas de restaurante.
 
 ## Sobre
 
-O projeto permite que clientes reservem mesas e que administradores gerenciem mesas e acompanhem reservas. A autenticacao usa Firebase Authentication e os dados ficam no Firebase Realtime Database.
+O objetivo do Reservae e permitir que clientes reservem mesas online e que administradores gerenciem mesas, reservas e mensagens em uma aplicacao web integrada ao Firebase.
+
+A autenticacao usa Firebase Authentication e os dados ficam no Firebase Realtime Database.
+
+## Equipe
+
+- Nome do integrante 1: preencher antes da entrega
+- Nome do integrante 2: preencher antes da entrega
+- Nome do integrante 3: preencher antes da entrega, se houver
 
 ## Funcionalidades
 
@@ -103,10 +111,40 @@ npm run dev
 
 Depois acesse a URL exibida no terminal.
 
+## Como testar
+
+1. Acesse `https://reservae-5874f.web.app/` ou rode localmente com `npm run dev`.
+2. Crie uma conta de cliente pela tela de cadastro ou entre com Google.
+3. Como cliente, teste filtros de data, horario e quantidade de pessoas em `src/pages/reservas.html`.
+4. Crie uma reserva e confira a listagem em `Minhas reservas`.
+5. Envie uma mensagem de contato na tela de reservas.
+6. Entre como administrador e valide CRUD de mesas, filtros de reservas e status das mensagens.
+
 ## Firebase
 
 - Realtime Database: `https://reservae-5874f-default-rtdb.firebaseio.com/`
-- Hosting publico: `https://realtime25-c5f73.web.app/`
+- Hosting publico: `https://reservae-5874f.web.app/`
 - Administrador inicial: `henriquemamprim.m@gmail.com`
 
 O login com Google sempre cria ou acessa perfil de cliente.
+
+## Usuarios de teste
+
+Administrador:
+
+```text
+E-mail: henriquemamprim.m@gmail.com
+Senha: definida no Firebase Authentication pelo grupo
+```
+
+Cliente:
+
+```text
+Use a tela de cadastro para criar uma conta de cliente ou entre com Google.
+```
+
+## Observacoes de deploy
+
+- O Hosting publica a pasta `src`.
+- O projeto nao usa rewrite de SPA; as paginas HTML internas funcionam como paginas separadas.
+- A pasta `src/assets/docs` e ignorada no deploy para nao publicar documentacao interna.

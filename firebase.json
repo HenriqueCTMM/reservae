@@ -4,6 +4,7 @@
     "cleanUrls": true,
     "ignore": [
       "assets/docs",
+      "assets/docs/**",
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
