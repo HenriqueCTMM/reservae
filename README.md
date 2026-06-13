@@ -61,8 +61,11 @@ Na tela `src/pages/admin.html`, o administrador visualiza todas as mensagens e p
 
 ```text
 src/
+  404.html
   index.html
   app.js
+  css/
+    README.md
   js/
     admin.js
     auth.js
@@ -71,13 +74,23 @@ src/
     minhas-reservas.js
     reservas.js
     services/
+      messages-service.js
+      realtime-database-service.js
+      reservations-service.js
+      session-storage-service.js
+      tables-service.js
+      users-service.js
     ui.js
   pages/
     admin.html
     cadastro.html
     minhas-reservas.html
     reservas.html
+  assets/
+    docs/
 ```
+
+As paginas principais possuem `header`, `main`, `footer`, link para pular ao conteudo e foco visivel para navegacao por teclado.
 
 ## Como executar
 

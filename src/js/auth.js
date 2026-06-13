@@ -3,7 +3,7 @@ import {
     signOut
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 import { auth } from './firebaseConfig.js';
-import { STORAGE_KEYS, getStorageData, setStorageData } from './storage.js';
+import { STORAGE_KEYS, getStorageData, setStorageData } from './services/session-storage-service.js';
 import { getUserProfile } from './services/users-service.js';
 
 function waitForAuthUser() {

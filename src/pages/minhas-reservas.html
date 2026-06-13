@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="min-h-screen bg-slate-100 text-slate-900">
+<body class="flex min-h-screen flex-col bg-slate-100 text-slate-900">
     <a href="#conteudo-principal"
         class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Pular
         para o conteúdo principal</a>
@@ -31,7 +31,7 @@
         </div>
     </header>
 
-    <main id="conteudo-principal" tabindex="-1" class="mx-auto max-w-7xl px-4 py-6"
+    <main id="conteudo-principal" tabindex="-1" class="mx-auto w-full max-w-7xl flex-1 px-4 py-6"
         aria-labelledby="my-reservations-page-title">
         <section class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="reservations-history-title">
             <div class="mb-4 flex items-center justify-between gap-4">
@@ -44,6 +44,10 @@
             <div id="myReservationsList" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"></div>
         </section>
     </main>
+
+    <footer class="border-t border-slate-200 bg-white px-4 py-4 text-center text-sm text-slate-500">
+        Reservae - Minhas reservas
+    </footer>
 
     <script type="module" src="../js/minhas-reservas.js"></script>
 </body>

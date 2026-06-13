@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="min-h-screen bg-slate-100 text-slate-900">
+<body class="flex min-h-screen flex-col bg-slate-100 text-slate-900">
     <a href="#conteudo-principal"
         class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Pular
         para o conteúdo principal</a>
@@ -31,7 +31,7 @@
         </div>
     </header>
 
-    <main id="conteudo-principal" tabindex="-1" class="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[360px_1fr]"
+    <main id="conteudo-principal" tabindex="-1" class="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[360px_1fr]"
         aria-labelledby="reservation-page-title">
         <section class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="reservation-form-title">
             <div class="mb-6">
@@ -62,8 +62,8 @@
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-sm font-medium">Mesa selecionada</label>
-                    <div id="selectedTableBox"
+                    <p id="selectedTableLabel" class="mb-1 block text-sm font-medium">Mesa selecionada</p>
+                    <div id="selectedTableBox" aria-labelledby="selectedTableLabel"
                         class="rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-500">Nenhuma mesa
                         selecionada</div>
                 </div>
@@ -77,7 +77,7 @@
         </section>
 
         <section class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="tables-map-title">
-            <div class="mb-4 flex items-center justify-between gap-4">
+            <div class="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                     <h2 id="tables-map-title" class="text-xl font-bold">Mapa de mesas</h2>
                     <p class="text-sm text-slate-500">Clique em uma mesa disponível para selecionar</p>
@@ -130,6 +130,10 @@
             </div>
         </section>
     </main>
+
+    <footer class="border-t border-slate-200 bg-white px-4 py-4 text-center text-sm text-slate-500">
+        Reservae - Reserva e contato
+    </footer>
 
     <script type="module" src="../js/reservas.js"></script>
 </body>

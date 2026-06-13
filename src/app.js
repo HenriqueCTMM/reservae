@@ -3,7 +3,7 @@ import {
     signInWithPopup
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 import { auth, googleProvider } from './js/firebaseConfig.js';
-import { STORAGE_KEYS, setStorageData } from './js/storage.js';
+import { STORAGE_KEYS, setStorageData } from './js/services/session-storage-service.js';
 import { clearMessage, showMessage } from './js/ui.js';
 import {
     ADMIN_EMAIL,
