@@ -93,6 +93,42 @@
                 <div id="clientRestaurantMap" class="relative h-[560px] min-w-[760px] rounded-2xl bg-white"></div>
             </div>
         </section>
+
+        <section class="rounded-2xl bg-white p-6 shadow-sm lg:col-span-2" aria-labelledby="contact-title">
+            <div class="mb-6">
+                <h2 id="contact-title" class="text-xl font-bold">Contato com o restaurante</h2>
+                <p class="text-sm text-slate-500">Envie dúvidas ou observações e acompanhe o status das mensagens</p>
+            </div>
+
+            <div class="grid gap-6 lg:grid-cols-[360px_1fr]">
+                <form id="contactForm" class="space-y-4" aria-labelledby="contact-title">
+                    <div>
+                        <label for="contactSubject" class="mb-1 block text-sm font-medium">Assunto</label>
+                        <input id="contactSubject" type="text" maxlength="80"
+                            class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                            required />
+                    </div>
+
+                    <div>
+                        <label for="contactMessageText" class="mb-1 block text-sm font-medium">Mensagem</label>
+                        <textarea id="contactMessageText" rows="5" maxlength="500"
+                            class="w-full resize-none rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                            required></textarea>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Enviar
+                        mensagem</button>
+
+                    <div id="contactMessage" class="hidden rounded-xl px-4 py-3 text-sm"></div>
+                </form>
+
+                <div>
+                    <h3 class="mb-3 font-bold">Minhas mensagens</h3>
+                    <div id="clientMessagesList" class="space-y-3" aria-live="polite"></div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <script type="module" src="../js/reservas.js"></script>

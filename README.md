@@ -18,6 +18,8 @@ O projeto permite que clientes reservem mesas e que administradores gerenciem me
 - Consulta das reservas feitas pelo cliente
 - Listagem de reservas no painel administrativo
 - Filtros dinamicos para mesas e reservas
+- Envio de mensagens de contato pelo cliente
+- Acompanhamento e alteracao de status das mensagens pelo administrador
 
 ## Filtros
 
@@ -39,6 +41,12 @@ Exemplo para validar:
 
 - No cliente, altere data, horario e quantidade de pessoas; mesas ja reservadas ou com capacidade menor ficam indisponiveis.
 - No admin, filtre uma data, escolha um status e pesquise pelo nome do cliente ou pelo numero da mesa; o contador deve atualizar sem recarregar a pagina.
+
+## Contato
+
+Na tela `src/pages/reservas.html`, o cliente logado pode enviar uma mensagem com assunto e texto. A mensagem fica salva em `/messages` no Realtime Database com usuario, e-mail, status e data de criacao.
+
+Na tela `src/pages/admin.html`, o administrador visualiza todas as mensagens e pode alterar o status para `aberta`, `lida` ou `respondida`.
 
 ## Tecnologias
 

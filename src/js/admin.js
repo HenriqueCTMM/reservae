@@ -1,7 +1,8 @@
 import { protectRoute, logout } from './auth.js';
+import { getMessages, updateMessageStatus } from './services/messages-service.js';
 import { getReservations, getReservationsByTable } from './services/reservations-service.js';
 import { getTables, removeTable, saveTable, updateTable } from './services/tables-service.js';
-import { clearMessage, formatDate, showMessage } from './ui.js';
+import { clearMessage, escapeHtml, formatDate, showMessage } from './ui.js';
 
 const user = await protectRoute(['admin']);
 
@@ -21,12 +22,15 @@ const reservationDateFilter = document.getElementById('reservationDateFilter');
 const reservationStatusFilter = document.getElementById('reservationStatusFilter');
 const reservationSearchFilter = document.getElementById('reservationSearchFilter');
 const reservationResultsCount = document.getElementById('reservationResultsCount');
+const refreshMessagesButton = document.getElementById('refreshMessagesButton');
+const adminMessagesList = document.getElementById('adminMessagesList');
 
 adminUserName.textContent = user.nome;
 logoutButton.addEventListener('click', logout);
 
 let tables = [];
 let reservations = [];
+let messages = [];
 
 function getFormValues() {
     return {
@@ -184,6 +188,67 @@ function renderReservations() {
     });
 }
 
+function formatDateTime(timestamp) {
+    if (!timestamp) {
+        return 'data não informada';
+    }
+
+    return new Intl.DateTimeFormat('pt-BR', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+    }).format(new Date(timestamp));
+}
+
+function getMessageStatusClasses(status) {
+    if (status === 'respondida') {
+        return 'bg-emerald-100 text-emerald-700';
+    }
+
+    if (status === 'lida') {
+        return 'bg-amber-100 text-amber-700';
+    }
+
+    return 'bg-slate-200 text-slate-700';
+}
+
+function renderMessages() {
+    adminMessagesList.innerHTML = '';
+
+    if (!messages.length) {
+        adminMessagesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Nenhuma mensagem enviada pelos clientes.</div>';
+        return;
+    }
+
+    messages.forEach((message) => {
+        const item = document.createElement('article');
+        const statusClasses = getMessageStatusClasses(message.status);
+
+        item.className = 'rounded-2xl border border-slate-200 p-4';
+        item.innerHTML = `
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div class="mb-2 flex flex-wrap items-center gap-2">
+            <h3 class="font-bold">${escapeHtml(message.assunto)}</h3>
+            <span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${message.status}</span>
+          </div>
+          <p class="text-sm text-slate-600">${escapeHtml(message.mensagem)}</p>
+          <p class="mt-3 text-xs text-slate-500">${escapeHtml(message.usuarioNome || 'Usuário')} • ${escapeHtml(message.usuarioEmail || 'Sem e-mail')} • ${formatDateTime(message.createdAt)}</p>
+        </div>
+        <div class="min-w-44">
+          <label for="messageStatus-${message.id}" class="mb-1 block text-sm font-medium">Status</label>
+          <select id="messageStatus-${message.id}" data-message-status="${message.id}"
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
+            <option value="aberta" ${message.status === 'aberta' ? 'selected' : ''}>Aberta</option>
+            <option value="lida" ${message.status === 'lida' ? 'selected' : ''}>Lida</option>
+            <option value="respondida" ${message.status === 'respondida' ? 'selected' : ''}>Respondida</option>
+          </select>
+        </div>
+      </div>
+    `;
+        adminMessagesList.appendChild(item);
+    });
+}
+
 function fillForm(tableId) {
     const table = tables.find((item) => item.id === tableId);
 
@@ -205,6 +270,7 @@ function renderAll() {
     renderMap();
     renderTablesList();
     renderReservations();
+    renderMessages();
 }
 
 async function loadData() {
@@ -214,9 +280,35 @@ async function loadData() {
     try {
         tables = await getTables();
         reservations = await getReservations();
+        messages = await getMessages();
         renderAll();
     } catch (error) {
         showMessage(adminMessage, 'Não foi possível carregar os dados do restaurante.', 'error');
+    }
+}
+
+async function refreshMessages() {
+    adminMessagesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Carregando mensagens...</div>';
+
+    try {
+        messages = await getMessages();
+        renderMessages();
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível atualizar as mensagens.', 'error');
+    }
+}
+
+async function changeMessageStatus(messageId, status) {
+    clearMessage(adminMessage);
+
+    try {
+        const updatedMessage = await updateMessageStatus(messageId, status);
+        messages = messages.map((message) => message.id === messageId ? updatedMessage : message);
+        renderMessages();
+        showMessage(adminMessage, 'Status da mensagem atualizado.');
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível atualizar a mensagem.', 'error');
+        await refreshMessages();
     }
 }
 
@@ -286,6 +378,7 @@ resetFormButton.addEventListener('click', () => {
 });
 
 refreshReservationsButton.addEventListener('click', refreshReservations);
+refreshMessagesButton.addEventListener('click', refreshMessages);
 
 reservationFiltersForm.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -300,6 +393,14 @@ clearReservationFiltersButton.addEventListener('click', () => {
     reservationStatusFilter.value = '';
     reservationSearchFilter.value = '';
     renderReservations();
+});
+
+adminMessagesList.addEventListener('change', (event) => {
+    if (!event.target.matches('[data-message-status]')) {
+        return;
+    }
+
+    changeMessageStatus(event.target.dataset.messageStatus, event.target.value);
 });
 
 await loadData();

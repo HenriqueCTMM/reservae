@@ -168,6 +168,19 @@
                     </table>
                 </div>
             </article>
+
+            <article class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="admin-messages-title">
+                <div class="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                        <h2 id="admin-messages-title" class="text-xl font-bold">Mensagens dos clientes</h2>
+                        <p class="text-sm text-slate-500">Acompanhe contatos enviados pelos usuários logados</p>
+                    </div>
+                    <button id="refreshMessagesButton" type="button"
+                        class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Atualizar
+                        mensagens</button>
+                </div>
+                <div id="adminMessagesList" class="space-y-3" aria-live="polite"></div>
+            </article>
         </section>
     </main>
 

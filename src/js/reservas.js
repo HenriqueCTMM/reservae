@@ -1,5 +1,6 @@
 import { logout, protectRoute } from './auth.js';
-import { clearMessage, formatDate, showMessage } from './ui.js';
+import { clearMessage, escapeHtml, formatDate, showMessage } from './ui.js';
+import { createMessage, getMessagesByUser } from './services/messages-service.js';
 import { createReservation, getActiveReservationConflict, getReservations } from './services/reservations-service.js';
 import { getTables } from './services/tables-service.js';
 
@@ -13,12 +14,18 @@ const selectedTableBox = document.getElementById('selectedTableBox');
 const reservationDate = document.getElementById('reservationDate');
 const reservationTime = document.getElementById('reservationTime');
 const reservationPeople = document.getElementById('reservationPeople');
+const contactForm = document.getElementById('contactForm');
+const contactSubject = document.getElementById('contactSubject');
+const contactMessageText = document.getElementById('contactMessageText');
+const contactMessage = document.getElementById('contactMessage');
+const clientMessagesList = document.getElementById('clientMessagesList');
 
 clientUserName.textContent = currentUser.nome;
 logoutButton.addEventListener('click', logout);
 
 let tables = [];
 let reservations = [];
+let messages = [];
 let selectedTableId = null;
 
 function setMinDate() {
@@ -146,16 +153,70 @@ function validateReservationData() {
     return true;
 }
 
+function formatDateTime(timestamp) {
+    if (!timestamp) {
+        return 'data não informada';
+    }
+
+    return new Intl.DateTimeFormat('pt-BR', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+    }).format(new Date(timestamp));
+}
+
+function getMessageStatusClasses(status) {
+    if (status === 'respondida') {
+        return 'bg-emerald-100 text-emerald-700';
+    }
+
+    if (status === 'lida') {
+        return 'bg-amber-100 text-amber-700';
+    }
+
+    return 'bg-slate-200 text-slate-700';
+}
+
+function renderClientMessages() {
+    clientMessagesList.innerHTML = '';
+
+    if (!messages.length) {
+        clientMessagesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Nenhuma mensagem enviada ainda.</div>';
+        return;
+    }
+
+    messages.forEach((message) => {
+        const item = document.createElement('article');
+        const statusClasses = getMessageStatusClasses(message.status);
+
+        item.className = 'rounded-2xl border border-slate-200 p-4';
+        item.innerHTML = `
+      <div class="mb-2 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h4 class="font-bold">${escapeHtml(message.assunto)}</h4>
+          <p class="text-xs text-slate-500">Enviada em ${formatDateTime(message.createdAt)}</p>
+        </div>
+        <span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${message.status}</span>
+      </div>
+      <p class="text-sm text-slate-600">${escapeHtml(message.mensagem)}</p>
+    `;
+        clientMessagesList.appendChild(item);
+    });
+}
+
 async function loadData() {
     clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando mesas...</div>';
+    clientMessagesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Carregando mensagens...</div>';
 
     try {
         tables = await getTables();
         reservations = await getReservations();
+        messages = await getMessagesByUser(currentUser.id);
         updateSelectedTableBox();
         renderMap();
+        renderClientMessages();
     } catch (error) {
         showMessage(reservationMessage, 'Não foi possível carregar as mesas.', 'error');
+        clientMessagesList.innerHTML = '<div class="rounded-2xl border border-rose-200 p-4 text-sm text-rose-600">Não foi possível carregar as mensagens.</div>';
     }
 }
 
@@ -227,6 +288,36 @@ reservationPeople.addEventListener('input', () => {
     }
 
     renderMap();
+});
+
+contactForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearMessage(contactMessage);
+
+    const subject = contactSubject.value.trim();
+    const text = contactMessageText.value.trim();
+
+    if (!subject || !text) {
+        showMessage(contactMessage, 'Preencha assunto e mensagem.', 'error');
+        return;
+    }
+
+    try {
+        const newMessage = await createMessage({
+            usuarioId: currentUser.id,
+            usuarioNome: currentUser.nome,
+            usuarioEmail: currentUser.email,
+            assunto: subject,
+            mensagem: text
+        });
+
+        messages.unshift(newMessage);
+        contactForm.reset();
+        renderClientMessages();
+        showMessage(contactMessage, 'Mensagem enviada com sucesso.');
+    } catch (error) {
+        showMessage(contactMessage, 'Não foi possível enviar a mensagem. Tente novamente.', 'error');
+    }
 });
 
 setMinDate();

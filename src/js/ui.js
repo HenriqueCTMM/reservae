@@ -22,3 +22,12 @@ export function clearMessage(element) {
 export function formatDate(date) {
     return new Intl.DateTimeFormat('pt-BR').format(new Date(`${date}T00:00:00`));
 }
+
+export function escapeHtml(value) {
+    return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
