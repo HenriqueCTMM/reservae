@@ -1,6 +1,7 @@
 import { logout, protectRoute } from './auth.js';
-import { getReservations, getTables, saveReservations } from './data.js';
 import { clearMessage, formatDate, showMessage } from './ui.js';
+import { createReservation, getReservations } from './services/reservations-service.js';
+import { getTables } from './services/tables-service.js';
 
 const currentUser = await protectRoute(['cliente']);
 const clientUserName = document.getElementById('clientUserName');
@@ -16,6 +17,8 @@ const reservationPeople = document.getElementById('reservationPeople');
 clientUserName.textContent = currentUser.nome;
 logoutButton.addEventListener('click', logout);
 
+let tables = [];
+let reservations = [];
 let selectedTableId = null;
 
 function setMinDate() {
@@ -23,8 +26,11 @@ function setMinDate() {
     reservationDate.min = today;
 }
 
+function getSelectedTable() {
+    return tables.find((item) => item.id === selectedTableId);
+}
+
 function isTableReserved(tableId, date, time) {
-    const reservations = getReservations();
     return reservations.some((item) => item.mesaId === tableId && item.data === date && item.horario === time && item.status === 'ativa');
 }
 
@@ -44,17 +50,12 @@ function getTableVisualStatus(table) {
 }
 
 function updateSelectedTableBox() {
-    if (!selectedTableId) {
-        selectedTableBox.textContent = 'Nenhuma mesa selecionada';
-        selectedTableBox.className = 'rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-500';
-        return;
-    }
-
-    const table = getTables().find((item) => item.id === selectedTableId);
+    const table = getSelectedTable();
 
     if (!table) {
         selectedTableId = null;
-        updateSelectedTableBox();
+        selectedTableBox.textContent = 'Nenhuma mesa selecionada';
+        selectedTableBox.className = 'rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-500';
         return;
     }
 
@@ -63,7 +64,6 @@ function updateSelectedTableBox() {
 }
 
 function renderMap() {
-    const tables = getTables();
     clientRestaurantMap.innerHTML = '';
 
     if (!tables.length) {
@@ -111,21 +111,15 @@ function validateReservationData() {
     const date = reservationDate.value;
     const time = reservationTime.value;
     const people = Number(reservationPeople.value);
+    const table = getSelectedTable();
 
     if (!date || !time || !people) {
         showMessage(reservationMessage, 'Preencha data, horário e quantidade de pessoas.', 'error');
         return false;
     }
 
-    if (!selectedTableId) {
-        showMessage(reservationMessage, 'Selecione uma mesa disponível no mapa.', 'error');
-        return false;
-    }
-
-    const table = getTables().find((item) => item.id === selectedTableId);
-
     if (!table) {
-        showMessage(reservationMessage, 'Mesa inválida.', 'error');
+        showMessage(reservationMessage, 'Selecione uma mesa disponível no mapa.', 'error');
         return false;
     }
 
@@ -147,7 +141,20 @@ function validateReservationData() {
     return true;
 }
 
-reservationForm.addEventListener('submit', (event) => {
+async function loadData() {
+    clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando mesas...</div>';
+
+    try {
+        tables = await getTables();
+        reservations = await getReservations();
+        updateSelectedTableBox();
+        renderMap();
+    } catch (error) {
+        showMessage(reservationMessage, 'Não foi possível carregar as mesas.', 'error');
+    }
+}
+
+reservationForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(reservationMessage);
 
@@ -155,27 +162,32 @@ reservationForm.addEventListener('submit', (event) => {
         return;
     }
 
-    const reservations = getReservations();
+    const table = getSelectedTable();
     const newReservation = {
-        id: reservations.length ? Math.max(...reservations.map((item) => item.id)) + 1 : 1,
         usuarioId: currentUser.id,
-        mesaId: selectedTableId,
+        usuarioNome: currentUser.nome,
+        usuarioEmail: currentUser.email,
+        mesaId: table.id,
+        mesaNumero: table.numero,
         data: reservationDate.value,
         horario: reservationTime.value,
         pessoas: Number(reservationPeople.value),
         status: 'ativa'
     };
 
-    saveReservations([...reservations, newReservation]);
+    try {
+        const createdReservation = await createReservation(newReservation);
+        reservations.push(createdReservation);
+        showMessage(reservationMessage, `Reserva confirmada para a Mesa ${table.numero} em ${formatDate(newReservation.data)} às ${newReservation.horario}.`);
 
-    const table = getTables().find((item) => item.id === selectedTableId);
-    showMessage(reservationMessage, `Reserva confirmada para a Mesa ${table.numero} em ${formatDate(newReservation.data)} às ${newReservation.horario}.`);
-
-    reservationForm.reset();
-    selectedTableId = null;
-    updateSelectedTableBox();
-    setMinDate();
-    renderMap();
+        reservationForm.reset();
+        selectedTableId = null;
+        updateSelectedTableBox();
+        setMinDate();
+        renderMap();
+    } catch (error) {
+        showMessage(reservationMessage, 'Não foi possível salvar a reserva. Tente novamente.', 'error');
+    }
 });
 
 reservationDate.addEventListener('change', () => {
@@ -195,5 +207,4 @@ reservationPeople.addEventListener('input', () => {
 });
 
 setMinDate();
-updateSelectedTableBox();
-renderMap();
+await loadData();

@@ -1,5 +1,6 @@
 import { protectRoute, logout } from './auth.js';
-import { getReservations, getTables, getUsers, saveTables } from './data.js';
+import { getReservations, getReservationsByTable } from './services/reservations-service.js';
+import { getTables, removeTable, saveTable, updateTable } from './services/tables-service.js';
 import { clearMessage, formatDate, showMessage } from './ui.js';
 
 const user = await protectRoute(['admin']);
@@ -16,6 +17,9 @@ const adminReservationsTable = document.getElementById('adminReservationsTable')
 
 adminUserName.textContent = user.nome;
 logoutButton.addEventListener('click', logout);
+
+let tables = [];
+let reservations = [];
 
 function getFormValues() {
     return {
@@ -38,7 +42,6 @@ function resetForm({ focusFirstField = false } = {}) {
 }
 
 function renderMap() {
-    const tables = getTables();
     restaurantMap.innerHTML = '';
     tableCount.textContent = String(tables.length);
 
@@ -68,7 +71,6 @@ function renderMap() {
 }
 
 function renderTablesList() {
-    const tables = getTables().sort((a, b) => a.numero - b.numero);
     tablesList.innerHTML = '';
 
     if (!tables.length) {
@@ -98,18 +100,15 @@ function renderTablesList() {
     });
 
     document.querySelectorAll('[data-edit]').forEach((button) => {
-        button.addEventListener('click', () => fillForm(Number(button.dataset.edit)));
+        button.addEventListener('click', () => fillForm(button.dataset.edit));
     });
 
     document.querySelectorAll('[data-delete]').forEach((button) => {
-        button.addEventListener('click', () => deleteTable(Number(button.dataset.delete)));
+        button.addEventListener('click', () => deleteTable(button.dataset.delete));
     });
 }
 
 function renderReservations() {
-    const reservations = getReservations();
-    const tables = getTables();
-    const users = getUsers();
     adminReservationsTable.innerHTML = '';
 
     if (!reservations.length) {
@@ -117,28 +116,23 @@ function renderReservations() {
         return;
     }
 
-    reservations
-        .slice()
-        .sort((a, b) => `${a.data} ${a.horario}`.localeCompare(`${b.data} ${b.horario}`))
-        .forEach((reservation) => {
-            const table = tables.find((item) => item.id === reservation.mesaId);
-            const reservationUser = users.find((item) => item.id === reservation.usuarioId);
-            const row = document.createElement('tr');
-            row.className = 'bg-slate-50 text-sm';
-            row.innerHTML = `
-        <td class="rounded-l-2xl px-3 py-3">${reservationUser?.nome || 'Usuário'}</td>
-        <td class="px-3 py-3">Mesa ${table?.numero || '-'}</td>
+    reservations.forEach((reservation) => {
+        const table = tables.find((item) => item.id === reservation.mesaId);
+        const row = document.createElement('tr');
+        row.className = 'bg-slate-50 text-sm';
+        row.innerHTML = `
+        <td class="rounded-l-2xl px-3 py-3">${reservation.usuarioNome || 'Usuário'}</td>
+        <td class="px-3 py-3">Mesa ${table?.numero || reservation.mesaNumero || '-'}</td>
         <td class="px-3 py-3">${formatDate(reservation.data)}</td>
         <td class="px-3 py-3">${reservation.horario}</td>
         <td class="px-3 py-3">${reservation.pessoas}</td>
         <td class="rounded-r-2xl px-3 py-3"><span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">${reservation.status}</span></td>
       `;
-            adminReservationsTable.appendChild(row);
-        });
+        adminReservationsTable.appendChild(row);
+    });
 }
 
 function fillForm(tableId) {
-    const tables = getTables();
     const table = tables.find((item) => item.id === tableId);
 
     if (!table) {
@@ -155,36 +149,51 @@ function fillForm(tableId) {
     document.getElementById('numero').focus({ preventScroll: true });
 }
 
-function deleteTable(tableId) {
-    const reservations = getReservations();
-    const hasReservation = reservations.some((item) => item.mesaId === tableId);
-
-    if (hasReservation) {
-        showMessage(adminMessage, 'Esta mesa possui reservas vinculadas e não pode ser excluída agora.', 'error');
-        return;
-    }
-
-    const tables = getTables().filter((item) => item.id !== tableId);
-    saveTables(tables);
-    showMessage(adminMessage, 'Mesa removida com sucesso.');
-    renderAll();
-    resetForm();
-}
-
 function renderAll() {
     renderMap();
     renderTablesList();
     renderReservations();
 }
 
-tableForm.addEventListener('submit', (event) => {
+async function loadData() {
+    restaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando mesas...</div>';
+    tablesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Carregando mesas...</div>';
+
+    try {
+        tables = await getTables();
+        reservations = await getReservations();
+        renderAll();
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível carregar os dados do restaurante.', 'error');
+    }
+}
+
+async function deleteTable(tableId) {
+    clearMessage(adminMessage);
+
+    try {
+        const linkedReservations = await getReservationsByTable(tableId);
+
+        if (linkedReservations.length) {
+            showMessage(adminMessage, 'Esta mesa possui reservas vinculadas e não pode ser excluída agora.', 'error');
+            return;
+        }
+
+        await removeTable(tableId);
+        showMessage(adminMessage, 'Mesa removida com sucesso.');
+        resetForm();
+        await loadData();
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível remover a mesa.', 'error');
+    }
+}
+
+tableForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(adminMessage);
 
     const formValues = getFormValues();
-    const tables = getTables();
-    const tableId = Number(formValues.id);
-
+    const tableId = formValues.id;
     const duplicatedNumber = tables.some((item) => item.numero === formValues.numero && item.id !== tableId);
 
     if (duplicatedNumber) {
@@ -192,40 +201,20 @@ tableForm.addEventListener('submit', (event) => {
         return;
     }
 
-    if (tableId) {
-        const updatedTables = tables.map((item) => {
-            if (item.id !== tableId) {
-                return item;
-            }
+    try {
+        if (tableId) {
+            await updateTable(tableId, formValues);
+            showMessage(adminMessage, 'Mesa atualizada com sucesso.');
+        } else {
+            await saveTable(formValues);
+            showMessage(adminMessage, 'Mesa cadastrada com sucesso.');
+        }
 
-            return {
-                ...item,
-                numero: formValues.numero,
-                capacidade: formValues.capacidade,
-                posicaoX: formValues.posicaoX,
-                posicaoY: formValues.posicaoY,
-                status: formValues.status
-            };
-        });
-
-        saveTables(updatedTables);
-        showMessage(adminMessage, 'Mesa atualizada com sucesso.');
-    } else {
-        const newTable = {
-            id: tables.length ? Math.max(...tables.map((item) => item.id)) + 1 : 1,
-            numero: formValues.numero,
-            capacidade: formValues.capacidade,
-            posicaoX: formValues.posicaoX,
-            posicaoY: formValues.posicaoY,
-            status: formValues.status
-        };
-
-        saveTables([...tables, newTable]);
-        showMessage(adminMessage, 'Mesa cadastrada com sucesso.');
+        resetForm();
+        await loadData();
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível salvar a mesa.', 'error');
     }
-
-    resetForm();
-    renderAll();
 });
 
 resetFormButton.addEventListener('click', () => {
@@ -233,4 +222,4 @@ resetFormButton.addEventListener('click', () => {
     resetForm({ focusFirstField: true });
 });
 
-renderAll();
+await loadData();
