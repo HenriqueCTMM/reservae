@@ -1,3 +1,5 @@
 /node_modules
 .env
 src/assets/*
+.agents/*
+skills-lock.json
