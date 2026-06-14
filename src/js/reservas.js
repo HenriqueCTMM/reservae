@@ -79,7 +79,7 @@ function getMapMessageHtml(message, tone = 'muted') {
     };
 
     return `
-      <div class="flex h-full min-h-64 items-center justify-center p-4 text-center">
+      <div class="app-map-message flex h-full min-h-64 items-center justify-center p-4 text-center">
         <div class="max-w-sm rounded-2xl border px-5 py-4 text-base font-semibold shadow-sm ${toneClasses[tone] || toneClasses.muted}">${message}</div>
       </div>
     `;
@@ -135,6 +135,34 @@ function getTableVisualStatus(table) {
     }
 
     return isTableReserved(table.id, date, time) ? 'reservada' : 'disponivel';
+}
+
+function normalizeRotation(rotation) {
+    const value = Number(rotation || 0);
+    const normalizedValue = ((value % 360) + 360) % 360;
+
+    return normalizedValue === 90 || normalizedValue === 270 ? 90 : 0;
+}
+
+function getTableDimensions(table) {
+    const capacity = Number(table.capacidade || 4);
+    const rotation = normalizeRotation(table.rotacao);
+    const unit = 96;
+    const multiplier = capacity > 6 ? 3 : capacity > 4 ? 2 : 1;
+    const horizontal = { width: unit * multiplier, height: unit };
+
+    if (rotation === 90) {
+        return { width: horizontal.height, height: horizontal.width };
+    }
+
+    return horizontal;
+}
+
+function applyTableSize(element, table) {
+    const dimensions = getTableDimensions(table);
+
+    element.style.width = `${dimensions.width}px`;
+    element.style.height = `${dimensions.height}px`;
 }
 
 function updateSelectedTableBox() {
@@ -223,6 +251,7 @@ function renderMapContainer(container, { closeOnSelect = false } = {}) {
         button.className = `absolute flex h-24 w-24 flex-col items-center justify-center rounded-2xl border-2 text-sm font-semibold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:opacity-80 ${statusClassMap[visualStatus]} ${isSelected ? 'ring-4 ring-slate-300' : ''}`;
         button.style.left = `${table.posicaoX}px`;
         button.style.top = `${table.posicaoY}px`;
+        applyTableSize(button, table);
         button.innerHTML = `
       <span>Mesa ${table.numero}</span>
       <span class="text-xs font-medium">${table.capacidade} lugares</span>
@@ -356,6 +385,13 @@ function renderClientMessages() {
         <span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${message.status}</span>
       </div>
       <p class="text-sm text-slate-600">${escapeHtml(message.mensagem)}</p>
+      ${message.resposta ? `
+        <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          <p class="font-semibold">Resposta do restaurante</p>
+          <p class="mt-1">${escapeHtml(message.resposta)}</p>
+          <p class="mt-2 text-xs text-emerald-700">${formatDateTime(message.respostaEm)}</p>
+        </div>
+      ` : ''}
     `;
         clientMessagesList.appendChild(item);
     });

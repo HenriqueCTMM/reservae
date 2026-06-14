@@ -138,10 +138,10 @@ textarea {
     text-transform: uppercase;
 }
 
-#restaurantMap > div,
-#clientRestaurantMap > div,
-#clientRestaurantMapModal > div,
-#restaurantMapModal > div {
+#restaurantMap > .app-map-message,
+#clientRestaurantMap > .app-map-message,
+#clientRestaurantMapModal > .app-map-message,
+#restaurantMapModal > .app-map-message {
     position: relative;
     z-index: 2;
 }
@@ -156,13 +156,19 @@ textarea {
     height: clamp(420px, 62vh, 560px) !important;
 }
 
-#restaurantMap button,
+#restaurantMap button:not([data-toggle-table-orientation]),
 #clientRestaurantMap button,
 #clientRestaurantMapModal button,
-#restaurantMapModal button {
+#restaurantMapModal button:not([data-toggle-table-orientation]) {
     z-index: 3;
     min-height: 4.75rem;
     min-width: 4.75rem;
+}
+
+[data-toggle-table-orientation] {
+    z-index: 4;
+    min-height: 0 !important;
+    min-width: 0 !important;
 }
 
 table {
@@ -192,7 +198,7 @@ table {
         padding: 0.75rem;
     }
 
-    #restaurantMap button,
+    #restaurantMap button:not([data-toggle-table-orientation]),
     #clientRestaurantMap button {
         position: static !important;
         width: 100% !important;
@@ -203,8 +209,8 @@ table {
         border-radius: 1rem !important;
     }
 
-    #restaurantMap > div,
-    #clientRestaurantMap > div {
+    #restaurantMap > .app-map-message,
+    #clientRestaurantMap > .app-map-message {
         grid-column: 1 / -1;
         min-height: 14rem;
     }
@@ -213,12 +219,6 @@ table {
     #restaurantMapModal {
         height: 560px !important;
         min-width: 760px !important;
-    }
-
-    #clientRestaurantMapModal button,
-    #restaurantMapModal button {
-        height: 6rem !important;
-        width: 6rem !important;
     }
 
     .app-mobile-stack > * {

@@ -28,8 +28,14 @@ export async function createMessage(message) {
     });
 }
 
-export async function updateMessageStatus(messageId, status) {
-    return updateById(MESSAGES_PATH, messageId, { status });
+export async function updateMessageReply(messageId, { reply, admin }) {
+    return updateById(MESSAGES_PATH, messageId, {
+        resposta: reply,
+        respostaEm: createTimestamp(),
+        respostaPor: admin.id,
+        respostaPorNome: admin.nome,
+        status: 'respondida'
+    });
 }
 
 export async function removeMessage(messageId) {

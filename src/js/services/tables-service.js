@@ -12,6 +12,13 @@ import {
 
 const TABLES_PATH = 'tables';
 
+function normalizeTableRotation(rotation) {
+    const value = Number(rotation || 0);
+    const normalizedValue = ((value % 360) + 360) % 360;
+
+    return normalizedValue === 90 || normalizedValue === 270 ? 90 : 0;
+}
+
 export async function getTables() {
     const tables = await getCollection(TABLES_PATH);
     return tables.sort((a, b) => a.numero - b.numero);
@@ -45,6 +52,7 @@ export async function saveTable(table) {
         status: table.status,
         posicaoX: Number(table.posicaoX),
         posicaoY: Number(table.posicaoY),
+        rotacao: normalizeTableRotation(table.rotacao),
         createdAt: table.createdAt || createTimestamp(),
         updatedAt: createTimestamp()
     });
@@ -56,7 +64,8 @@ export async function updateTable(tableId, data) {
         numero: data.numero ? Number(data.numero) : data.numero,
         capacidade: data.capacidade ? Number(data.capacidade) : data.capacidade,
         posicaoX: data.posicaoX ? Number(data.posicaoX) : data.posicaoX,
-        posicaoY: data.posicaoY ? Number(data.posicaoY) : data.posicaoY
+        posicaoY: data.posicaoY ? Number(data.posicaoY) : data.posicaoY,
+        rotacao: data.rotacao === undefined ? data.rotacao : normalizeTableRotation(data.rotacao)
     });
 }
 

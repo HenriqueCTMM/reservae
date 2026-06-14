@@ -28,9 +28,9 @@
         </div>
     </header>
 
-    <main id="conteudo-principal" tabindex="-1" class="app-container grid flex-1 items-start gap-5 py-5 md:gap-6 md:py-6 xl:grid-cols-[minmax(320px,360px)_1fr]"
+    <main id="conteudo-principal" tabindex="-1" class="app-container grid flex-1 items-start gap-5 py-5 md:gap-6 md:py-6 lg:grid-cols-[minmax(250px,280px)_1fr]"
         aria-labelledby="admin-page-title">
-        <section class="app-card rounded-2xl bg-white p-6 shadow-sm xl:self-start" aria-labelledby="table-form-title">
+        <section class="app-card rounded-2xl bg-white p-3 shadow-sm lg:self-start" aria-labelledby="table-form-title">
             <div class="mb-6">
                 <h2 id="table-form-title" class="text-xl font-bold">Cadastrar ou editar mesa</h2>
                 <p class="text-sm text-slate-500">Defina capacidade e posição visual da mesa</p>
@@ -38,6 +38,7 @@
 
             <form id="tableForm" class="space-y-4" aria-labelledby="table-form-title">
                 <input id="tableId" type="hidden" />
+                <input id="rotacao" type="hidden" value="0" />
 
                 <div>
                     <label for="numero" class="mb-1 block text-sm font-medium">Número da mesa</label>
@@ -48,9 +49,22 @@
 
                 <div>
                     <label for="capacidade" class="mb-1 block text-sm font-medium">Capacidade</label>
-                    <input id="capacidade" type="number" min="1"
+                    <input id="capacidade" type="number" min="1" max="8"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required />
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 p-3">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-700">Orientação da mesa</p>
+                            <p id="rotationValue" class="text-sm text-slate-500">Horizontal</p>
+                        </div>
+                        <button id="rotateTableButton" type="button"
+                            class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Alternar
+                            orientação</button>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-500">Mesas retangulares podem ficar na horizontal ou vertical.</p>
                 </div>
 
                 <div class="grid gap-4 sm:grid-cols-2">
@@ -89,37 +103,35 @@
             <div id="adminMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm"></div>
         </section>
 
-        <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                <article class="app-card rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="restaurant-layout-title">
-                    <div class="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                        <div>
-                            <h2 id="restaurant-layout-title" class="text-xl font-bold">Layout do restaurante</h2>
-                            <p class="text-sm text-slate-500">Visualização da distribuição das mesas</p>
-                        </div>
-                        <div class="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-700">
-                            <span id="tableCount">0</span> mesas cadastradas
-                        </div>
-                    </div>
-
-                    <button id="openAdminMapButton" type="button"
-                        class="mb-4 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 md:hidden">Visualizar
-                        mapa de mesas</button>
-
-                    <div class="app-scroll hidden overflow-auto rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 sm:p-4 md:block">
-                        <div id="restaurantMap" class="relative h-[520px] min-w-[700px] rounded-2xl bg-white"></div>
-                    </div>
-                </article>
-
-                <article class="app-card rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="tables-list-title">
-                    <div class="mb-4">
-                        <h2 id="tables-list-title" class="text-xl font-bold">Lista de mesas</h2>
-                        <p class="text-sm text-slate-500">Edite ou remova uma mesa cadastrada</p>
-                    </div>
-                    <div id="tablesList" class="space-y-3"></div>
-                </article>
+        <article class="app-card rounded-2xl bg-white p-3 shadow-sm" aria-labelledby="restaurant-layout-title">
+            <div class="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <h2 id="restaurant-layout-title" class="text-xl font-bold">Layout do restaurante</h2>
+                    <p class="text-sm text-slate-500">Visualização da distribuição das mesas</p>
+                </div>
+                <div class="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-700">
+                    <span id="tableCount">0</span> mesas cadastradas
+                </div>
             </div>
 
-            <article class="app-card rounded-2xl bg-white p-6 shadow-sm xl:col-span-2" aria-labelledby="admin-reservations-title">
+            <button id="openAdminMapButton" type="button"
+                class="mb-4 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 md:hidden">Visualizar
+                mapa de mesas</button>
+
+            <div class="app-scroll hidden overflow-auto rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 sm:p-4 md:block">
+                <div id="restaurantMap" class="relative h-[520px] min-w-[700px] rounded-2xl bg-white"></div>
+            </div>
+        </article>
+
+        <article class="app-card rounded-2xl bg-white p-3 shadow-sm lg:col-span-2" aria-labelledby="tables-list-title">
+            <div class="mb-4">
+                <h2 id="tables-list-title" class="text-xl font-bold">Lista de mesas</h2>
+                <p class="text-sm text-slate-500">Edite ou remova uma mesa cadastrada</p>
+            </div>
+            <div id="tablesList" class="grid grid-cols-2 gap-3 sm:grid-cols-3"></div>
+        </article>
+
+            <article class="app-card rounded-2xl bg-white p-3 shadow-sm lg:col-span-2" aria-labelledby="admin-reservations-title">
                 <div class="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <h2 id="admin-reservations-title" class="text-xl font-bold">Reservas do restaurante</h2>
@@ -176,7 +188,7 @@
                 </div>
             </article>
 
-            <article class="app-card rounded-2xl bg-white p-6 shadow-sm xl:col-span-2" aria-labelledby="reservation-report-title">
+            <article class="app-card rounded-2xl bg-white p-3 shadow-sm lg:col-span-2" aria-labelledby="reservation-report-title">
                 <div class="mb-4">
                     <h2 id="reservation-report-title" class="text-xl font-bold">Relatório de reservas</h2>
                     <p class="text-sm text-slate-500">Resumo simples por período, status, cliente ou mesa</p>
@@ -218,7 +230,7 @@
                     </div>
                 </form>
 
-                <div id="reservationReportTotals" class="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-live="polite"></div>
+                <div id="reservationReportTotals" class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3" aria-live="polite"></div>
 
                 <div class="app-scroll overflow-x-auto">
                     <table class="min-w-full border-separate border-spacing-y-2" aria-labelledby="reservation-report-title">
@@ -237,7 +249,7 @@
                 </div>
             </article>
 
-            <article class="app-card rounded-2xl bg-white p-6 shadow-sm xl:col-span-2" aria-labelledby="admin-messages-title">
+            <article class="app-card rounded-2xl bg-white p-3 shadow-sm lg:col-span-2" aria-labelledby="admin-messages-title">
                 <div class="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                         <h2 id="admin-messages-title" class="text-xl font-bold">Mensagens dos clientes</h2>
@@ -250,13 +262,13 @@
                 <div id="adminMessagesList" class="space-y-3" aria-live="polite"></div>
             </article>
 
-            <article class="app-card rounded-2xl bg-white p-6 shadow-sm xl:col-span-2" aria-labelledby="operating-hours-title">
+            <article class="app-card rounded-2xl bg-white p-3 shadow-sm lg:col-span-2" aria-labelledby="operating-hours-title">
                 <div class="mb-6">
                     <h2 id="operating-hours-title" class="text-xl font-bold">Funcionamento do restaurante</h2>
                     <p class="text-sm text-slate-500">Defina dois turnos por dia e exceções para datas específicas</p>
                 </div>
 
-                <div class="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+                <div class="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
                     <form id="weeklyHoursForm" class="space-y-4" aria-labelledby="operating-hours-title">
                         <div id="weeklyHoursFields" class="space-y-3"></div>
                         <button type="submit"
@@ -265,7 +277,7 @@
                     </form>
 
                     <div class="space-y-4">
-                        <form id="exceptionForm" class="space-y-4 rounded-2xl border border-slate-200 p-4" aria-label="Exceção de funcionamento">
+                        <form id="exceptionForm" class="space-y-4 rounded-2xl border border-slate-200 p-3" aria-label="Exceção de funcionamento">
                             <div>
                                 <label for="exceptionDate" class="mb-1 block text-sm font-medium">Data da exceção</label>
                                 <input id="exceptionDate" type="date"

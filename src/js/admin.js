@@ -1,5 +1,5 @@
 import { protectRoute, logout } from './auth.js';
-import { getMessages, updateMessageStatus } from './services/messages-service.js';
+import { getMessages, updateMessageReply } from './services/messages-service.js';
 import {
     formatDuration,
     getDefaultOperatingHoursConfig,
@@ -25,6 +25,8 @@ const adminUserName = document.getElementById('adminUserName');
 const logoutButton = document.getElementById('logoutButton');
 const tableForm = document.getElementById('tableForm');
 const resetFormButton = document.getElementById('resetFormButton');
+const rotateTableButton = document.getElementById('rotateTableButton');
+const rotationValue = document.getElementById('rotationValue');
 const adminMessage = document.getElementById('adminMessage');
 const restaurantMap = document.getElementById('restaurantMap');
 const restaurantMapModal = document.getElementById('restaurantMapModal');
@@ -72,6 +74,45 @@ let reservations = [];
 let messages = [];
 let operatingConfig = getDefaultOperatingHoursConfig();
 let operatingExceptions = [];
+let ignoreMapClickAfterDrag = false;
+const MAP_WIDTH = 700;
+const MAP_HEIGHT = 520;
+
+function normalizeRotation(rotation) {
+    const value = Number(rotation || 0);
+    const normalizedValue = ((value % 360) + 360) % 360;
+
+    return normalizedValue === 90 || normalizedValue === 270 ? 90 : 0;
+}
+
+function getOrientationLabel(rotation) {
+    return normalizeRotation(rotation) === 90 ? 'Vertical' : 'Horizontal';
+}
+
+function getTableDimensions(table) {
+    const capacity = Number(table.capacidade || 4);
+    const rotation = normalizeRotation(table.rotacao);
+    const unit = 96;
+    const multiplier = capacity > 6 ? 3 : capacity > 4 ? 2 : 1;
+    const horizontal = { width: unit * multiplier, height: unit };
+
+    if (rotation === 90) {
+        return { width: horizontal.height, height: horizontal.width };
+    }
+
+    return horizontal;
+}
+
+function applyTableSize(element, table) {
+    const dimensions = getTableDimensions(table);
+
+    element.style.width = `${dimensions.width}px`;
+    element.style.height = `${dimensions.height}px`;
+}
+
+function updateRotationDisplay() {
+    rotationValue.textContent = getOrientationLabel(document.getElementById('rotacao').value);
+}
 
 function getFormValues() {
     return {
@@ -80,17 +121,177 @@ function getFormValues() {
         capacidade: Number(document.getElementById('capacidade').value),
         posicaoX: Number(document.getElementById('posicaoX').value),
         posicaoY: Number(document.getElementById('posicaoY').value),
-        status: document.getElementById('status').value
+        status: document.getElementById('status').value,
+        rotacao: normalizeRotation(document.getElementById('rotacao').value)
     };
 }
 
 function resetForm({ focusFirstField = false } = {}) {
     tableForm.reset();
     document.getElementById('tableId').value = '';
+    document.getElementById('rotacao').value = '0';
+    updateRotationDisplay();
 
     if (focusFirstField) {
         document.getElementById('numero').focus();
     }
+}
+
+function validateTableFormValues(formValues) {
+    if (!Number.isFinite(formValues.numero) || formValues.numero < 1) {
+        return { valid: false, message: 'Informe um número de mesa válido.' };
+    }
+
+    if (!Number.isFinite(formValues.capacidade) || formValues.capacidade < 1 || formValues.capacidade > 8) {
+        return { valid: false, message: 'A capacidade da mesa deve estar entre 1 e 8 lugares.' };
+    }
+
+    if (![0, 90].includes(formValues.rotacao)) {
+        return { valid: false, message: 'A orientação da mesa deve ser horizontal ou vertical.' };
+    }
+
+    if (!Number.isFinite(formValues.posicaoX) || !Number.isFinite(formValues.posicaoY)) {
+        return { valid: false, message: 'Informe uma posição válida para a mesa.' };
+    }
+
+    const dimensions = getTableDimensions(formValues);
+    const isPositionInvalid = formValues.posicaoX < 0
+        || formValues.posicaoY < 0
+        || formValues.posicaoX + dimensions.width > MAP_WIDTH
+        || formValues.posicaoY + dimensions.height > MAP_HEIGHT;
+
+    if (isPositionInvalid) {
+        return { valid: false, message: 'A posição da mesa está fora dos limites do mapa.' };
+    }
+
+    const duplicatedNumber = tables.some((item) => item.numero === formValues.numero && item.id !== formValues.id);
+
+    if (duplicatedNumber) {
+        return { valid: false, message: 'Já existe uma mesa com esse número.' };
+    }
+
+    return { valid: true, message: '' };
+}
+
+function isNewTableFormStarted() {
+    return Boolean(
+        document.getElementById('numero').value
+        || document.getElementById('capacidade').value
+        || document.getElementById('posicaoX').value
+        || document.getElementById('posicaoY').value
+    );
+}
+
+function canChangeSelectedTable(nextTableId) {
+    const currentTableId = document.getElementById('tableId').value;
+
+    if (!currentTableId || currentTableId === nextTableId) {
+        if (!currentTableId && isNewTableFormStarted()) {
+            showMessage(adminMessage, 'Salve ou limpe a mesa atual antes de selecionar outra.', 'error');
+            return false;
+        }
+
+        return true;
+    }
+
+    showMessage(adminMessage, 'Salve ou limpe a mesa atual antes de selecionar outra.', 'error');
+    return false;
+}
+
+function selectTableForEditing(tableId, { closeMap = false } = {}) {
+    const currentTableId = document.getElementById('tableId').value;
+    const canSwitch = canChangeSelectedTable(tableId);
+
+    if (!canSwitch) {
+        return;
+    }
+
+    if (currentTableId === tableId) {
+        if (closeMap) {
+            closeAdminMap();
+        }
+
+        return;
+    }
+
+    fillForm(tableId);
+
+    if (closeMap) {
+        closeAdminMap();
+    }
+}
+
+function updateTablePositionPreview(tableId, x, y) {
+    tables = tables.map((table) => table.id === tableId ? { ...table, posicaoX: x, posicaoY: y } : table);
+}
+
+function startTableDrag(event, table, card, container) {
+    if (event.target.closest('[data-toggle-table-orientation]')) {
+        return;
+    }
+
+    if (event.button !== undefined && event.button !== 0) {
+        return;
+    }
+
+    if (!canChangeSelectedTable(table.id)) {
+        return;
+    }
+
+    const mapRect = container.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    const offsetX = event.clientX - cardRect.left;
+    const offsetY = event.clientY - cardRect.top;
+    const dimensions = getTableDimensions(table);
+    const maxMapWidth = Math.min(container.clientWidth, MAP_WIDTH);
+    const maxMapHeight = Math.min(container.clientHeight, MAP_HEIGHT);
+    let moved = false;
+    let nextX = Number(table.posicaoX || 0);
+    let nextY = Number(table.posicaoY || 0);
+
+    card.setPointerCapture?.(event.pointerId);
+    card.classList.add('scale-[1.03]', 'cursor-grabbing', 'ring-4', 'ring-slate-300');
+
+    function moveTable(pointerEvent) {
+        const deltaX = Math.abs(pointerEvent.clientX - event.clientX);
+        const deltaY = Math.abs(pointerEvent.clientY - event.clientY);
+
+        if (deltaX > 4 || deltaY > 4) {
+            moved = true;
+        }
+
+        nextX = Math.max(0, Math.min(pointerEvent.clientX - mapRect.left - offsetX, maxMapWidth - dimensions.width));
+        nextY = Math.max(0, Math.min(pointerEvent.clientY - mapRect.top - offsetY, maxMapHeight - dimensions.height));
+        card.style.left = `${Math.round(nextX)}px`;
+        card.style.top = `${Math.round(nextY)}px`;
+    }
+
+    function stopDrag() {
+        window.removeEventListener('pointermove', moveTable);
+        window.removeEventListener('pointerup', stopDrag);
+        card.classList.remove('scale-[1.03]', 'cursor-grabbing', 'ring-4', 'ring-slate-300');
+
+        if (moved) {
+            ignoreMapClickAfterDrag = true;
+            const roundedX = Math.round(nextX);
+            const roundedY = Math.round(nextY);
+
+            updateTablePositionPreview(table.id, roundedX, roundedY);
+            renderMap();
+            if (document.getElementById('tableId').value !== table.id) {
+                fillForm(table.id);
+            }
+            document.getElementById('posicaoX').value = String(roundedX);
+            document.getElementById('posicaoY').value = String(roundedY);
+            showMessage(adminMessage, 'Posição atualizada no formulário. Clique em Salvar mesa para gravar.');
+            setTimeout(() => {
+                ignoreMapClickAfterDrag = false;
+            }, 0);
+        }
+    }
+
+    window.addEventListener('pointermove', moveTable);
+    window.addEventListener('pointerup', stopDrag, { once: true });
 }
 
 function getMapMessageHtml(message, tone = 'muted') {
@@ -99,7 +300,7 @@ function getMapMessageHtml(message, tone = 'muted') {
         : 'border-slate-200 bg-slate-50 text-slate-700';
 
     return `
-      <div class="flex h-full min-h-64 items-center justify-center p-4 text-center">
+      <div class="app-map-message flex h-full min-h-64 items-center justify-center p-4 text-center">
         <div class="max-w-sm rounded-2xl border px-5 py-4 text-base font-semibold shadow-sm ${toneClasses}">${message}</div>
       </div>
     `;
@@ -128,27 +329,83 @@ function renderMapContainer(container, { closeOnSelect = false } = {}) {
     }
 
     tables.forEach((table) => {
-        const card = document.createElement('button');
+        const card = document.createElement('div');
         const statusClasses = table.status === 'disponivel'
             ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
             : 'bg-slate-200 text-slate-700 border-slate-300';
 
-        card.type = 'button';
-        card.className = `absolute flex h-24 w-24 flex-col items-center justify-center rounded-2xl border-2 text-sm font-semibold shadow-sm transition hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 ${statusClasses}`;
+        card.role = 'button';
+        card.tabIndex = 0;
+        card.className = `app-map-table absolute flex cursor-grab select-none flex-col items-center justify-center rounded-2xl border-2 p-2 text-sm font-semibold shadow-sm transition hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 ${statusClasses}`;
         card.style.left = `${table.posicaoX}px`;
         card.style.top = `${table.posicaoY}px`;
+        card.style.touchAction = 'none';
+        applyTableSize(card, table);
         card.innerHTML = `
       <span>Mesa ${table.numero}</span>
       <span class="text-xs font-medium">${table.capacidade} lugares</span>
+      <button type="button" data-toggle-table-orientation="${table.id}" title="Girar mesa" aria-label="Girar mesa ${table.numero}"
+        class="absolute right-1 top-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/85 text-slate-700 shadow-sm transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
+        <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 11a8 8 0 0 0-14.9-4" />
+          <path d="M5 3v4h4" />
+          <path d="M4 13a8 8 0 0 0 14.9 4" />
+          <path d="M19 21v-4h-4" />
+        </svg>
+      </button>
     `;
 
-        card.addEventListener('click', () => {
-            fillForm(table.id);
+        card.addEventListener('pointerdown', (event) => startTableDrag(event, table, card, container));
 
-            if (closeOnSelect) {
-                closeAdminMap();
+        card.addEventListener('click', async (event) => {
+            if (event.target.closest('[data-toggle-table-orientation]')) {
+                return;
             }
+
+            if (ignoreMapClickAfterDrag) {
+                return;
+            }
+
+            selectTableForEditing(table.id, { closeMap: closeOnSelect });
         });
+
+        card.addEventListener('keydown', async (event) => {
+            if (event.target.closest('[data-toggle-table-orientation]')) {
+                return;
+            }
+
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+            }
+
+            event.preventDefault();
+            selectTableForEditing(table.id, { closeMap: closeOnSelect });
+        });
+
+        card.querySelector('[data-toggle-table-orientation]').addEventListener('click', (event) => {
+            event.stopPropagation();
+
+            const canSwitch = canChangeSelectedTable(table.id);
+
+            if (!canSwitch) {
+                return;
+            }
+
+            if (document.getElementById('tableId').value !== table.id) {
+                fillForm(table.id);
+            }
+
+            const rotationField = document.getElementById('rotacao');
+            const nextRotation = normalizeRotation(rotationField.value) === 90 ? 0 : 90;
+
+            rotationField.value = String(nextRotation);
+            updateRotationDisplay();
+            tables = tables.map((item) => item.id === table.id ? { ...item, rotacao: nextRotation } : item);
+            renderMap();
+            renderTablesList();
+            showMessage(adminMessage, 'Orientação atualizada no formulário. Clique em Salvar mesa para gravar.');
+        });
+
         container.appendChild(card);
     });
 }
@@ -162,22 +419,23 @@ function renderTablesList() {
     tablesList.innerHTML = '';
 
     if (!tables.length) {
-        tablesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Nenhuma mesa cadastrada.</div>';
+        tablesList.innerHTML = '<div class="col-span-2 rounded-2xl border border-slate-200 p-4 text-sm text-slate-500 sm:col-span-3">Nenhuma mesa cadastrada.</div>';
         return;
     }
 
     tables.forEach((table) => {
         const item = document.createElement('div');
-        item.className = 'rounded-2xl border border-slate-200 p-4';
+        item.className = 'rounded-2xl border border-slate-200 p-3 sm:p-4';
         item.innerHTML = `
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+      <div class="flex h-full flex-col justify-between gap-3">
+        <div class="min-w-0">
           <h3 class="font-bold">Mesa ${table.numero}</h3>
           <p class="text-sm text-slate-500">Capacidade: ${table.capacidade} pessoas</p>
           <p class="text-sm text-slate-500">Posição: (${table.posicaoX}, ${table.posicaoY})</p>
+          <p class="text-sm text-slate-500">Orientação: ${getOrientationLabel(table.rotacao)}</p>
           <p class="mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${table.status === 'disponivel' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}">${table.status}</p>
         </div>
-        <div class="flex flex-col gap-2">
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button data-edit="${table.id}" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Editar</button>
           <button data-delete="${table.id}" class="rounded-xl border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Excluir</button>
         </div>
@@ -188,7 +446,7 @@ function renderTablesList() {
     });
 
     document.querySelectorAll('[data-edit]').forEach((button) => {
-        button.addEventListener('click', () => fillForm(button.dataset.edit));
+        button.addEventListener('click', () => selectTableForEditing(button.dataset.edit));
     });
 
     document.querySelectorAll('[data-delete]').forEach((button) => {
@@ -410,18 +668,6 @@ function formatDateTime(timestamp) {
     }).format(new Date(timestamp));
 }
 
-function getMessageStatusClasses(status) {
-    if (status === 'respondida') {
-        return 'bg-emerald-100 text-emerald-700';
-    }
-
-    if (status === 'lida') {
-        return 'bg-amber-100 text-amber-700';
-    }
-
-    return 'bg-slate-200 text-slate-700';
-}
-
 function renderMessages() {
     adminMessagesList.innerHTML = '';
 
@@ -432,7 +678,6 @@ function renderMessages() {
 
     messages.forEach((message) => {
         const item = document.createElement('article');
-        const statusClasses = getMessageStatusClasses(message.status);
 
         item.className = 'rounded-2xl border border-slate-200 p-4';
         item.innerHTML = `
@@ -440,19 +685,24 @@ function renderMessages() {
         <div>
           <div class="mb-2 flex flex-wrap items-center gap-2">
             <h3 class="font-bold">${escapeHtml(message.assunto)}</h3>
-            <span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${message.status}</span>
           </div>
           <p class="text-sm text-slate-600">${escapeHtml(message.mensagem)}</p>
           <p class="mt-3 text-xs text-slate-500">${escapeHtml(message.usuarioNome || 'Usuário')} • ${escapeHtml(message.usuarioEmail || 'Sem e-mail')} • ${formatDateTime(message.createdAt)}</p>
+          ${message.resposta ? `
+            <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+              <p class="font-semibold">Resposta enviada</p>
+              <p class="mt-1">${escapeHtml(message.resposta)}</p>
+              <p class="mt-2 text-xs text-emerald-700">${escapeHtml(message.respostaPorNome || 'Admin')} • ${formatDateTime(message.respostaEm)}</p>
+            </div>
+          ` : ''}
         </div>
-        <div class="w-full md:min-w-44 md:max-w-52">
-          <label for="messageStatus-${message.id}" class="mb-1 block text-sm font-medium">Status</label>
-          <select id="messageStatus-${message.id}" data-message-status="${message.id}"
-            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
-            <option value="aberta" ${message.status === 'aberta' ? 'selected' : ''}>Aberta</option>
-            <option value="lida" ${message.status === 'lida' ? 'selected' : ''}>Lida</option>
-            <option value="respondida" ${message.status === 'respondida' ? 'selected' : ''}>Respondida</option>
-          </select>
+        <div class="grid w-full gap-3 md:min-w-72 md:max-w-80">
+          <label for="messageReply-${message.id}" class="block text-sm font-medium">Resposta</label>
+          <textarea id="messageReply-${message.id}" data-message-reply="${message.id}" rows="4" maxlength="500"
+            class="w-full resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+            placeholder="Digite a resposta ao cliente">${escapeHtml(message.resposta || '')}</textarea>
+          <button type="button" data-save-message-reply="${message.id}"
+            class="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Salvar resposta</button>
         </div>
       </div>
     `;
@@ -647,7 +897,9 @@ function fillForm(tableId) {
     document.getElementById('capacidade').value = String(table.capacidade);
     document.getElementById('posicaoX').value = String(table.posicaoX);
     document.getElementById('posicaoY').value = String(table.posicaoY);
+    document.getElementById('rotacao').value = String(normalizeRotation(table.rotacao));
     document.getElementById('status').value = table.status;
+    updateRotationDisplay();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     document.getElementById('numero').focus({ preventScroll: true });
 }
@@ -688,16 +940,24 @@ async function refreshMessages() {
     }
 }
 
-async function changeMessageStatus(messageId, status) {
+async function saveMessageReply(messageId) {
     clearMessage(adminMessage);
 
+    const replyField = adminMessagesList.querySelector(`[data-message-reply="${messageId}"]`);
+    const reply = replyField?.value.trim() || '';
+
+    if (!reply) {
+        showMessage(adminMessage, 'Digite uma resposta antes de salvar.', 'error');
+        return;
+    }
+
     try {
-        const updatedMessage = await updateMessageStatus(messageId, status);
+        const updatedMessage = await updateMessageReply(messageId, { reply, admin: user });
         messages = messages.map((message) => message.id === messageId ? updatedMessage : message);
         renderMessages();
-        showMessage(adminMessage, 'Status da mensagem atualizado.');
+        showMessage(adminMessage, 'Resposta enviada ao cliente.');
     } catch (error) {
-        showMessage(adminMessage, 'Não foi possível atualizar a mensagem.', 'error');
+        showMessage(adminMessage, 'Não foi possível salvar a resposta.', 'error');
         await refreshMessages();
     }
 }
@@ -744,6 +1004,10 @@ async function finishReservation(reservationId) {
 async function deleteTable(tableId) {
     clearMessage(adminMessage);
 
+    if (!canChangeSelectedTable(tableId)) {
+        return;
+    }
+
     try {
         const linkedReservations = await getReservationsByTable(tableId);
 
@@ -767,10 +1031,10 @@ tableForm.addEventListener('submit', async (event) => {
 
     const formValues = getFormValues();
     const tableId = formValues.id;
-    const duplicatedNumber = tables.some((item) => item.numero === formValues.numero && item.id !== tableId);
+    const validation = validateTableFormValues(formValues);
 
-    if (duplicatedNumber) {
-        showMessage(adminMessage, 'Já existe uma mesa com esse número.', 'error');
+    if (!validation.valid) {
+        showMessage(adminMessage, validation.message, 'error');
         return;
     }
 
@@ -793,6 +1057,21 @@ tableForm.addEventListener('submit', async (event) => {
 resetFormButton.addEventListener('click', () => {
     clearMessage(adminMessage);
     resetForm({ focusFirstField: true });
+});
+
+rotateTableButton.addEventListener('click', () => {
+    const rotationField = document.getElementById('rotacao');
+    const tableId = document.getElementById('tableId').value;
+    const nextRotation = normalizeRotation(rotationField.value) === 90 ? 0 : 90;
+
+    rotationField.value = String(nextRotation);
+    updateRotationDisplay();
+
+    if (tableId) {
+        tables = tables.map((table) => table.id === tableId ? { ...table, rotacao: nextRotation } : table);
+        renderMap();
+        renderTablesList();
+    }
 });
 
 refreshReservationsButton.addEventListener('click', refreshReservations);
@@ -985,12 +1264,14 @@ exceptionsList.addEventListener('click', async (event) => {
     }
 });
 
-adminMessagesList.addEventListener('change', (event) => {
-    if (!event.target.matches('[data-message-status]')) {
+adminMessagesList.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-save-message-reply]');
+
+    if (!button) {
         return;
     }
 
-    changeMessageStatus(event.target.dataset.messageStatus, event.target.value);
+    saveMessageReply(button.dataset.saveMessageReply);
 });
 
 await loadData();
