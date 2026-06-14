@@ -13,7 +13,7 @@ import {
     validateSchedule,
     WEEK_DAYS
 } from './services/operating-hours-service.js';
-import { getReservations, getReservationsByTable } from './services/reservations-service.js';
+import { getReservations, getReservationsByTable, updateReservationStatus } from './services/reservations-service.js';
 import { getTables, removeTable, saveTable, updateTable } from './services/tables-service.js';
 import { clearMessage, escapeHtml, formatDate, showMessage } from './ui.js';
 
@@ -35,6 +35,14 @@ const reservationDateFilter = document.getElementById('reservationDateFilter');
 const reservationStatusFilter = document.getElementById('reservationStatusFilter');
 const reservationSearchFilter = document.getElementById('reservationSearchFilter');
 const reservationResultsCount = document.getElementById('reservationResultsCount');
+const reservationReportForm = document.getElementById('reservationReportForm');
+const reportStartDate = document.getElementById('reportStartDate');
+const reportEndDate = document.getElementById('reportEndDate');
+const reportStatusFilter = document.getElementById('reportStatusFilter');
+const reportSearchFilter = document.getElementById('reportSearchFilter');
+const clearReportFiltersButton = document.getElementById('clearReportFiltersButton');
+const reservationReportTotals = document.getElementById('reservationReportTotals');
+const reservationReportTable = document.getElementById('reservationReportTable');
 const refreshMessagesButton = document.getElementById('refreshMessagesButton');
 const adminMessagesList = document.getElementById('adminMessagesList');
 const weeklyHoursForm = document.getElementById('weeklyHoursForm');
@@ -174,9 +182,29 @@ function updateReservationResultsCount(total) {
     reservationResultsCount.textContent = `${total} ${total === 1 ? 'reserva encontrada' : 'reservas encontradas'}`;
 }
 
+function getReservationStatusLabel(status) {
+    const labels = {
+        ativa: 'Ativa',
+        finalizada: 'Finalizada',
+        cancelada: 'Cancelada',
+        nao_compareceu: 'Não compareceu',
+        expirada: 'Expirada'
+    };
+
+    return labels[status] || status;
+}
+
 function getReservationStatusClasses(status) {
+    if (status === 'finalizada') {
+        return 'bg-sky-100 text-sky-700';
+    }
+
     if (status === 'cancelada') {
         return 'bg-rose-100 text-rose-700';
+    }
+
+    if (status === 'nao_compareceu') {
+        return 'bg-amber-100 text-amber-700';
     }
 
     if (status === 'expirada') {
@@ -194,24 +222,120 @@ function renderReservations() {
 
     if (!filteredReservations.length) {
         const emptyMessage = reservations.length ? 'Nenhuma reserva encontrada para os filtros.' : 'Nenhuma reserva cadastrada.';
-        adminReservationsTable.innerHTML = `<tr><td colspan="6" class="rounded-2xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">${emptyMessage}</td></tr>`;
+        adminReservationsTable.innerHTML = `<tr><td colspan="7" class="rounded-2xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">${emptyMessage}</td></tr>`;
         return;
     }
 
     filteredReservations.forEach((reservation) => {
         const tableNumber = getReservationTableNumber(reservation);
         const statusClasses = getReservationStatusClasses(reservation.status);
+        const isActive = reservation.status === 'ativa';
         const row = document.createElement('tr');
         row.className = 'bg-slate-50 text-sm';
         row.innerHTML = `
-        <td class="rounded-l-2xl px-3 py-3">${reservation.usuarioNome || 'Usuário'}</td>
+        <td class="rounded-l-2xl px-3 py-3">${escapeHtml(reservation.usuarioNome || 'Usuário')}</td>
         <td class="px-3 py-3">Mesa ${tableNumber}</td>
         <td class="px-3 py-3">${formatDate(reservation.data)}</td>
         <td class="px-3 py-3">${reservation.horario}</td>
         <td class="px-3 py-3">${reservation.pessoas}</td>
-        <td class="rounded-r-2xl px-3 py-3"><span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${reservation.status}</span></td>
+        <td class="px-3 py-3"><span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${getReservationStatusLabel(reservation.status)}</span></td>
+        <td class="rounded-r-2xl px-3 py-3">
+          ${isActive ? `
+            <div class="grid min-w-64 gap-2">
+              <select data-reservation-status="${reservation.id}" class="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
+                <option value="finalizada">Finalizada</option>
+                <option value="cancelada">Cancelada</option>
+                <option value="nao_compareceu">Não compareceu</option>
+              </select>
+              <input data-reservation-reason="${reservation.id}" type="text" maxlength="160" placeholder="Motivo/observação opcional"
+                class="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
+              <button type="button" data-update-reservation-status="${reservation.id}" class="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Salvar status</button>
+            </div>
+          ` : `
+            <div class="min-w-52 text-xs text-slate-500">
+              <p>${reservation.statusUpdatedAt ? formatDateTime(reservation.statusUpdatedAt) : 'Sem data registrada'}</p>
+              <p>${escapeHtml(reservation.statusUpdatedByName || 'Admin não informado')}</p>
+              ${reservation.statusReason ? `<p class="mt-1">${escapeHtml(reservation.statusReason)}</p>` : ''}
+            </div>
+          `}
+        </td>
       `;
         adminReservationsTable.appendChild(row);
+    });
+}
+
+function getSearchableReservationText(reservation) {
+    const tableNumber = getReservationTableNumber(reservation);
+
+    return `${reservation.usuarioNome || ''} ${reservation.usuarioEmail || ''} mesa ${tableNumber} ${tableNumber}`.toLowerCase();
+}
+
+function getReportReservations() {
+    const startDate = reportStartDate.value;
+    const endDate = reportEndDate.value;
+    const status = reportStatusFilter.value;
+    const search = reportSearchFilter.value.trim().toLowerCase();
+
+    return reservations.filter((reservation) => {
+        const matchesStart = !startDate || reservation.data >= startDate;
+        const matchesEnd = !endDate || reservation.data <= endDate;
+        const matchesStatus = !status || reservation.status === status;
+        const matchesSearch = !search || getSearchableReservationText(reservation).includes(search);
+
+        return matchesStart && matchesEnd && matchesStatus && matchesSearch;
+    });
+}
+
+function renderReportTotals(reportReservations) {
+    const totals = {
+        total: reportReservations.length,
+        ativa: reportReservations.filter((reservation) => reservation.status === 'ativa').length,
+        finalizada: reportReservations.filter((reservation) => reservation.status === 'finalizada').length,
+        cancelada: reportReservations.filter((reservation) => reservation.status === 'cancelada').length,
+        nao_compareceu: reportReservations.filter((reservation) => reservation.status === 'nao_compareceu').length
+    };
+    const cards = [
+        ['Total', totals.total],
+        ['Ativas', totals.ativa],
+        ['Finalizadas', totals.finalizada],
+        ['Canceladas', totals.cancelada],
+        ['Não compareceu', totals.nao_compareceu]
+    ];
+
+    reservationReportTotals.innerHTML = cards.map(([label, value]) => `
+      <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${label}</p>
+        <p class="mt-2 text-2xl font-bold">${value}</p>
+      </div>
+    `).join('');
+}
+
+function renderReservationReport() {
+    const reportReservations = getReportReservations();
+
+    reservationReportTable.innerHTML = '';
+    renderReportTotals(reportReservations);
+
+    if (!reportReservations.length) {
+        reservationReportTable.innerHTML = '<tr><td colspan="6" class="rounded-2xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">Nenhuma reserva encontrada para o relatório.</td></tr>';
+        return;
+    }
+
+    reportReservations.forEach((reservation) => {
+        const tableNumber = getReservationTableNumber(reservation);
+        const statusClasses = getReservationStatusClasses(reservation.status);
+        const row = document.createElement('tr');
+
+        row.className = 'bg-slate-50 text-sm';
+        row.innerHTML = `
+          <td class="rounded-l-2xl px-3 py-3">${escapeHtml(reservation.usuarioNome || 'Usuário')}</td>
+          <td class="px-3 py-3">Mesa ${tableNumber}</td>
+          <td class="px-3 py-3">${formatDate(reservation.data)} às ${reservation.horario}</td>
+          <td class="px-3 py-3"><span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${getReservationStatusLabel(reservation.status)}</span></td>
+          <td class="px-3 py-3">${reservation.statusUpdatedAt ? formatDateTime(reservation.statusUpdatedAt) : '-'}</td>
+          <td class="rounded-r-2xl px-3 py-3">${escapeHtml(reservation.statusReason || '-')}</td>
+        `;
+        reservationReportTable.appendChild(row);
     });
 }
 
@@ -472,6 +596,7 @@ function renderAll() {
     renderMap();
     renderTablesList();
     renderReservations();
+    renderReservationReport();
     renderMessages();
     renderOperatingHours();
 }
@@ -518,13 +643,41 @@ async function changeMessageStatus(messageId, status) {
 }
 
 async function refreshReservations() {
-    adminReservationsTable.innerHTML = '<tr><td colspan="6" class="rounded-2xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">Carregando reservas...</td></tr>';
+    adminReservationsTable.innerHTML = '<tr><td colspan="7" class="rounded-2xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">Carregando reservas...</td></tr>';
 
     try {
         reservations = await getReservations();
         renderReservations();
+        renderReservationReport();
     } catch (error) {
         showMessage(adminMessage, 'Não foi possível atualizar as reservas.', 'error');
+    }
+}
+
+async function finishReservation(reservationId) {
+    clearMessage(adminMessage);
+
+    const statusField = adminReservationsTable.querySelector(`[data-reservation-status="${reservationId}"]`);
+    const reasonField = adminReservationsTable.querySelector(`[data-reservation-reason="${reservationId}"]`);
+
+    if (!statusField) {
+        return;
+    }
+
+    try {
+        const updatedReservation = await updateReservationStatus(reservationId, {
+            status: statusField.value,
+            reason: reasonField?.value.trim() || '',
+            admin: user
+        });
+
+        reservations = reservations.map((reservation) => reservation.id === reservationId ? updatedReservation : reservation);
+        renderReservations();
+        renderReservationReport();
+        showMessage(adminMessage, 'Status da reserva atualizado. Esta alteração é definitiva.');
+    } catch (error) {
+        showMessage(adminMessage, error.message || 'Não foi possível atualizar o status da reserva.', 'error');
+        await refreshReservations();
     }
 }
 
@@ -593,11 +746,38 @@ reservationDateFilter.addEventListener('change', renderReservations);
 reservationStatusFilter.addEventListener('change', renderReservations);
 reservationSearchFilter.addEventListener('input', renderReservations);
 
+reservationReportForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+});
+
+reportStartDate.addEventListener('change', renderReservationReport);
+reportEndDate.addEventListener('change', renderReservationReport);
+reportStatusFilter.addEventListener('change', renderReservationReport);
+reportSearchFilter.addEventListener('input', renderReservationReport);
+
+clearReportFiltersButton.addEventListener('click', () => {
+    reportStartDate.value = '';
+    reportEndDate.value = '';
+    reportStatusFilter.value = '';
+    reportSearchFilter.value = '';
+    renderReservationReport();
+});
+
 clearReservationFiltersButton.addEventListener('click', () => {
     reservationDateFilter.value = '';
     reservationStatusFilter.value = '';
     reservationSearchFilter.value = '';
     renderReservations();
+});
+
+adminReservationsTable.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-update-reservation-status]');
+
+    if (!button) {
+        return;
+    }
+
+    finishReservation(button.dataset.updateReservationStatus);
 });
 
 weeklyHoursForm.addEventListener('submit', async (event) => {

@@ -10,6 +10,7 @@ import {
 
 const RESERVATIONS_PATH = 'reservations';
 const BLOCKING_RESERVATION_STATUS = 'ativa';
+const FINAL_RESERVATION_STATUSES = ['finalizada', 'cancelada', 'nao_compareceu'];
 
 export async function getReservations() {
     const reservations = await getCollection(RESERVATIONS_PATH);
@@ -52,8 +53,32 @@ export async function updateReservation(reservationId, data) {
     return updateById(RESERVATIONS_PATH, reservationId, data);
 }
 
+export async function updateReservationStatus(reservationId, { status, admin, reason }) {
+    if (!FINAL_RESERVATION_STATUSES.includes(status)) {
+        throw new Error('Status de finalização inválido.');
+    }
+
+    const reservation = await getReservationById(reservationId);
+
+    if (!reservation) {
+        throw new Error('Reserva não encontrada.');
+    }
+
+    if (reservation.status !== BLOCKING_RESERVATION_STATUS) {
+        throw new Error('Esta reserva já possui status definitivo.');
+    }
+
+    return updateById(RESERVATIONS_PATH, reservationId, {
+        status,
+        statusUpdatedAt: createTimestamp(),
+        statusUpdatedBy: admin.id,
+        statusUpdatedByName: admin.nome,
+        statusReason: reason || ''
+    });
+}
+
 export async function removeReservation(reservationId) {
     return removeById(RESERVATIONS_PATH, reservationId);
 }
 
-export { BLOCKING_RESERVATION_STATUS, RESERVATIONS_PATH };
+export { BLOCKING_RESERVATION_STATUS, FINAL_RESERVATION_STATUSES, RESERVATIONS_PATH };

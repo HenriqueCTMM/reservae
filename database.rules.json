@@ -6,7 +6,7 @@
       ".indexOn": ["numero", "status"]
     },
     "reservations": {
-      ".indexOn": ["usuarioId", "mesaId", "data", "status"]
+      ".indexOn": ["usuarioId", "mesaId", "data", "status", "statusUpdatedAt"]
     },
     "messages": {
       ".indexOn": ["usuarioId", "status"]

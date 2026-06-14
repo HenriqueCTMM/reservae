@@ -29,6 +29,7 @@ A autenticacao usa Firebase Authentication e os dados ficam no Firebase Realtime
 - Envio de mensagens de contato pelo cliente
 - Acompanhamento e alteracao de status das mensagens pelo administrador
 - Controle administrativo dos dias e horarios de funcionamento
+- Finalizacao administrativa das reservas e relatorio simples
 
 ## Filtros
 
@@ -71,6 +72,20 @@ Regras principais:
 - Se nao houver horarios validos, o cliente recebe a mensagem para escolher outro dia.
 
 A documentacao completa esta em `src/assets/docs/REGRAS_FUNCIONAMENTO_RESERVAS.md`.
+
+## Ciclo de vida das reservas
+
+O administrador pode concluir uma reserva ativa com status definitivo:
+
+- `finalizada`: cliente foi atendido e encerrou a visita.
+- `cancelada`: cliente cancelou por telefone, presencialmente ou outro canal.
+- `nao_compareceu`: cliente nao apareceu no horario reservado.
+
+Ao alterar o status, o sistema salva data da alteracao, admin responsavel e motivo/observacao opcional. Status definitivo nao volta para `ativa` pelo painel.
+
+O painel administrativo tambem possui relatorio simples com filtros por periodo, status, cliente ou mesa.
+
+A documentacao completa esta em `src/assets/docs/CICLO_DE_VIDA_RESERVAS.md`.
 
 ## Tecnologias
 
