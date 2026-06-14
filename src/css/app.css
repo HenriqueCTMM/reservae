@@ -67,7 +67,9 @@ textarea {
 }
 
 #restaurantMap,
-#clientRestaurantMap {
+#clientRestaurantMap,
+#clientRestaurantMapModal,
+#restaurantMapModal {
     min-width: 640px !important;
 }
 
@@ -75,12 +77,16 @@ textarea {
     height: clamp(360px, 55vh, 520px) !important;
 }
 
-#clientRestaurantMap {
+#clientRestaurantMap,
+#clientRestaurantMapModal,
+#restaurantMapModal {
     height: clamp(420px, 62vh, 560px) !important;
 }
 
 #restaurantMap button,
-#clientRestaurantMap button {
+#clientRestaurantMap button,
+#clientRestaurantMapModal button,
+#restaurantMapModal button {
     min-height: 4.75rem;
     min-width: 4.75rem;
 }
@@ -127,6 +133,18 @@ table {
     #clientRestaurantMap > div {
         grid-column: 1 / -1;
         min-height: 14rem;
+    }
+
+    #clientRestaurantMapModal,
+    #restaurantMapModal {
+        height: 560px !important;
+        min-width: 760px !important;
+    }
+
+    #clientRestaurantMapModal button,
+    #restaurantMapModal button {
+        height: 6rem !important;
+        width: 6rem !important;
     }
 
     .app-mobile-stack > * {

@@ -22,6 +22,10 @@ const logoutButton = document.getElementById('logoutButton');
 const reservationForm = document.getElementById('reservationForm');
 const reservationMessage = document.getElementById('reservationMessage');
 const clientRestaurantMap = document.getElementById('clientRestaurantMap');
+const clientRestaurantMapModal = document.getElementById('clientRestaurantMapModal');
+const openMobileMapButton = document.getElementById('openMobileMapButton');
+const mobileMapModal = document.getElementById('mobileMapModal');
+const closeMobileMapButton = document.getElementById('closeMobileMapButton');
 const selectedTableBox = document.getElementById('selectedTableBox');
 const reservationDate = document.getElementById('reservationDate');
 const reservationTime = document.getElementById('reservationTime');
@@ -62,8 +66,36 @@ function isSelectedDateClosed() {
     return !getScheduleForDate(reservationDate.value, operatingConfig, operatingExceptions).open;
 }
 
-function renderClosedDateMapMessage() {
-    clientRestaurantMap.innerHTML = `<div class="flex h-full items-center justify-center px-4 text-center text-amber-700">${CLOSED_DATE_MESSAGE}</div>`;
+function renderClosedDateMapMessage(container) {
+    container.innerHTML = getMapMessageHtml(CLOSED_DATE_MESSAGE, 'warning');
+}
+
+function getMapMessageHtml(message, tone = 'muted') {
+    const toneClasses = {
+        muted: 'border-slate-200 bg-slate-50 text-slate-700',
+        warning: 'border-amber-200 bg-amber-50 text-amber-800',
+        error: 'border-rose-200 bg-rose-50 text-rose-700'
+    };
+
+    return `
+      <div class="flex h-full min-h-64 items-center justify-center p-4 text-center">
+        <div class="max-w-sm rounded-2xl border px-5 py-4 text-base font-semibold shadow-sm ${toneClasses[tone] || toneClasses.muted}">${message}</div>
+      </div>
+    `;
+}
+
+function canOpenTableMap() {
+    const people = Number(reservationPeople.value);
+
+    if (!reservationDate.value || !reservationTime.value || people < 1 || people > 8 || isSelectedDateClosed() || !operatingConfig) {
+        return false;
+    }
+
+    return isTimeAllowedForPeople(reservationDate.value, reservationTime.value, people, operatingConfig, operatingExceptions);
+}
+
+function updateMobileMapButtonState() {
+    openMobileMapButton.disabled = !canOpenTableMap();
 }
 
 function isTableReserved(tableId, date, time) {
@@ -108,6 +140,8 @@ function updateSelectedTableBox() {
         selectedTableId = null;
         selectedTableBox.textContent = 'Nenhuma mesa selecionada';
         selectedTableBox.className = 'rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-500';
+        openMobileMapButton.textContent = 'Selecionar mesa';
+        updateMobileMapButtonState();
         return;
     }
 
@@ -115,23 +149,57 @@ function updateSelectedTableBox() {
     const durationMinutes = getReservationDurationMinutes(people);
     selectedTableBox.textContent = `Mesa ${table.numero} • ${table.capacidade} lugares • permanencia prevista ${formatDuration(durationMinutes)}`;
     selectedTableBox.className = 'rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700';
+    openMobileMapButton.textContent = 'Trocar mesa';
+    updateMobileMapButtonState();
 }
 
-function renderMap() {
-    clientRestaurantMap.innerHTML = '';
+function closeMobileMap() {
+    mobileMapModal.classList.add('hidden');
+    document.body.style.overflow = '';
+    openMobileMapButton.focus({ preventScroll: true });
+}
+
+function openMobileMap() {
+    if (!canOpenTableMap()) {
+        return;
+    }
+
+    renderMap();
+    mobileMapModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    closeMobileMapButton.focus({ preventScroll: true });
+}
+
+function renderMapContainer(container, { closeOnSelect = false } = {}) {
+    container.innerHTML = '';
 
     if (!reservationDate.value) {
-        clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-slate-400">Selecione uma data para carregar as mesas.</div>';
+        container.innerHTML = getMapMessageHtml('Selecione uma data e um horário para visualizar o mapa de mesas.');
         return;
     }
 
     if (isSelectedDateClosed()) {
-        renderClosedDateMapMessage();
+        renderClosedDateMapMessage(container);
+        return;
+    }
+
+    if (!reservationTime.value) {
+        container.innerHTML = getMapMessageHtml('Selecione um horário para visualizar o mapa de mesas.');
+        return;
+    }
+
+    if (Number(reservationPeople.value) < 1 || Number(reservationPeople.value) > 8) {
+        container.innerHTML = getMapMessageHtml('A quantidade de pessoas deve estar entre 1 e 8.', 'warning');
+        return;
+    }
+
+    if (!isTimeAllowedForPeople(reservationDate.value, reservationTime.value, Number(reservationPeople.value), operatingConfig, operatingExceptions)) {
+        container.innerHTML = getMapMessageHtml('O horário selecionado não está disponível para esta quantidade de pessoas. Escolha outro horário.');
         return;
     }
 
     if (!tables.length) {
-        clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Nenhuma mesa cadastrada.</div>';
+        container.innerHTML = getMapMessageHtml('Nenhuma mesa cadastrada.');
         return;
     }
 
@@ -161,14 +229,23 @@ function renderMap() {
                 selectedTableId = table.id;
                 updateSelectedTableBox();
                 renderMap();
-                clientRestaurantMap.querySelector(`[data-table-id="${table.id}"]`)?.focus();
+                container.querySelector(`[data-table-id="${table.id}"]`)?.focus();
+
+                if (closeOnSelect) {
+                    closeMobileMap();
+                }
             });
         } else {
             button.disabled = true;
         }
 
-        clientRestaurantMap.appendChild(button);
+        container.appendChild(button);
     });
+}
+
+function renderMap() {
+    renderMapContainer(clientRestaurantMap);
+    renderMapContainer(clientRestaurantMapModal, { closeOnSelect: true });
 }
 
 function validateReservationData() {
@@ -179,6 +256,11 @@ function validateReservationData() {
 
     if (!date || !people) {
         showMessage(reservationMessage, 'Preencha data e quantidade de pessoas.', 'error');
+        return false;
+    }
+
+    if (people < 1 || people > 8) {
+        showMessage(reservationMessage, 'A quantidade de pessoas deve estar entre 1 e 8.', 'error');
         return false;
     }
 
@@ -284,13 +366,21 @@ function renderReservationTimeOptions() {
     if (!reservationDate.value || !operatingConfig) {
         reservationTime.innerHTML = '<option value="">Selecione uma data primeiro</option>';
         reservationTimeHelp.textContent = `Os horários seguem o funcionamento do restaurante. Permanência prevista: ${formatDuration(durationMinutes)}.`;
+        updateMobileMapButtonState();
         return;
     }
 
     const { slots, reason, closed } = getReservationSlotsForDate(reservationDate.value, operatingConfig, operatingExceptions, new Date(), people);
+    const shouldKeepSelectedTime = Boolean(selectedTime && slots.includes(selectedTime));
+    const selectedTimeBecameUnavailable = Boolean(selectedTime && !slots.includes(selectedTime));
 
     if (!slots.length) {
-        reservationTime.innerHTML = '<option value="">Sem horários disponíveis</option>';
+        if (selectedTimeBecameUnavailable && !closed) {
+            reservationTime.innerHTML = `<option value="${selectedTime}" selected>${selectedTime} indisponível para ${people} pessoas</option>`;
+        } else {
+            reservationTime.innerHTML = '<option value="">Sem horários disponíveis</option>';
+        }
+
         reservationTimeHelp.textContent = reason || 'Não há horários disponíveis para esta data. Escolha outro dia.';
 
         if (closed) {
@@ -298,20 +388,34 @@ function renderReservationTimeOptions() {
             updateSelectedTableBox();
         }
 
+        updateMobileMapButtonState();
         return;
     }
 
     reservationTime.innerHTML = '<option value="">Selecione um horário</option>';
 
+    if (selectedTimeBecameUnavailable) {
+        const unavailableOption = document.createElement('option');
+        unavailableOption.value = selectedTime;
+        unavailableOption.textContent = `${selectedTime} indisponível para ${people} pessoas`;
+        reservationTime.appendChild(unavailableOption);
+    }
+
     slots.forEach((slot) => {
         const option = document.createElement('option');
         option.value = slot;
         option.textContent = slot;
-        option.selected = slot === selectedTime;
         reservationTime.appendChild(option);
     });
 
-    reservationTimeHelp.textContent = `Permanência prevista: ${formatDuration(durationMinutes)}. Reservas para hoje exigem pelo menos 3 horas de antecedência.`;
+    if (shouldKeepSelectedTime || selectedTimeBecameUnavailable) {
+        reservationTime.value = selectedTime;
+    }
+
+    reservationTimeHelp.textContent = selectedTimeBecameUnavailable
+        ? `O horário selecionado não comporta ${people} pessoas. Escolha outro horário disponível.`
+        : `Permanência prevista: ${formatDuration(durationMinutes)}. Reservas para hoje exigem pelo menos 3 horas de antecedência.`;
+    updateMobileMapButtonState();
 }
 
 function stopReservationsRealtime() {
@@ -346,6 +450,7 @@ function watchTablesRealtime() {
         () => {
             tables = [];
             clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-rose-600">Não foi possível acompanhar as mesas em tempo real.</div>';
+            clientRestaurantMapModal.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-rose-600">Não foi possível acompanhar as mesas em tempo real.</div>';
             showMessage(reservationMessage, 'Não foi possível acompanhar as mesas em tempo real.', 'error');
         }
     );
@@ -355,17 +460,18 @@ function watchSelectedDateReservations() {
     stopReservationsRealtime();
     reservations = [];
 
-    if (!reservationDate.value) {
+    if (!reservationDate.value || !reservationTime.value) {
         renderMap();
         return;
     }
 
     if (isSelectedDateClosed()) {
-        renderClosedDateMapMessage();
+        renderMap();
         return;
     }
 
     clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando reservas do dia...</div>';
+    clientRestaurantMapModal.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando reservas do dia...</div>';
 
     stopWatchingReservations = watchReservationsByDate(
         reservationDate.value,
@@ -383,6 +489,7 @@ function watchSelectedDateReservations() {
         () => {
             reservations = [];
             clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-rose-600">Não foi possível acompanhar as reservas desta data em tempo real.</div>';
+            clientRestaurantMapModal.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-rose-600">Não foi possível acompanhar as reservas desta data em tempo real.</div>';
             showMessage(reservationMessage, 'Não foi possível acompanhar as reservas desta data em tempo real.', 'error');
         }
     );
@@ -479,7 +586,7 @@ reservationDate.addEventListener('change', () => {
 reservationTime.addEventListener('change', () => {
     selectedTableId = null;
     updateSelectedTableBox();
-    renderMap();
+    watchSelectedDateReservations();
 });
 
 reservationPeople.addEventListener('input', () => {
@@ -494,6 +601,22 @@ reservationPeople.addEventListener('input', () => {
 
     updateSelectedTableBox();
     renderMap();
+});
+
+openMobileMapButton.addEventListener('click', openMobileMap);
+
+closeMobileMapButton.addEventListener('click', closeMobileMap);
+
+mobileMapModal.addEventListener('click', (event) => {
+    if (event.target === mobileMapModal) {
+        closeMobileMap();
+    }
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !mobileMapModal.classList.contains('hidden')) {
+        closeMobileMap();
+    }
 });
 
 contactForm.addEventListener('submit', async (event) => {

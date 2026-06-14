@@ -27,6 +27,10 @@ const tableForm = document.getElementById('tableForm');
 const resetFormButton = document.getElementById('resetFormButton');
 const adminMessage = document.getElementById('adminMessage');
 const restaurantMap = document.getElementById('restaurantMap');
+const restaurantMapModal = document.getElementById('restaurantMapModal');
+const openAdminMapButton = document.getElementById('openAdminMapButton');
+const adminMapModal = document.getElementById('adminMapModal');
+const closeAdminMapButton = document.getElementById('closeAdminMapButton');
 const tablesList = document.getElementById('tablesList');
 const tableCount = document.getElementById('tableCount');
 const adminReservationsTable = document.getElementById('adminReservationsTable');
@@ -89,12 +93,37 @@ function resetForm({ focusFirstField = false } = {}) {
     }
 }
 
-function renderMap() {
-    restaurantMap.innerHTML = '';
+function getMapMessageHtml(message, tone = 'muted') {
+    const toneClasses = tone === 'error'
+        ? 'border-rose-200 bg-rose-50 text-rose-700'
+        : 'border-slate-200 bg-slate-50 text-slate-700';
+
+    return `
+      <div class="flex h-full min-h-64 items-center justify-center p-4 text-center">
+        <div class="max-w-sm rounded-2xl border px-5 py-4 text-base font-semibold shadow-sm ${toneClasses}">${message}</div>
+      </div>
+    `;
+}
+
+function closeAdminMap() {
+    adminMapModal.classList.add('hidden');
+    document.body.style.overflow = '';
+    openAdminMapButton.focus({ preventScroll: true });
+}
+
+function openAdminMap() {
+    renderMap();
+    adminMapModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    closeAdminMapButton.focus({ preventScroll: true });
+}
+
+function renderMapContainer(container, { closeOnSelect = false } = {}) {
+    container.innerHTML = '';
     tableCount.textContent = String(tables.length);
 
     if (!tables.length) {
-        restaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Nenhuma mesa cadastrada.</div>';
+        container.innerHTML = getMapMessageHtml('Nenhuma mesa cadastrada.');
         return;
     }
 
@@ -113,9 +142,20 @@ function renderMap() {
       <span class="text-xs font-medium">${table.capacidade} lugares</span>
     `;
 
-        card.addEventListener('click', () => fillForm(table.id));
-        restaurantMap.appendChild(card);
+        card.addEventListener('click', () => {
+            fillForm(table.id);
+
+            if (closeOnSelect) {
+                closeAdminMap();
+            }
+        });
+        container.appendChild(card);
     });
+}
+
+function renderMap() {
+    renderMapContainer(restaurantMap);
+    renderMapContainer(restaurantMapModal, { closeOnSelect: true });
 }
 
 function renderTablesList() {
@@ -757,6 +797,22 @@ resetFormButton.addEventListener('click', () => {
 
 refreshReservationsButton.addEventListener('click', refreshReservations);
 refreshMessagesButton.addEventListener('click', refreshMessages);
+
+openAdminMapButton.addEventListener('click', openAdminMap);
+
+closeAdminMapButton.addEventListener('click', closeAdminMap);
+
+adminMapModal.addEventListener('click', (event) => {
+    if (event.target === adminMapModal) {
+        closeAdminMap();
+    }
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !adminMapModal.classList.contains('hidden')) {
+        closeAdminMap();
+    }
+});
 
 reservationFiltersForm.addEventListener('submit', (event) => {
     event.preventDefault();
