@@ -13,6 +13,11 @@
     },
     "users": {
       ".indexOn": ["email", "perfil"]
+    },
+    "operatingHours": {
+      "exceptions": {
+        ".indexOn": ["date", "open"]
+      }
     }
   }
 }

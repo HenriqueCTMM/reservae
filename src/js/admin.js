@@ -1,5 +1,18 @@
 import { protectRoute, logout } from './auth.js';
 import { getMessages, updateMessageStatus } from './services/messages-service.js';
+import {
+    getDefaultOperatingHoursConfig,
+    getOperatingHourExceptions,
+    getOperatingHoursConfig,
+    hasReservationOutsideSchedule,
+    normalizeOperatingHoursConfig,
+    normalizeSchedule,
+    removeOperatingHourException,
+    saveOperatingHourException,
+    saveOperatingHoursConfig,
+    validateSchedule,
+    WEEK_DAYS
+} from './services/operating-hours-service.js';
 import { getReservations, getReservationsByTable } from './services/reservations-service.js';
 import { getTables, removeTable, saveTable, updateTable } from './services/tables-service.js';
 import { clearMessage, escapeHtml, formatDate, showMessage } from './ui.js';
@@ -24,6 +37,18 @@ const reservationSearchFilter = document.getElementById('reservationSearchFilter
 const reservationResultsCount = document.getElementById('reservationResultsCount');
 const refreshMessagesButton = document.getElementById('refreshMessagesButton');
 const adminMessagesList = document.getElementById('adminMessagesList');
+const weeklyHoursForm = document.getElementById('weeklyHoursForm');
+const weeklyHoursFields = document.getElementById('weeklyHoursFields');
+const exceptionForm = document.getElementById('exceptionForm');
+const exceptionDate = document.getElementById('exceptionDate');
+const exceptionOpen = document.getElementById('exceptionOpen');
+const exceptionShift1Start = document.getElementById('exceptionShift1Start');
+const exceptionShift1End = document.getElementById('exceptionShift1End');
+const exceptionShift2Start = document.getElementById('exceptionShift2Start');
+const exceptionShift2End = document.getElementById('exceptionShift2End');
+const exceptionReason = document.getElementById('exceptionReason');
+const clearExceptionFormButton = document.getElementById('clearExceptionFormButton');
+const exceptionsList = document.getElementById('exceptionsList');
 
 adminUserName.textContent = user.nome;
 logoutButton.addEventListener('click', logout);
@@ -31,6 +56,8 @@ logoutButton.addEventListener('click', logout);
 let tables = [];
 let reservations = [];
 let messages = [];
+let operatingConfig = getDefaultOperatingHoursConfig();
+let operatingExceptions = [];
 
 function getFormValues() {
     return {
@@ -249,6 +276,181 @@ function renderMessages() {
     });
 }
 
+function getActiveReservations() {
+    return reservations.filter((reservation) => reservation.status === 'ativa');
+}
+
+function getShiftValue(day, shiftIndex, field) {
+    return document.getElementById(`weekly-${day}-${shiftIndex}-${field}`).value;
+}
+
+function renderWeeklyHoursForm() {
+    weeklyHoursFields.innerHTML = '';
+
+    WEEK_DAYS.forEach((day) => {
+        const schedule = operatingConfig.weekly[day.value] || { open: false, shifts: [] };
+        const firstShift = schedule.shifts[0] || { start: '', end: '' };
+        const secondShift = schedule.shifts[1] || { start: '', end: '' };
+        const fieldset = document.createElement('fieldset');
+
+        fieldset.className = 'rounded-2xl border border-slate-200 p-4';
+        fieldset.innerHTML = `
+      <legend class="font-bold">${day.label}</legend>
+      <label class="mt-3 flex items-center gap-2 text-sm font-medium">
+        <input id="weekly-${day.value}-open" type="checkbox" class="h-4 w-4 rounded border-slate-300" ${schedule.open ? 'checked' : ''} />
+        Aberto neste dia
+      </label>
+      <div class="mt-3 grid gap-3 md:grid-cols-4">
+        <div>
+          <label for="weekly-${day.value}-0-start" class="mb-1 block text-sm font-medium">Turno 1 início</label>
+          <input id="weekly-${day.value}-0-start" type="time" step="1800" value="${firstShift.start}"
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
+        </div>
+        <div>
+          <label for="weekly-${day.value}-0-end" class="mb-1 block text-sm font-medium">Turno 1 fim</label>
+          <input id="weekly-${day.value}-0-end" type="time" step="1800" value="${firstShift.end}"
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
+        </div>
+        <div>
+          <label for="weekly-${day.value}-1-start" class="mb-1 block text-sm font-medium">Turno 2 início</label>
+          <input id="weekly-${day.value}-1-start" type="time" step="1800" value="${secondShift.start}"
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
+        </div>
+        <div>
+          <label for="weekly-${day.value}-1-end" class="mb-1 block text-sm font-medium">Turno 2 fim</label>
+          <input id="weekly-${day.value}-1-end" type="time" step="1800" value="${secondShift.end}"
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
+        </div>
+      </div>
+    `;
+        weeklyHoursFields.appendChild(fieldset);
+    });
+}
+
+function getScheduleText(schedule) {
+    if (!schedule.open) {
+        return 'Fechado';
+    }
+
+    return schedule.shifts.map((shift) => `${shift.start} às ${shift.end}`).join(' e ');
+}
+
+function renderExceptions() {
+    exceptionsList.innerHTML = '';
+
+    if (!operatingExceptions.length) {
+        exceptionsList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Nenhuma exceção cadastrada.</div>';
+        return;
+    }
+
+    operatingExceptions.forEach((exception) => {
+        const item = document.createElement('article');
+        const schedule = normalizeSchedule(exception);
+
+        item.className = 'rounded-2xl border border-slate-200 p-4';
+        item.innerHTML = `
+      <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h4 class="font-bold">${formatDate(exception.date)}</h4>
+          <p class="text-sm text-slate-600">${getScheduleText(schedule)}</p>
+          <p class="mt-1 text-xs text-slate-500">${escapeHtml(exception.reason || 'Sem motivo informado')}</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" data-edit-exception="${exception.date}" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Editar</button>
+          <button type="button" data-delete-exception="${exception.date}" class="rounded-xl border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Excluir</button>
+        </div>
+      </div>
+    `;
+        exceptionsList.appendChild(item);
+    });
+}
+
+function renderOperatingHours() {
+    renderWeeklyHoursForm();
+    renderExceptions();
+}
+
+function collectWeeklyHoursConfig() {
+    const weekly = {};
+
+    WEEK_DAYS.forEach((day) => {
+        weekly[day.value] = normalizeSchedule({
+            open: document.getElementById(`weekly-${day.value}-open`).checked,
+            shifts: [
+                { start: getShiftValue(day.value, 0, 'start'), end: getShiftValue(day.value, 0, 'end') },
+                { start: getShiftValue(day.value, 1, 'start'), end: getShiftValue(day.value, 1, 'end') }
+            ]
+        });
+    });
+
+    return normalizeOperatingHoursConfig({
+        ...operatingConfig,
+        weekly
+    });
+}
+
+function validateOperatingConfig(config) {
+    for (const day of WEEK_DAYS) {
+        const result = validateSchedule(config.weekly[day.value]);
+
+        if (!result.valid) {
+            return { valid: false, message: `${day.label}: ${result.message}` };
+        }
+    }
+
+    return { valid: true, message: '' };
+}
+
+function collectException() {
+    return {
+        date: exceptionDate.value,
+        open: exceptionOpen.value === 'true',
+        reason: exceptionReason.value.trim(),
+        shifts: [
+            { start: exceptionShift1Start.value, end: exceptionShift1End.value },
+            { start: exceptionShift2Start.value, end: exceptionShift2End.value }
+        ]
+    };
+}
+
+function resetExceptionForm() {
+    exceptionForm.reset();
+    exceptionOpen.value = 'true';
+}
+
+function fillExceptionForm(date) {
+    const exception = operatingExceptions.find((item) => item.date === date);
+
+    if (!exception) {
+        return;
+    }
+
+    const firstShift = exception.shifts?.[0] || { start: '', end: '' };
+    const secondShift = exception.shifts?.[1] || { start: '', end: '' };
+
+    exceptionDate.value = exception.date;
+    exceptionOpen.value = String(Boolean(exception.open));
+    exceptionShift1Start.value = firstShift.start;
+    exceptionShift1End.value = firstShift.end;
+    exceptionShift2Start.value = secondShift.start;
+    exceptionShift2End.value = secondShift.end;
+    exceptionReason.value = exception.reason || '';
+    exceptionDate.focus();
+}
+
+function findReservationAffectedBySchedule(config, exceptions) {
+    return hasReservationOutsideSchedule(getActiveReservations(), config, exceptions);
+}
+
+async function refreshReservationsForOperatingHours() {
+    reservations = await getReservations();
+    renderReservations();
+}
+
+function showAffectedReservationMessage(prefix, reservation) {
+    showMessage(adminMessage, `${prefix} Existe reserva ativa em ${formatDate(reservation.data)} às ${reservation.horario} para a Mesa ${reservation.mesaNumero || '-'}.`, 'error');
+}
+
 function fillForm(tableId) {
     const table = tables.find((item) => item.id === tableId);
 
@@ -271,6 +473,7 @@ function renderAll() {
     renderTablesList();
     renderReservations();
     renderMessages();
+    renderOperatingHours();
 }
 
 async function loadData() {
@@ -281,6 +484,8 @@ async function loadData() {
         tables = await getTables();
         reservations = await getReservations();
         messages = await getMessages();
+        operatingConfig = await getOperatingHoursConfig();
+        operatingExceptions = await getOperatingHourExceptions();
         renderAll();
     } catch (error) {
         showMessage(adminMessage, 'Não foi possível carregar os dados do restaurante.', 'error');
@@ -393,6 +598,135 @@ clearReservationFiltersButton.addEventListener('click', () => {
     reservationStatusFilter.value = '';
     reservationSearchFilter.value = '';
     renderReservations();
+});
+
+weeklyHoursForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearMessage(adminMessage);
+
+    const nextConfig = collectWeeklyHoursConfig();
+    const validation = validateOperatingConfig(nextConfig);
+
+    if (!validation.valid) {
+        showMessage(adminMessage, validation.message, 'error');
+        return;
+    }
+
+    try {
+        await refreshReservationsForOperatingHours();
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível conferir reservas ativas antes de salvar.', 'error');
+        return;
+    }
+
+    const affectedReservation = findReservationAffectedBySchedule(nextConfig, operatingExceptions);
+
+    if (affectedReservation) {
+        showAffectedReservationMessage('Não foi possível salvar os horários semanais.', affectedReservation);
+        return;
+    }
+
+    try {
+        operatingConfig = await saveOperatingHoursConfig(nextConfig);
+        renderOperatingHours();
+        showMessage(adminMessage, 'Horários semanais atualizados.');
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível salvar os horários semanais.', 'error');
+    }
+});
+
+exceptionForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearMessage(adminMessage);
+
+    const nextException = collectException();
+
+    if (!nextException.date) {
+        showMessage(adminMessage, 'Informe a data da exceção.', 'error');
+        return;
+    }
+
+    const validation = validateSchedule(nextException);
+
+    if (!validation.valid) {
+        showMessage(adminMessage, validation.message, 'error');
+        return;
+    }
+
+    const nextExceptions = [
+        ...operatingExceptions.filter((exception) => exception.date !== nextException.date),
+        normalizeSchedule(nextException).open
+            ? { ...nextException, ...normalizeSchedule(nextException) }
+            : { ...nextException, open: false, shifts: [] }
+    ];
+
+    try {
+        await refreshReservationsForOperatingHours();
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível conferir reservas ativas antes de salvar.', 'error');
+        return;
+    }
+
+    const affectedReservation = findReservationAffectedBySchedule(operatingConfig, nextExceptions);
+
+    if (affectedReservation) {
+        showAffectedReservationMessage(`Não foi possível alterar ${formatDate(nextException.date)}.`, affectedReservation);
+        return;
+    }
+
+    try {
+        await saveOperatingHourException(nextException);
+        operatingExceptions = await getOperatingHourExceptions();
+        resetExceptionForm();
+        renderExceptions();
+        showMessage(adminMessage, 'Exceção salva com sucesso.');
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível salvar a exceção.', 'error');
+    }
+});
+
+clearExceptionFormButton.addEventListener('click', () => {
+    resetExceptionForm();
+});
+
+exceptionsList.addEventListener('click', async (event) => {
+    const editButton = event.target.closest('[data-edit-exception]');
+    const deleteButton = event.target.closest('[data-delete-exception]');
+
+    if (editButton) {
+        fillExceptionForm(editButton.dataset.editException);
+        return;
+    }
+
+    if (!deleteButton) {
+        return;
+    }
+
+    const date = deleteButton.dataset.deleteException;
+    const nextExceptions = operatingExceptions.filter((exception) => exception.date !== date);
+
+    try {
+        await refreshReservationsForOperatingHours();
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível conferir reservas ativas antes de excluir.', 'error');
+        return;
+    }
+
+    const affectedReservation = findReservationAffectedBySchedule(operatingConfig, nextExceptions);
+
+    if (affectedReservation) {
+        showAffectedReservationMessage(`Não foi possível excluir a exceção de ${formatDate(date)}.`, affectedReservation);
+        return;
+    }
+
+    try {
+        await removeOperatingHourException(date);
+        operatingExceptions = await getOperatingHourExceptions();
+        renderExceptions();
+        showMessage(adminMessage, 'Exceção removida com sucesso.');
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível remover a exceção.', 'error');
+    }
 });
 
 adminMessagesList.addEventListener('change', (event) => {

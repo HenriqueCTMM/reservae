@@ -28,6 +28,7 @@ A autenticacao usa Firebase Authentication e os dados ficam no Firebase Realtime
 - Filtros dinamicos para mesas e reservas
 - Envio de mensagens de contato pelo cliente
 - Acompanhamento e alteracao de status das mensagens pelo administrador
+- Controle administrativo dos dias e horarios de funcionamento
 
 ## Filtros
 
@@ -56,6 +57,21 @@ Na tela `src/pages/reservas.html`, o cliente logado pode enviar uma mensagem com
 
 Na tela `src/pages/admin.html`, o administrador visualiza todas as mensagens e pode alterar o status para `aberta`, `lida` ou `respondida`.
 
+## Funcionamento e reservas
+
+O administrador controla os dias de funcionamento do restaurante com ate dois turnos por dia e excecoes para datas especificas.
+
+Regras principais:
+
+- Horarios de reserva sao gerados em intervalos de 30 minutos.
+- Reservas para o mesmo dia exigem 3 horas de antecedencia.
+- Excecoes por data sobrescrevem o horario semanal.
+- Uma data pode ser marcada como fechada ou com horario especial.
+- O admin nao consegue salvar uma alteracao que invalide reservas ativas existentes.
+- Se nao houver horarios validos, o cliente recebe a mensagem para escolher outro dia.
+
+A documentacao completa esta em `src/assets/docs/REGRAS_FUNCIONAMENTO_RESERVAS.md`.
+
 ## Tecnologias
 
 - HTML
@@ -83,6 +99,7 @@ src/
     reservas.js
     services/
       messages-service.js
+      operating-hours-service.js
       realtime-database-service.js
       reservations-service.js
       session-storage-service.js

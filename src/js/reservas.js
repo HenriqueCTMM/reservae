@@ -1,6 +1,12 @@
 import { logout, protectRoute } from './auth.js';
 import { clearMessage, escapeHtml, formatDate, showMessage } from './ui.js';
 import { createMessage, getMessagesByUser } from './services/messages-service.js';
+import {
+    getOperatingHourExceptions,
+    getOperatingHoursConfig,
+    getReservationSlotsForDate,
+    isTimeAllowedForDate
+} from './services/operating-hours-service.js';
 import { createReservation, getActiveReservationConflict, getReservations } from './services/reservations-service.js';
 import { getTables } from './services/tables-service.js';
 
@@ -13,6 +19,7 @@ const clientRestaurantMap = document.getElementById('clientRestaurantMap');
 const selectedTableBox = document.getElementById('selectedTableBox');
 const reservationDate = document.getElementById('reservationDate');
 const reservationTime = document.getElementById('reservationTime');
+const reservationTimeHelp = document.getElementById('reservationTimeHelp');
 const reservationPeople = document.getElementById('reservationPeople');
 const contactForm = document.getElementById('contactForm');
 const contactSubject = document.getElementById('contactSubject');
@@ -26,6 +33,8 @@ logoutButton.addEventListener('click', logout);
 let tables = [];
 let reservations = [];
 let messages = [];
+let operatingConfig = null;
+let operatingExceptions = [];
 let selectedTableId = null;
 
 function setMinDate() {
@@ -130,6 +139,16 @@ function validateReservationData() {
         return false;
     }
 
+    if (!operatingConfig) {
+        showMessage(reservationMessage, 'Aguarde o carregamento dos horários de funcionamento.', 'error');
+        return false;
+    }
+
+    if (!isTimeAllowedForDate(date, time, operatingConfig, operatingExceptions)) {
+        showMessage(reservationMessage, 'Escolha um horário disponível conforme o funcionamento do restaurante.', 'error');
+        return false;
+    }
+
     if (!table) {
         showMessage(reservationMessage, 'Selecione uma mesa disponível no mapa.', 'error');
         return false;
@@ -203,10 +222,47 @@ function renderClientMessages() {
     });
 }
 
+function renderReservationTimeOptions() {
+    reservationTime.innerHTML = '';
+
+    if (!reservationDate.value || !operatingConfig) {
+        reservationTime.innerHTML = '<option value="">Selecione uma data primeiro</option>';
+        reservationTimeHelp.textContent = 'Os horários seguem o funcionamento do restaurante.';
+        return;
+    }
+
+    const { slots, reason } = getReservationSlotsForDate(reservationDate.value, operatingConfig, operatingExceptions);
+
+    if (!slots.length) {
+        reservationTime.innerHTML = '<option value="">Sem horários disponíveis</option>';
+        reservationTimeHelp.textContent = reason || 'Não há horários disponíveis para esta data. Escolha outro dia.';
+        return;
+    }
+
+    reservationTime.innerHTML = '<option value="">Selecione um horário</option>';
+
+    slots.forEach((slot) => {
+        const option = document.createElement('option');
+        option.value = slot;
+        option.textContent = slot;
+        reservationTime.appendChild(option);
+    });
+
+    reservationTimeHelp.textContent = 'Reservas para hoje exigem pelo menos 3 horas de antecedência.';
+}
+
 async function loadData() {
     clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando mesas...</div>';
     clientMessagesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Carregando mensagens...</div>';
     let tablesLoaded = false;
+
+    try {
+        operatingConfig = await getOperatingHoursConfig();
+        operatingExceptions = await getOperatingHourExceptions();
+        renderReservationTimeOptions();
+    } catch (error) {
+        showMessage(reservationMessage, 'Não foi possível carregar os horários de funcionamento.', 'error');
+    }
 
     try {
         tables = await getTables();
@@ -287,6 +343,7 @@ reservationForm.addEventListener('submit', async (event) => {
 reservationDate.addEventListener('change', () => {
     selectedTableId = null;
     updateSelectedTableBox();
+    renderReservationTimeOptions();
     renderMap();
 });
 

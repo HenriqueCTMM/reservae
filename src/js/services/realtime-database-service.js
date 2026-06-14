@@ -39,6 +39,18 @@ export async function getCollection(path) {
     return snapshotToArray(snapshot);
 }
 
+export async function getValue(path) {
+    const snapshot = await get(ref(database, path));
+    return snapshot.val();
+}
+
+export async function setValue(path, data) {
+    const payload = removeUndefinedFields(data);
+
+    await set(ref(database, path), payload);
+    return payload;
+}
+
 export async function getById(path, id) {
     const snapshot = await get(ref(database, `${path}/${id}`));
     const value = snapshot.val();
