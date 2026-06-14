@@ -12,6 +12,7 @@ const OPERATING_CONFIG_PATH = `${OPERATING_HOURS_PATH}/config`;
 const OPERATING_EXCEPTIONS_PATH = `${OPERATING_HOURS_PATH}/exceptions`;
 const MIN_ADVANCE_MINUTES = 180;
 const SLOT_INTERVAL_MINUTES = 30;
+const CLOSED_DATE_MESSAGE = 'O restaurante não estará em funcionamento nesta data. Escolha outra data.';
 
 const DEFAULT_WEEKLY = {
     0: { open: false, shifts: [] },
@@ -236,7 +237,7 @@ export function getReservationSlotsForDate(date, config, exceptions = [], now = 
     const schedule = getScheduleForDate(date, config, exceptions);
 
     if (!schedule.open) {
-        return { slots: [], reason: 'Não há horários disponíveis para esta data. Escolha outro dia.' };
+        return { slots: [], reason: CLOSED_DATE_MESSAGE, closed: true };
     }
 
     const interval = Number(config.slotIntervalMinutes || SLOT_INTERVAL_MINUTES);
@@ -263,7 +264,8 @@ export function getReservationSlotsForDate(date, config, exceptions = [], now = 
 
     return {
         slots,
-        reason: slots.length ? '' : 'Não há horários disponíveis para esta data. Escolha outro dia.'
+        reason: slots.length ? '' : 'Não há horários disponíveis para esta data. Escolha outro dia.',
+        closed: false
     };
 }
 
@@ -341,4 +343,4 @@ export function hasReservationOutsideSchedule(reservations, config, exceptions =
     }) || null;
 }
 
-export { OPERATING_HOURS_PATH, OPERATING_CONFIG_PATH, OPERATING_EXCEPTIONS_PATH, WEEK_DAYS };
+export { OPERATING_HOURS_PATH, OPERATING_CONFIG_PATH, OPERATING_EXCEPTIONS_PATH, CLOSED_DATE_MESSAGE, WEEK_DAYS };

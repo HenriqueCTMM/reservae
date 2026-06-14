@@ -2,11 +2,13 @@ import { logout, protectRoute } from './auth.js';
 import { clearMessage, escapeHtml, formatDate, showMessage } from './ui.js';
 import { createMessage, getMessagesByUser } from './services/messages-service.js';
 import {
+    CLOSED_DATE_MESSAGE,
     formatDuration,
     getOperatingHourExceptions,
     getOperatingHoursConfig,
     getReservationDurationMinutes,
     getReservationEndTime,
+    getScheduleForDate,
     hasReservationConflictForPeriod,
     getReservationSlotsForDate,
     isTimeAllowedForPeople
@@ -50,6 +52,18 @@ function setMinDate() {
 
 function getSelectedTable() {
     return tables.find((item) => item.id === selectedTableId);
+}
+
+function isSelectedDateClosed() {
+    if (!reservationDate.value || !operatingConfig) {
+        return false;
+    }
+
+    return !getScheduleForDate(reservationDate.value, operatingConfig, operatingExceptions).open;
+}
+
+function renderClosedDateMapMessage() {
+    clientRestaurantMap.innerHTML = `<div class="flex h-full items-center justify-center px-4 text-center text-amber-700">${CLOSED_DATE_MESSAGE}</div>`;
 }
 
 function isTableReserved(tableId, date, time) {
@@ -111,6 +125,11 @@ function renderMap() {
         return;
     }
 
+    if (isSelectedDateClosed()) {
+        renderClosedDateMapMessage();
+        return;
+    }
+
     if (!tables.length) {
         clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Nenhuma mesa cadastrada.</div>';
         return;
@@ -158,13 +177,23 @@ function validateReservationData() {
     const people = Number(reservationPeople.value);
     const table = getSelectedTable();
 
-    if (!date || !time || !people) {
-        showMessage(reservationMessage, 'Preencha data, horário e quantidade de pessoas.', 'error');
+    if (!date || !people) {
+        showMessage(reservationMessage, 'Preencha data e quantidade de pessoas.', 'error');
         return false;
     }
 
     if (!operatingConfig) {
         showMessage(reservationMessage, 'Aguarde o carregamento dos horários de funcionamento.', 'error');
+        return false;
+    }
+
+    if (isSelectedDateClosed()) {
+        showMessage(reservationMessage, CLOSED_DATE_MESSAGE, 'error');
+        return false;
+    }
+
+    if (!time) {
+        showMessage(reservationMessage, 'Escolha um horário disponível.', 'error');
         return false;
     }
 
@@ -258,11 +287,17 @@ function renderReservationTimeOptions() {
         return;
     }
 
-    const { slots, reason } = getReservationSlotsForDate(reservationDate.value, operatingConfig, operatingExceptions, new Date(), people);
+    const { slots, reason, closed } = getReservationSlotsForDate(reservationDate.value, operatingConfig, operatingExceptions, new Date(), people);
 
     if (!slots.length) {
         reservationTime.innerHTML = '<option value="">Sem horários disponíveis</option>';
         reservationTimeHelp.textContent = reason || 'Não há horários disponíveis para esta data. Escolha outro dia.';
+
+        if (closed) {
+            selectedTableId = null;
+            updateSelectedTableBox();
+        }
+
         return;
     }
 
@@ -322,6 +357,11 @@ function watchSelectedDateReservations() {
 
     if (!reservationDate.value) {
         renderMap();
+        return;
+    }
+
+    if (isSelectedDateClosed()) {
+        renderClosedDateMapMessage();
         return;
     }
 
@@ -424,9 +464,15 @@ reservationForm.addEventListener('submit', async (event) => {
 });
 
 reservationDate.addEventListener('change', () => {
+    clearMessage(reservationMessage);
     selectedTableId = null;
     updateSelectedTableBox();
     renderReservationTimeOptions();
+
+    if (isSelectedDateClosed()) {
+        showMessage(reservationMessage, CLOSED_DATE_MESSAGE, 'error');
+    }
+
     watchSelectedDateReservations();
 });
 
