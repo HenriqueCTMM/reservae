@@ -6,16 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reservae | Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./css/app.css" />
 </head>
 
-<body class="flex min-h-screen flex-col bg-slate-100 text-slate-900">
+<body class="app-surface flex min-h-screen flex-col text-slate-900">
     <a href="#conteudo-principal"
         class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Pular
         para o conteúdo principal</a>
 
-    <main id="conteudo-principal" tabindex="-1" class="flex flex-1 items-center justify-center px-4 py-10"
+    <main id="conteudo-principal" tabindex="-1" class="app-container flex flex-1 items-center justify-center py-8 sm:py-10"
         aria-labelledby="login-title">
-        <section class="w-full max-w-md rounded-2xl bg-white p-6 shadow-lg sm:p-8" aria-labelledby="login-title">
+        <section class="app-auth-card app-card w-full max-w-md rounded-2xl bg-white p-6 shadow-lg sm:p-8" aria-labelledby="login-title">
             <div class="mb-8 text-center">
                 <h1 id="login-title" class="text-3xl font-bold">Reservae</h1>
                 <p class="mt-2 text-sm text-slate-500">Acesse como administrador ou cliente</p>

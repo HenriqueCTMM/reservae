@@ -6,21 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reservae | Reserva de mesas</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../css/app.css" />
 </head>
 
-<body class="flex min-h-screen flex-col bg-slate-100 text-slate-900">
+<body class="app-surface flex min-h-screen flex-col text-slate-900">
     <a href="#conteudo-principal"
         class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Pular
         para o conteúdo principal</a>
 
     <header class="border-b border-slate-200 bg-white">
-        <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between">
+        <div class="app-container flex flex-col gap-4 py-4 md:flex-row md:items-center md:justify-between">
             <div>
                 <h1 id="reservation-page-title" class="text-2xl font-bold">Reserva de Mesas</h1>
                 <p class="text-sm text-slate-500">Escolha a data, horário e a mesa desejada</p>
             </div>
 
-            <nav class="flex flex-wrap items-center gap-3" aria-label="Navegação do cliente">
+            <nav class="app-mobile-stack flex flex-wrap items-center gap-3" aria-label="Navegação do cliente">
                 <a href="./minhas-reservas.html"
                     class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Minhas
                     reservas</a>
@@ -31,9 +32,9 @@
         </div>
     </header>
 
-    <main id="conteudo-principal" tabindex="-1" class="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[360px_1fr]"
+    <main id="conteudo-principal" tabindex="-1" class="app-container grid flex-1 gap-5 py-5 md:gap-6 md:py-6 lg:grid-cols-[minmax(320px,360px)_1fr]"
         aria-labelledby="reservation-page-title">
-        <section class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="reservation-form-title">
+        <section class="app-card rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="reservation-form-title">
             <div class="mb-6">
                 <h2 id="reservation-form-title" class="text-xl font-bold">Dados da reserva</h2>
                 <p class="text-sm text-slate-500">Selecione os dados antes de escolher a mesa</p>
@@ -79,31 +80,31 @@
             <div id="reservationMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm"></div>
         </section>
 
-        <section class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="tables-map-title">
+        <section class="app-card rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="tables-map-title">
             <div class="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                     <h2 id="tables-map-title" class="text-xl font-bold">Mapa de mesas</h2>
                     <p class="text-sm text-slate-500">Clique em uma mesa disponível para selecionar</p>
                 </div>
-                <div class="flex items-center gap-2 text-sm text-slate-500" role="group" aria-label="Legenda de status das mesas">
+                <div class="flex flex-wrap items-center gap-2 text-sm text-slate-500" role="group" aria-label="Legenda de status das mesas">
                     <span class="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Disponível</span>
                     <span class="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Reservada</span>
                     <span class="rounded-full bg-slate-200 px-3 py-1 text-slate-700">Indisponível</span>
                 </div>
             </div>
 
-            <div class="overflow-auto rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
+            <div class="app-scroll overflow-auto rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 sm:p-4">
                 <div id="clientRestaurantMap" class="relative h-[560px] min-w-[760px] rounded-2xl bg-white"></div>
             </div>
         </section>
 
-        <section class="rounded-2xl bg-white p-6 shadow-sm lg:col-span-2" aria-labelledby="contact-title">
+        <section class="app-card rounded-2xl bg-white p-6 shadow-sm lg:col-span-2" aria-labelledby="contact-title">
             <div class="mb-6">
                 <h2 id="contact-title" class="text-xl font-bold">Contato com o restaurante</h2>
                 <p class="text-sm text-slate-500">Envie dúvidas ou observações e acompanhe o status das mensagens</p>
             </div>
 
-            <div class="grid gap-6 lg:grid-cols-[360px_1fr]">
+            <div class="grid gap-6 lg:grid-cols-[minmax(300px,360px)_1fr]">
                 <form id="contactForm" class="space-y-4" aria-labelledby="contact-title">
                     <div>
                         <label for="contactSubject" class="mb-1 block text-sm font-medium">Assunto</label>

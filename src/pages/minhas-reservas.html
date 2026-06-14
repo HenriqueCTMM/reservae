@@ -6,20 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reservae | Minhas reservas</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../css/app.css" />
 </head>
 
-<body class="flex min-h-screen flex-col bg-slate-100 text-slate-900">
+<body class="app-surface flex min-h-screen flex-col text-slate-900">
     <a href="#conteudo-principal"
         class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Pular
         para o conteúdo principal</a>
 
     <header class="border-b border-slate-200 bg-white">
-        <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between">
+        <div class="app-container flex flex-col gap-4 py-4 md:flex-row md:items-center md:justify-between">
             <div>
                 <h1 id="my-reservations-page-title" class="text-2xl font-bold">Minhas Reservas</h1>
                 <p class="text-sm text-slate-500">Consulte as reservas realizadas na plataforma</p>
             </div>
-            <nav class="flex flex-wrap items-center gap-3" aria-label="Navegação do cliente">
+            <nav class="app-mobile-stack flex flex-wrap items-center gap-3" aria-label="Navegação do cliente">
                 <a href="./reservas.html"
                     class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Nova
                     reserva</a>
@@ -31,17 +32,17 @@
         </div>
     </header>
 
-    <main id="conteudo-principal" tabindex="-1" class="mx-auto w-full max-w-7xl flex-1 px-4 py-6"
+    <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 py-5 md:py-6"
         aria-labelledby="my-reservations-page-title">
-        <section class="rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="reservations-history-title">
-            <div class="mb-4 flex items-center justify-between gap-4">
+        <section class="app-card rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="reservations-history-title">
+            <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 id="reservations-history-title" class="text-xl font-bold">Histórico de reservas</h2>
                     <p class="text-sm text-slate-500">Veja suas reservas atuais</p>
                 </div>
             </div>
 
-            <div id="myReservationsList" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"></div>
+            <div id="myReservationsList" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"></div>
         </section>
     </main>
 

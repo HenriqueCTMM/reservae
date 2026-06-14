@@ -130,7 +130,7 @@ function renderTablesList() {
         const item = document.createElement('div');
         item.className = 'rounded-2xl border border-slate-200 p-4';
         item.innerHTML = `
-      <div class="flex items-start justify-between gap-3">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 class="font-bold">Mesa ${table.numero}</h3>
           <p class="text-sm text-slate-500">Capacidade: ${table.capacidade} pessoas</p>
@@ -257,7 +257,7 @@ function renderReservations() {
         <td class="px-3 py-3"><span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${getReservationStatusLabel(reservation.status)}</span></td>
         <td class="rounded-r-2xl px-3 py-3">
           ${isActive ? `
-            <div class="grid min-w-64 gap-2">
+            <div class="grid min-w-56 gap-2 sm:min-w-64">
               <select data-reservation-status="${reservation.id}" class="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
                 <option value="finalizada">Finalizada</option>
                 <option value="cancelada">Cancelada</option>
@@ -268,7 +268,7 @@ function renderReservations() {
               <button type="button" data-update-reservation-status="${reservation.id}" class="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Salvar status</button>
             </div>
           ` : `
-            <div class="min-w-52 text-xs text-slate-500">
+            <div class="min-w-44 text-xs text-slate-500 sm:min-w-52">
               <p>${reservation.statusUpdatedAt ? formatDateTime(reservation.statusUpdatedAt) : 'Sem data registrada'}</p>
               <p>${escapeHtml(reservation.statusUpdatedByName || 'Admin não informado')}</p>
               ${reservation.statusReason ? `<p class="mt-1">${escapeHtml(reservation.statusReason)}</p>` : ''}
@@ -396,7 +396,7 @@ function renderMessages() {
 
         item.className = 'rounded-2xl border border-slate-200 p-4';
         item.innerHTML = `
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <div class="mb-2 flex flex-wrap items-center gap-2">
             <h3 class="font-bold">${escapeHtml(message.assunto)}</h3>
@@ -405,7 +405,7 @@ function renderMessages() {
           <p class="text-sm text-slate-600">${escapeHtml(message.mensagem)}</p>
           <p class="mt-3 text-xs text-slate-500">${escapeHtml(message.usuarioNome || 'Usuário')} • ${escapeHtml(message.usuarioEmail || 'Sem e-mail')} • ${formatDateTime(message.createdAt)}</p>
         </div>
-        <div class="min-w-44">
+        <div class="w-full md:min-w-44 md:max-w-52">
           <label for="messageStatus-${message.id}" class="mb-1 block text-sm font-medium">Status</label>
           <select id="messageStatus-${message.id}" data-message-status="${message.id}"
             class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
@@ -444,7 +444,7 @@ function renderWeeklyHoursForm() {
         <input id="weekly-${day.value}-open" type="checkbox" class="h-4 w-4 rounded border-slate-300" ${schedule.open ? 'checked' : ''} />
         Aberto neste dia
       </label>
-      <div class="mt-3 grid gap-3 md:grid-cols-4">
+      <div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div>
           <label for="weekly-${day.value}-0-start" class="mb-1 block text-sm font-medium">Turno 1 início</label>
           <input id="weekly-${day.value}-0-start" type="time" step="1800" value="${firstShift.start}"
