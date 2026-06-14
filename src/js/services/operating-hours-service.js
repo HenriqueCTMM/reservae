@@ -62,6 +62,41 @@ export function minutesToTime(totalMinutes) {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
+export function getReservationDurationMinutes(people) {
+    const totalPeople = Number(people);
+
+    if (totalPeople >= 5) {
+        return 150;
+    }
+
+    if (totalPeople >= 3) {
+        return 120;
+    }
+
+    return 90;
+}
+
+export function getReservationEndTime(startTime, durationMinutes) {
+    const startMinutes = timeToMinutes(startTime);
+
+    if (startMinutes === null) {
+        return null;
+    }
+
+    return minutesToTime(startMinutes + Number(durationMinutes));
+}
+
+export function formatDuration(minutes) {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    if (!remainingMinutes) {
+        return `${hours}h`;
+    }
+
+    return `${hours}h${String(remainingMinutes).padStart(2, '0')}`;
+}
+
 function getLocalDateKey(date = new Date()) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -197,7 +232,7 @@ export function getScheduleForDate(date, config, exceptions = []) {
     return normalizeSchedule(config.weekly[getWeekDay(date)] || { open: false, shifts: [] });
 }
 
-export function getReservationSlotsForDate(date, config, exceptions = [], now = new Date()) {
+export function getReservationSlotsForDate(date, config, exceptions = [], now = new Date(), people = 1) {
     const schedule = getScheduleForDate(date, config, exceptions);
 
     if (!schedule.open) {
@@ -208,13 +243,18 @@ export function getReservationSlotsForDate(date, config, exceptions = [], now = 
     const today = getLocalDateKey(now);
     const minimumTodayMinutes = (now.getHours() * 60) + now.getMinutes() + Number(config.minAdvanceMinutes || MIN_ADVANCE_MINUTES);
     const minimumSlotMinutes = date === today ? roundUpToInterval(minimumTodayMinutes, interval) : 0;
+    const durationMinutes = getReservationDurationMinutes(people);
     const slots = [];
 
     schedule.shifts.forEach((shift) => {
         const start = timeToMinutes(shift.start);
         const end = timeToMinutes(shift.end);
 
-        for (let minutes = start; minutes < end; minutes += interval) {
+        if (start === null || end === null) {
+            return;
+        }
+
+        for (let minutes = start; minutes + durationMinutes <= end; minutes += interval) {
             if (minutes >= minimumSlotMinutes) {
                 slots.push(minutesToTime(minutes));
             }
@@ -227,28 +267,78 @@ export function getReservationSlotsForDate(date, config, exceptions = [], now = 
     };
 }
 
-export function isTimeAllowedForDate(date, time, config, exceptions = [], now = new Date()) {
-    return getReservationSlotsForDate(date, config, exceptions, now).slots.includes(time);
+export function isTimeAllowedForPeople(date, time, people, config, exceptions = [], now = new Date()) {
+    return getReservationSlotsForDate(date, config, exceptions, now, people).slots.includes(time);
 }
 
-export function isTimeInsideOperatingSchedule(date, time, config, exceptions = []) {
+export function isReservationPeriodInsideOperatingSchedule(date, time, durationMinutes, config, exceptions = []) {
     const schedule = getScheduleForDate(date, config, exceptions);
-    const timeMinutes = timeToMinutes(time);
+    const startMinutes = timeToMinutes(time);
 
-    if (!schedule.open || timeMinutes === null) {
+    if (!schedule.open || startMinutes === null) {
         return false;
     }
 
-    return schedule.shifts.some((shift) => {
-        const start = timeToMinutes(shift.start);
-        const end = timeToMinutes(shift.end);
+    const endMinutes = startMinutes + Number(durationMinutes);
 
-        return timeMinutes >= start && timeMinutes < end;
+    return schedule.shifts.some((shift) => {
+        const shiftStart = timeToMinutes(shift.start);
+        const shiftEnd = timeToMinutes(shift.end);
+
+        return shiftStart !== null
+            && shiftEnd !== null
+            && startMinutes >= shiftStart
+            && endMinutes <= shiftEnd;
+    });
+}
+
+export function getReservationPeriod(reservation) {
+    const startMinutes = timeToMinutes(reservation.horario);
+    const durationMinutes = Number(reservation.duracaoMinutos || getReservationDurationMinutes(reservation.pessoas));
+    const endMinutes = startMinutes === null ? null : (timeToMinutes(reservation.fimPrevisto) ?? (startMinutes + durationMinutes));
+
+    return {
+        startMinutes,
+        endMinutes,
+        durationMinutes,
+        endTime: endMinutes === null ? null : (reservation.fimPrevisto || minutesToTime(endMinutes))
+    };
+}
+
+export function hasTimeOverlap(firstStart, firstEnd, secondStart, secondEnd) {
+    return firstStart < secondEnd && secondStart < firstEnd;
+}
+
+export function hasReservationConflictForPeriod({ mesaId, data, horario, pessoas }, reservations) {
+    const startMinutes = timeToMinutes(horario);
+
+    if (startMinutes === null) {
+        return false;
+    }
+
+    const endMinutes = startMinutes + getReservationDurationMinutes(pessoas);
+
+    return reservations.some((reservation) => {
+        if (reservation.mesaId !== mesaId || reservation.data !== data || reservation.status !== 'ativa') {
+            return false;
+        }
+
+        const period = getReservationPeriod(reservation);
+
+        if (period.startMinutes === null || period.endMinutes === null) {
+            return false;
+        }
+
+        return hasTimeOverlap(startMinutes, endMinutes, period.startMinutes, period.endMinutes);
     });
 }
 
 export function hasReservationOutsideSchedule(reservations, config, exceptions = []) {
-    return reservations.find((reservation) => !isTimeInsideOperatingSchedule(reservation.data, reservation.horario, config, exceptions)) || null;
+    return reservations.find((reservation) => {
+        const durationMinutes = Number(reservation.duracaoMinutos || getReservationDurationMinutes(reservation.pessoas));
+
+        return !isReservationPeriodInsideOperatingSchedule(reservation.data, reservation.horario, durationMinutes, config, exceptions);
+    }) || null;
 }
 
 export { OPERATING_HOURS_PATH, OPERATING_CONFIG_PATH, OPERATING_EXCEPTIONS_PATH, WEEK_DAYS };

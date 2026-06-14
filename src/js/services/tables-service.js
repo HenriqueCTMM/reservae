@@ -6,7 +6,8 @@ import {
     queryByChild,
     removeById,
     setById,
-    updateById
+    updateById,
+    watchCollection
 } from './realtime-database-service.js';
 
 const TABLES_PATH = 'tables';
@@ -14,6 +15,12 @@ const TABLES_PATH = 'tables';
 export async function getTables() {
     const tables = await getCollection(TABLES_PATH);
     return tables.sort((a, b) => a.numero - b.numero);
+}
+
+export function watchTables(onChange, onError) {
+    return watchCollection(TABLES_PATH, (tables) => {
+        onChange(tables.sort((a, b) => a.numero - b.numero));
+    }, onError);
 }
 
 export async function getTableById(tableId) {

@@ -1,4 +1,5 @@
 import { logout, protectRoute } from './auth.js';
+import { formatDuration, getReservationPeriod } from './services/operating-hours-service.js';
 import { getReservationsByUser } from './services/reservations-service.js';
 import { getTables } from './services/tables-service.js';
 import { formatDate } from './ui.js';
@@ -60,6 +61,9 @@ async function renderMyReservations() {
             const table = tables.find((item) => item.id === reservation.mesaId);
             const card = document.createElement('article');
             const statusClasses = getReservationStatusClasses(reservation.status);
+            const period = getReservationPeriod(reservation);
+            const periodText = period.endTime ? `${reservation.horario} às ${period.endTime}` : reservation.horario;
+
             card.className = 'rounded-2xl border border-slate-200 bg-slate-50 p-5';
             card.innerHTML = `
       <div class="mb-4 flex items-start justify-between gap-3">
@@ -71,7 +75,8 @@ async function renderMyReservations() {
       </div>
       <div class="space-y-2 text-sm text-slate-700">
         <p><strong>Data:</strong> ${formatDate(reservation.data)}</p>
-        <p><strong>Horário:</strong> ${reservation.horario}</p>
+        <p><strong>Horário:</strong> ${periodText}</p>
+        <p><strong>Permanência prevista:</strong> ${formatDuration(period.durationMinutes)}</p>
         <p><strong>Pessoas:</strong> ${reservation.pessoas}</p>
       </div>
     `;

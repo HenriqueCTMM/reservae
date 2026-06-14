@@ -22,7 +22,7 @@ A autenticacao usa Firebase Authentication e os dados ficam no Firebase Realtime
 - Cadastro, edicao e remocao de mesas pelo administrador
 - Visualizacao do mapa de mesas do restaurante
 - Criacao de reservas por clientes
-- Bloqueio de reservas duplicadas para a mesma mesa, data e horario
+- Bloqueio de reservas sobrepostas para a mesma mesa, data e horario
 - Consulta das reservas feitas pelo cliente
 - Listagem de reservas no painel administrativo
 - Filtros dinamicos para mesas e reservas
@@ -66,9 +66,14 @@ Regras principais:
 
 - Horarios de reserva sao gerados em intervalos de 30 minutos.
 - Reservas para o mesmo dia exigem 3 horas de antecedencia.
+- A permanencia prevista depende da quantidade de pessoas: 1-2 pessoas por 1h30, 3-4 pessoas por 2h e 5+ pessoas por 2h30.
+- Cada reserva salva `duracaoMinutos` e `fimPrevisto` para manter historico consistente.
 - Excecoes por data sobrescrevem o horario semanal.
 - Uma data pode ser marcada como fechada ou com horario especial.
 - O admin nao consegue salvar uma alteracao que invalide reservas ativas existentes.
+- O mapa de mesas so carrega depois que o cliente escolhe uma data.
+- O mapa acompanha em tempo real as reservas ativas da data selecionada.
+- Uma reserva ativa bloqueia a mesa somente no intervalo previsto da reserva.
 - Se nao houver horarios validos, o cliente recebe a mensagem para escolher outro dia.
 
 A documentacao completa esta em `src/assets/docs/REGRAS_FUNCIONAMENTO_RESERVAS.md`.

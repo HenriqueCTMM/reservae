@@ -1,6 +1,7 @@
 import {
     equalTo,
     get,
+    onValue,
     orderByChild,
     push,
     query,
@@ -106,4 +107,22 @@ export async function queryByChild(path, childPath, value) {
     const childQuery = query(ref(database, path), orderByChild(childPath), equalTo(value));
     const snapshot = await get(childQuery);
     return snapshotToArray(snapshot);
+}
+
+export function watchByChild(path, childPath, value, onChange, onError) {
+    const childQuery = query(ref(database, path), orderByChild(childPath), equalTo(value));
+
+    return onValue(
+        childQuery,
+        (snapshot) => onChange(snapshotToArray(snapshot)),
+        onError
+    );
+}
+
+export function watchCollection(path, onChange, onError) {
+    return onValue(
+        ref(database, path),
+        (snapshot) => onChange(snapshotToArray(snapshot)),
+        onError
+    );
 }

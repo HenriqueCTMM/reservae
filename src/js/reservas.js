@@ -2,13 +2,17 @@ import { logout, protectRoute } from './auth.js';
 import { clearMessage, escapeHtml, formatDate, showMessage } from './ui.js';
 import { createMessage, getMessagesByUser } from './services/messages-service.js';
 import {
+    formatDuration,
     getOperatingHourExceptions,
     getOperatingHoursConfig,
+    getReservationDurationMinutes,
+    getReservationEndTime,
+    hasReservationConflictForPeriod,
     getReservationSlotsForDate,
-    isTimeAllowedForDate
+    isTimeAllowedForPeople
 } from './services/operating-hours-service.js';
-import { createReservation, getActiveReservationConflict, getReservations } from './services/reservations-service.js';
-import { getTables } from './services/tables-service.js';
+import { createReservation, getReservationsByDate, watchReservationsByDate } from './services/reservations-service.js';
+import { watchTables } from './services/tables-service.js';
 
 const currentUser = await protectRoute(['cliente']);
 const clientUserName = document.getElementById('clientUserName');
@@ -36,6 +40,8 @@ let messages = [];
 let operatingConfig = null;
 let operatingExceptions = [];
 let selectedTableId = null;
+let stopWatchingReservations = null;
+let stopWatchingTables = null;
 
 function setMinDate() {
     const today = new Date().toISOString().split('T')[0];
@@ -47,7 +53,18 @@ function getSelectedTable() {
 }
 
 function isTableReserved(tableId, date, time) {
-    return reservations.some((item) => item.mesaId === tableId && item.data === date && item.horario === time && item.status === 'ativa');
+    const people = Number(reservationPeople.value);
+
+    if (!date || !time || !people || !operatingConfig) {
+        return false;
+    }
+
+    return hasReservationConflictForPeriod({
+        mesaId: tableId,
+        data: date,
+        horario: time,
+        pessoas: people
+    }, reservations);
 }
 
 function getTableVisualStatus(table) {
@@ -80,12 +97,19 @@ function updateSelectedTableBox() {
         return;
     }
 
-    selectedTableBox.textContent = `Mesa ${table.numero} • ${table.capacidade} lugares`;
+    const people = Number(reservationPeople.value || 1);
+    const durationMinutes = getReservationDurationMinutes(people);
+    selectedTableBox.textContent = `Mesa ${table.numero} • ${table.capacidade} lugares • permanencia prevista ${formatDuration(durationMinutes)}`;
     selectedTableBox.className = 'rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700';
 }
 
 function renderMap() {
     clientRestaurantMap.innerHTML = '';
+
+    if (!reservationDate.value) {
+        clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-slate-400">Selecione uma data para carregar as mesas.</div>';
+        return;
+    }
 
     if (!tables.length) {
         clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Nenhuma mesa cadastrada.</div>';
@@ -144,7 +168,7 @@ function validateReservationData() {
         return false;
     }
 
-    if (!isTimeAllowedForDate(date, time, operatingConfig, operatingExceptions)) {
+    if (!isTimeAllowedForPeople(date, time, people, operatingConfig, operatingExceptions)) {
         showMessage(reservationMessage, 'Escolha um horário disponível conforme o funcionamento do restaurante.', 'error');
         return false;
     }
@@ -223,15 +247,18 @@ function renderClientMessages() {
 }
 
 function renderReservationTimeOptions() {
+    const selectedTime = reservationTime.value;
+    const people = Number(reservationPeople.value || 1);
+    const durationMinutes = getReservationDurationMinutes(people);
     reservationTime.innerHTML = '';
 
     if (!reservationDate.value || !operatingConfig) {
         reservationTime.innerHTML = '<option value="">Selecione uma data primeiro</option>';
-        reservationTimeHelp.textContent = 'Os horários seguem o funcionamento do restaurante.';
+        reservationTimeHelp.textContent = `Os horários seguem o funcionamento do restaurante. Permanência prevista: ${formatDuration(durationMinutes)}.`;
         return;
     }
 
-    const { slots, reason } = getReservationSlotsForDate(reservationDate.value, operatingConfig, operatingExceptions);
+    const { slots, reason } = getReservationSlotsForDate(reservationDate.value, operatingConfig, operatingExceptions, new Date(), people);
 
     if (!slots.length) {
         reservationTime.innerHTML = '<option value="">Sem horários disponíveis</option>';
@@ -245,16 +272,85 @@ function renderReservationTimeOptions() {
         const option = document.createElement('option');
         option.value = slot;
         option.textContent = slot;
+        option.selected = slot === selectedTime;
         reservationTime.appendChild(option);
     });
 
-    reservationTimeHelp.textContent = 'Reservas para hoje exigem pelo menos 3 horas de antecedência.';
+    reservationTimeHelp.textContent = `Permanência prevista: ${formatDuration(durationMinutes)}. Reservas para hoje exigem pelo menos 3 horas de antecedência.`;
+}
+
+function stopReservationsRealtime() {
+    if (stopWatchingReservations) {
+        stopWatchingReservations();
+        stopWatchingReservations = null;
+    }
+}
+
+function stopTablesRealtime() {
+    if (stopWatchingTables) {
+        stopWatchingTables();
+        stopWatchingTables = null;
+    }
+}
+
+function watchTablesRealtime() {
+    stopTablesRealtime();
+
+    stopWatchingTables = watchTables(
+        (restaurantTables) => {
+            tables = restaurantTables;
+            const selectedTable = getSelectedTable();
+
+            if (selectedTable && selectedTable.status !== 'disponivel') {
+                selectedTableId = null;
+                updateSelectedTableBox();
+            }
+
+            renderMap();
+        },
+        () => {
+            tables = [];
+            clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-rose-600">Não foi possível acompanhar as mesas em tempo real.</div>';
+            showMessage(reservationMessage, 'Não foi possível acompanhar as mesas em tempo real.', 'error');
+        }
+    );
+}
+
+function watchSelectedDateReservations() {
+    stopReservationsRealtime();
+    reservations = [];
+
+    if (!reservationDate.value) {
+        renderMap();
+        return;
+    }
+
+    clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando reservas do dia...</div>';
+
+    stopWatchingReservations = watchReservationsByDate(
+        reservationDate.value,
+        (dayReservations) => {
+            reservations = dayReservations;
+            const selectedTable = getSelectedTable();
+
+            if (selectedTable && getTableVisualStatus(selectedTable) !== 'disponivel') {
+                selectedTableId = null;
+                updateSelectedTableBox();
+            }
+
+            renderMap();
+        },
+        () => {
+            reservations = [];
+            clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-rose-600">Não foi possível acompanhar as reservas desta data em tempo real.</div>';
+            showMessage(reservationMessage, 'Não foi possível acompanhar as reservas desta data em tempo real.', 'error');
+        }
+    );
 }
 
 async function loadData() {
-    clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando mesas...</div>';
+    clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-slate-400">Selecione uma data para carregar as mesas.</div>';
     clientMessagesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Carregando mensagens...</div>';
-    let tablesLoaded = false;
 
     try {
         operatingConfig = await getOperatingHoursConfig();
@@ -264,27 +360,7 @@ async function loadData() {
         showMessage(reservationMessage, 'Não foi possível carregar os horários de funcionamento.', 'error');
     }
 
-    try {
-        tables = await getTables();
-        tablesLoaded = true;
-        updateSelectedTableBox();
-        renderMap();
-    } catch (error) {
-        clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-rose-600">Não foi possível carregar as mesas.</div>';
-        showMessage(reservationMessage, 'Não foi possível carregar as mesas.', 'error');
-    }
-
-    try {
-        reservations = await getReservations();
-        if (tablesLoaded) {
-            renderMap();
-        }
-    } catch (error) {
-        reservations = [];
-        if (tablesLoaded) {
-            showMessage(reservationMessage, 'Mesas carregadas, mas não foi possível conferir reservas existentes.', 'error');
-        }
-    }
+    watchTablesRealtime();
 
     try {
         messages = await getMessagesByUser(currentUser.id);
@@ -303,6 +379,8 @@ reservationForm.addEventListener('submit', async (event) => {
     }
 
     const table = getSelectedTable();
+    const people = Number(reservationPeople.value);
+    const durationMinutes = getReservationDurationMinutes(people);
     const newReservation = {
         usuarioId: currentUser.id,
         usuarioNome: currentUser.nome,
@@ -312,28 +390,33 @@ reservationForm.addEventListener('submit', async (event) => {
         mesaCapacidade: table.capacidade,
         data: reservationDate.value,
         horario: reservationTime.value,
-        pessoas: Number(reservationPeople.value),
+        pessoas: people,
+        duracaoMinutos: durationMinutes,
+        fimPrevisto: getReservationEndTime(reservationTime.value, durationMinutes),
         status: 'ativa'
     };
 
     try {
-        const conflict = await getActiveReservationConflict(newReservation);
+        reservations = await getReservationsByDate(newReservation.data);
+        const conflict = hasReservationConflictForPeriod(newReservation, reservations);
 
         if (conflict) {
-            reservations = await getReservations();
             renderMap();
-            showMessage(reservationMessage, 'Esta mesa acabou de ser reservada para a data e horário selecionados. Escolha outra mesa.', 'error');
+            showMessage(reservationMessage, 'Esta mesa está indisponível neste período. Escolha outra mesa ou horário.', 'error');
             return;
         }
 
         const createdReservation = await createReservation(newReservation);
-        reservations.push(createdReservation);
-        showMessage(reservationMessage, `Reserva confirmada para a Mesa ${table.numero} em ${formatDate(newReservation.data)} às ${newReservation.horario}.`);
+        reservations = [...reservations.filter((reservation) => reservation.id !== createdReservation.id), createdReservation];
+        showMessage(reservationMessage, `Reserva confirmada para a Mesa ${table.numero} em ${formatDate(newReservation.data)} das ${newReservation.horario} às ${newReservation.fimPrevisto}.`);
 
         reservationForm.reset();
+        stopReservationsRealtime();
+        reservations = [];
         selectedTableId = null;
         updateSelectedTableBox();
         setMinDate();
+        renderReservationTimeOptions();
         renderMap();
     } catch (error) {
         showMessage(reservationMessage, 'Não foi possível salvar a reserva. Tente novamente.', 'error');
@@ -344,7 +427,7 @@ reservationDate.addEventListener('change', () => {
     selectedTableId = null;
     updateSelectedTableBox();
     renderReservationTimeOptions();
-    renderMap();
+    watchSelectedDateReservations();
 });
 
 reservationTime.addEventListener('change', () => {
@@ -357,11 +440,13 @@ reservationPeople.addEventListener('input', () => {
     clearMessage(reservationMessage);
     const table = getSelectedTable();
 
-    if (table && Number(reservationPeople.value) > table.capacidade) {
+    renderReservationTimeOptions();
+
+    if (table && getTableVisualStatus(table) !== 'disponivel') {
         selectedTableId = null;
-        updateSelectedTableBox();
     }
 
+    updateSelectedTableBox();
     renderMap();
 });
 
@@ -393,6 +478,11 @@ contactForm.addEventListener('submit', async (event) => {
     } catch (error) {
         showMessage(contactMessage, 'Não foi possível enviar a mensagem. Tente novamente.', 'error');
     }
+});
+
+window.addEventListener('beforeunload', () => {
+    stopReservationsRealtime();
+    stopTablesRealtime();
 });
 
 setMinDate();

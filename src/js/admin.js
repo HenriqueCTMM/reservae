@@ -1,9 +1,11 @@
 import { protectRoute, logout } from './auth.js';
 import { getMessages, updateMessageStatus } from './services/messages-service.js';
 import {
+    formatDuration,
     getDefaultOperatingHoursConfig,
     getOperatingHourExceptions,
     getOperatingHoursConfig,
+    getReservationPeriod,
     hasReservationOutsideSchedule,
     normalizeOperatingHoursConfig,
     normalizeSchedule,
@@ -214,6 +216,16 @@ function getReservationStatusClasses(status) {
     return 'bg-emerald-100 text-emerald-700';
 }
 
+function getReservationPeriodText(reservation) {
+    const period = getReservationPeriod(reservation);
+
+    if (!period.endTime) {
+        return reservation.horario;
+    }
+
+    return `${reservation.horario} às ${period.endTime}`;
+}
+
 function renderReservations() {
     const filteredReservations = getFilteredReservations();
 
@@ -230,13 +242,17 @@ function renderReservations() {
         const tableNumber = getReservationTableNumber(reservation);
         const statusClasses = getReservationStatusClasses(reservation.status);
         const isActive = reservation.status === 'ativa';
+        const period = getReservationPeriod(reservation);
         const row = document.createElement('tr');
         row.className = 'bg-slate-50 text-sm';
         row.innerHTML = `
         <td class="rounded-l-2xl px-3 py-3">${escapeHtml(reservation.usuarioNome || 'Usuário')}</td>
         <td class="px-3 py-3">Mesa ${tableNumber}</td>
         <td class="px-3 py-3">${formatDate(reservation.data)}</td>
-        <td class="px-3 py-3">${reservation.horario}</td>
+        <td class="px-3 py-3">
+          <p>${getReservationPeriodText(reservation)}</p>
+          <p class="text-xs text-slate-500">${formatDuration(period.durationMinutes)}</p>
+        </td>
         <td class="px-3 py-3">${reservation.pessoas}</td>
         <td class="px-3 py-3"><span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${getReservationStatusLabel(reservation.status)}</span></td>
         <td class="rounded-r-2xl px-3 py-3">
@@ -324,13 +340,17 @@ function renderReservationReport() {
     reportReservations.forEach((reservation) => {
         const tableNumber = getReservationTableNumber(reservation);
         const statusClasses = getReservationStatusClasses(reservation.status);
+        const period = getReservationPeriod(reservation);
         const row = document.createElement('tr');
 
         row.className = 'bg-slate-50 text-sm';
         row.innerHTML = `
           <td class="rounded-l-2xl px-3 py-3">${escapeHtml(reservation.usuarioNome || 'Usuário')}</td>
           <td class="px-3 py-3">Mesa ${tableNumber}</td>
-          <td class="px-3 py-3">${formatDate(reservation.data)} às ${reservation.horario}</td>
+          <td class="px-3 py-3">
+            <p>${formatDate(reservation.data)} das ${getReservationPeriodText(reservation)}</p>
+            <p class="text-xs text-slate-500">${formatDuration(period.durationMinutes)}</p>
+          </td>
           <td class="px-3 py-3"><span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${getReservationStatusLabel(reservation.status)}</span></td>
           <td class="px-3 py-3">${reservation.statusUpdatedAt ? formatDateTime(reservation.statusUpdatedAt) : '-'}</td>
           <td class="rounded-r-2xl px-3 py-3">${escapeHtml(reservation.statusReason || '-')}</td>
