@@ -24,6 +24,7 @@ const reservationMessage = document.getElementById('reservationMessage');
 const clientRestaurantMap = document.getElementById('clientRestaurantMap');
 const clientRestaurantMapModal = document.getElementById('clientRestaurantMapModal');
 const openMobileMapButton = document.getElementById('openMobileMapButton');
+const mobileMapButtonHelp = document.getElementById('mobileMapButtonHelp');
 const mobileMapModal = document.getElementById('mobileMapModal');
 const closeMobileMapButton = document.getElementById('closeMobileMapButton');
 const selectedTableBox = document.getElementById('selectedTableBox');
@@ -95,7 +96,10 @@ function canOpenTableMap() {
 }
 
 function updateMobileMapButtonState() {
-    openMobileMapButton.disabled = !canOpenTableMap();
+    const canOpenMap = canOpenTableMap();
+
+    openMobileMapButton.disabled = !canOpenMap;
+    mobileMapButtonHelp.classList.toggle('hidden', canOpenMap);
 }
 
 function isTableReserved(tableId, date, time) {

@@ -70,7 +70,80 @@ textarea {
 #clientRestaurantMap,
 #clientRestaurantMapModal,
 #restaurantMapModal {
+    isolation: isolate;
     min-width: 640px !important;
+    overflow: hidden;
+    border: 6px solid rgb(51, 65, 85);
+    background-color: rgb(255, 251, 235);
+    background-image:
+        linear-gradient(90deg, rgba(186, 230, 253, 0.95), rgba(125, 211, 252, 0.95)),
+        linear-gradient(90deg, rgba(186, 230, 253, 0.95), rgba(125, 211, 252, 0.95)),
+        linear-gradient(180deg, rgba(186, 230, 253, 0.95), rgba(125, 211, 252, 0.95)),
+        linear-gradient(180deg, rgba(186, 230, 253, 0.95), rgba(125, 211, 252, 0.95)),
+        linear-gradient(180deg, rgba(186, 230, 253, 0.95), rgba(125, 211, 252, 0.95)),
+        linear-gradient(180deg, rgba(186, 230, 253, 0.95), rgba(125, 211, 252, 0.95)),
+        linear-gradient(rgba(148, 163, 184, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.14) 1px, transparent 1px);
+    background-position:
+        left 28% top 0.35rem,
+        right 28% top 0.35rem,
+        left 0.35rem top 22%,
+        left 0.35rem top 66%,
+        right 0.35rem top 22%,
+        right 0.35rem top 66%,
+        left top,
+        left top;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat;
+    background-size:
+        6rem 0.55rem,
+        6rem 0.55rem,
+        0.55rem 5.5rem,
+        0.55rem 5.5rem,
+        0.55rem 5.5rem,
+        0.55rem 5.5rem,
+        2.5rem 2.5rem,
+        2.5rem 2.5rem;
+    box-shadow: inset 0 0 0 0.35rem rgba(255, 255, 255, 0.65), inset 0 1.5rem 3rem rgba(15, 23, 42, 0.04);
+}
+
+#restaurantMap::before,
+#clientRestaurantMap::before,
+#clientRestaurantMapModal::before,
+#restaurantMapModal::before {
+    position: absolute;
+    z-index: 1;
+    bottom: 0;
+    left: 50%;
+    width: 9rem;
+    height: 1.4rem;
+    content: '';
+    transform: translateX(-50%);
+    background: rgb(146, 64, 14);
+}
+
+#restaurantMap::after,
+#clientRestaurantMap::after,
+#clientRestaurantMapModal::after,
+#restaurantMapModal::after {
+    position: absolute;
+    z-index: 1;
+    bottom: 1.65rem;
+    left: 50%;
+    content: 'Entrada/Saída';
+    transform: translateX(-50%);
+    color: rgb(71, 85, 105);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+#restaurantMap > div,
+#clientRestaurantMap > div,
+#clientRestaurantMapModal > div,
+#restaurantMapModal > div {
+    position: relative;
+    z-index: 2;
 }
 
 #restaurantMap {
@@ -87,6 +160,7 @@ textarea {
 #clientRestaurantMap button,
 #clientRestaurantMapModal button,
 #restaurantMapModal button {
+    z-index: 3;
     min-height: 4.75rem;
     min-width: 4.75rem;
 }

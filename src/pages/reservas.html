@@ -37,7 +37,7 @@
         <section class="app-card rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="reservation-form-title">
             <div class="mb-6">
                 <h2 id="reservation-form-title" class="text-xl font-bold">Dados da reserva</h2>
-                <p class="text-sm text-slate-500">Selecione os dados antes de escolher a mesa</p>
+                <p class="text-sm text-slate-500">Preencha os dados da reserva para liberar a escolha da mesa.</p>
             </div>
 
             <form id="reservationForm" class="space-y-4" aria-labelledby="reservation-form-title">
@@ -73,8 +73,9 @@
                 </div>
 
                 <button id="openMobileMapButton" type="button"
-                    class="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 md:hidden"
+                    class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 md:hidden"
                     disabled>Selecionar mesa</button>
+                <p id="mobileMapButtonHelp" class="text-sm font-medium text-slate-500 md:hidden">Selecione uma data e um horário para escolher uma mesa.</p>
 
                 <button type="submit"
                     class="w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Confirmar
