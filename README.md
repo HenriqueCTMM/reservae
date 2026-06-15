@@ -12,9 +12,9 @@ A autenticação usa Firebase Authentication e os dados ficam no Firebase Realti
 
 ## Equipe
 
-- Nome do integrante 1: Henrique Mamprim Melo
-- Nome do integrante 2: Beatriz Krebs Yamaguchi
-- Nome do integrante 3: Igor Biassi Severich
+- Henrique Mamprim Melo
+- Beatriz Krebs Yamaguchi
+- Igor Biassi Severich
 
 ## Funcionalidades
 
@@ -258,4 +258,3 @@ Use a tela de cadastro para criar uma conta de cliente ou entre com o Google.
 
 - O Hosting publica a pasta `src`.
 - O projeto não usa rewrite de SPA; as páginas HTML internas funcionam como páginas separadas.
-- A pasta `src/assets/docs` é ignorada no deploy para não publicar documentação interna.
