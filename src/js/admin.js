@@ -700,7 +700,7 @@ function renderMessages() {
     adminMessagesList.innerHTML = '';
 
     if (!messages.length) {
-        adminMessagesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Nenhuma mensagem enviada pelos clientes.</div>';
+        adminMessagesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500 md:col-span-2">Nenhuma mensagem enviada pelos clientes.</div>';
         return;
     }
 
@@ -709,7 +709,7 @@ function renderMessages() {
 
         item.className = 'rounded-2xl border border-slate-200 p-4';
         item.innerHTML = `
-      <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div class="flex h-full flex-col gap-4">
         <div>
           <div class="mb-2 flex flex-wrap items-center gap-2">
             <h3 class="font-bold">${escapeHtml(message.assunto)}</h3>
@@ -724,14 +724,16 @@ function renderMessages() {
             </div>
           ` : ''}
         </div>
-        <div class="grid w-full gap-3 md:min-w-72 md:max-w-80">
-          <label for="messageReply-${message.id}" class="block text-sm font-medium">Resposta</label>
-          <textarea id="messageReply-${message.id}" data-message-reply="${message.id}" rows="4" maxlength="500"
-            class="w-full resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-            placeholder="Digite a resposta ao cliente">${escapeHtml(message.resposta || '')}</textarea>
-          <button type="button" data-save-message-reply="${message.id}"
-            class="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Salvar resposta</button>
-        </div>
+        ${message.resposta ? '' : `
+          <div class="grid w-full gap-3">
+            <label for="messageReply-${message.id}" class="block text-sm font-medium">Resposta</label>
+            <textarea id="messageReply-${message.id}" data-message-reply="${message.id}" rows="4" maxlength="500"
+              class="w-full resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+              placeholder="Digite a resposta ao cliente"></textarea>
+            <button type="button" data-save-message-reply="${message.id}"
+              class="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Salvar resposta</button>
+          </div>
+        `}
       </div>
     `;
         adminMessagesList.appendChild(item);
@@ -979,6 +981,13 @@ async function refreshMessages() {
 
 async function saveMessageReply(messageId) {
     clearMessage(adminMessage);
+
+    const message = messages.find((item) => item.id === messageId);
+
+    if (message?.resposta) {
+        showMessage(adminMessage, 'Esta mensagem já possui resposta e não pode ser editada.', 'error');
+        return;
+    }
 
     const replyField = adminMessagesList.querySelector(`[data-message-reply="${messageId}"]`);
     const reply = replyField?.value.trim() || '';

@@ -1,6 +1,7 @@
 import {
     createTimestamp,
     createWithPush,
+    getById,
     getCollection,
     queryByChild,
     removeById,
@@ -29,6 +30,12 @@ export async function createMessage(message) {
 }
 
 export async function updateMessageReply(messageId, { reply, admin }) {
+    const message = await getById(MESSAGES_PATH, messageId);
+
+    if (message?.resposta) {
+        throw new Error('Esta mensagem já possui resposta e não pode ser editada.');
+    }
+
     return updateById(MESSAGES_PATH, messageId, {
         resposta: reply,
         respostaEm: createTimestamp(),
