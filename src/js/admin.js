@@ -17,7 +17,7 @@ import {
 } from './services/operating-hours-service.js';
 import { getReservations, getReservationsByTable, updateReservationStatus } from './services/reservations-service.js';
 import { getTables, removeTable, saveTable, updateTable } from './services/tables-service.js';
-import { clearMessage, escapeHtml, formatDate, setFieldInvalid, showMessage } from './ui.js';
+import { clearMessage, escapeHtml, formatDate, setFieldInvalid, showMessage, trapFocus } from './ui.js';
 
 const user = await protectRoute(['admin']);
 
@@ -1281,6 +1281,11 @@ adminMapModal?.addEventListener('click', (event) => {
 document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && adminMapModal && !adminMapModal.classList.contains('hidden')) {
         closeAdminMap();
+        return;
+    }
+
+    if (adminMapModal && !adminMapModal.classList.contains('hidden')) {
+        trapFocus(event, adminMapModal);
     }
 });
 

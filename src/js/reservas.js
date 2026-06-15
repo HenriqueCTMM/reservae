@@ -1,5 +1,5 @@
 import { logout, protectRoute } from './auth.js';
-import { clearMessage, formatDate, setFieldInvalid, showMessage } from './ui.js';
+import { clearMessage, formatDate, setFieldError, showMessage, trapFocus } from './ui.js';
 import {
     CLOSED_DATE_MESSAGE,
     formatDuration,
@@ -31,6 +31,12 @@ const reservationDate = document.getElementById('reservationDate');
 const reservationTime = document.getElementById('reservationTime');
 const reservationTimeHelp = document.getElementById('reservationTimeHelp');
 const reservationPeople = document.getElementById('reservationPeople');
+const reservationDateError = document.getElementById('reservationDateError');
+const reservationTimeError = document.getElementById('reservationTimeError');
+const reservationPeopleError = document.getElementById('reservationPeopleError');
+const reservationTableError = document.getElementById('reservationTableError');
+const mapStatusMessage = document.getElementById('mapStatusMessage');
+const tableStatusList = document.getElementById('tableStatusList');
 
 clientUserName.textContent = currentUser.nome;
 logoutButton.addEventListener('click', logout);
@@ -130,6 +136,58 @@ function getTableVisualStatus(table) {
     return isTableReserved(table.id, date, time) ? 'reservada' : 'disponivel';
 }
 
+function getTableStatusLabel(status) {
+    const labels = {
+        disponivel: 'Disponível',
+        reservada: 'Reservada',
+        indisponivel: 'Indisponível'
+    };
+
+    return labels[status] || 'Indisponível';
+}
+
+function getTableStatusReason(table, status) {
+    const people = Number(reservationPeople.value);
+
+    if (status === 'disponivel') {
+        return 'Pode ser selecionada para esta reserva.';
+    }
+
+    if (table.status === 'indisponivel') {
+        return 'Mesa marcada como indisponível pelo restaurante.';
+    }
+
+    if (people && people > table.capacidade) {
+        return `Capacidade menor que ${people} pessoas.`;
+    }
+
+    if (status === 'reservada') {
+        return 'Mesa já reservada neste horário.';
+    }
+
+    return 'Mesa indisponível para os filtros atuais.';
+}
+
+function getMapSummaryText() {
+    if (!reservationDate.value || !reservationTime.value || !tables.length) {
+        return 'Mapa de mesas aguardando data, horário e mesas cadastradas.';
+    }
+
+    const totals = tables.reduce((summary, table) => {
+        const status = getTableVisualStatus(table);
+        summary[status] += 1;
+        return summary;
+    }, { disponivel: 0, reservada: 0, indisponivel: 0 });
+
+    return `${totals.disponivel} mesas disponíveis, ${totals.reservada} reservadas e ${totals.indisponivel} indisponíveis para os filtros atuais.`;
+}
+
+function announceMapSummary(message = getMapSummaryText()) {
+    if (mapStatusMessage) {
+        mapStatusMessage.textContent = message;
+    }
+}
+
 function normalizeRotation(rotation) {
     const value = Number(rotation || 0);
     const normalizedValue = ((value % 360) + 360) % 360;
@@ -176,6 +234,69 @@ function updateSelectedTableBox() {
     selectedTableBox.className = 'rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700';
     openMobileMapButton.textContent = 'Trocar mesa';
     updateMobileMapButtonState();
+}
+
+function clearReservationFieldErrors() {
+    setFieldError(reservationDate, reservationDateError);
+    setFieldError(reservationTime, reservationTimeError);
+    setFieldError(reservationPeople, reservationPeopleError);
+    setFieldError(selectedTableBox, reservationTableError);
+}
+
+function selectTable(table, { closeOnSelect = false, focusVisualMap = false } = {}) {
+    selectedTableId = table.id;
+    setFieldError(selectedTableBox, reservationTableError);
+    updateSelectedTableBox();
+    renderMap();
+    announceMapSummary(`Mesa ${table.numero} selecionada. ${table.capacidade} lugares.`);
+
+    if (focusVisualMap) {
+        document.querySelector(`[data-table-id="${table.id}"]`)?.focus({ preventScroll: true });
+    }
+
+    if (closeOnSelect) {
+        closeMobileMap();
+    }
+}
+
+function renderTableStatusSummary() {
+    if (!tableStatusList) {
+        return;
+    }
+
+    if (!reservationDate.value || !reservationTime.value) {
+        tableStatusList.innerHTML = '<p class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 sm:col-span-2 lg:col-span-3">Escolha data e horário para ver a lista de mesas disponíveis, reservadas e indisponíveis.</p>';
+        announceMapSummary();
+        return;
+    }
+
+    if (!tables.length) {
+        tableStatusList.innerHTML = '<p class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 sm:col-span-2 lg:col-span-3">Nenhuma mesa cadastrada.</p>';
+        announceMapSummary();
+        return;
+    }
+
+    tableStatusList.innerHTML = tables.map((table) => {
+        const status = getTableVisualStatus(table);
+        const isAvailable = status === 'disponivel';
+        const isSelected = selectedTableId === table.id;
+        const statusClasses = isAvailable
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+            : status === 'reservada'
+            ? 'border-rose-200 bg-rose-50 text-rose-800'
+            : 'border-slate-200 bg-slate-50 text-slate-700';
+
+        return `
+          <div class="rounded-2xl border p-4 ${statusClasses}">
+            <h3 class="font-bold">Mesa ${table.numero}</h3>
+            <p class="text-sm">${table.capacidade} lugares. Status: ${getTableStatusLabel(status)}.</p>
+            <p class="text-sm">${getTableStatusReason(table, status)}</p>
+            ${isSelected ? '<p class="mt-2 text-sm font-bold">Mesa selecionada.</p>' : ''}
+            ${isAvailable ? `<button type="button" data-select-table-summary="${table.id}" aria-pressed="${String(isSelected)}" class="mt-3 rounded-xl border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Selecionar mesa ${table.numero}</button>` : ''}
+          </div>
+        `;
+    }).join('');
+    announceMapSummary();
 }
 
 function closeMobileMap() {
@@ -241,6 +362,12 @@ function renderMapContainer(container, { closeOnSelect = false } = {}) {
 
         button.type = 'button';
         button.dataset.tableId = String(table.id);
+        button.setAttribute('aria-label', `Mesa ${table.numero}, ${table.capacidade} lugares, ${getTableStatusLabel(visualStatus).toLowerCase()}${isSelected ? ', selecionada' : ''}. ${getTableStatusReason(table, visualStatus)}`);
+
+        if (visualStatus === 'disponivel') {
+            button.setAttribute('aria-pressed', String(isSelected));
+        }
+
         button.className = `absolute flex h-24 w-24 flex-col items-center justify-center rounded-2xl border-2 text-sm font-semibold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:opacity-80 ${statusClassMap[visualStatus]} ${isSelected ? 'ring-4 ring-slate-300' : ''}`;
         button.style.left = `${table.posicaoX}px`;
         button.style.top = `${table.posicaoY}px`;
@@ -248,18 +375,12 @@ function renderMapContainer(container, { closeOnSelect = false } = {}) {
         button.innerHTML = `
       <span>Mesa ${table.numero}</span>
       <span class="text-xs font-medium">${table.capacidade} lugares</span>
+      <span class="text-xs font-bold">${getTableStatusLabel(visualStatus)}</span>
     `;
 
         if (visualStatus === 'disponivel') {
             button.addEventListener('click', () => {
-                selectedTableId = table.id;
-                updateSelectedTableBox();
-                renderMap();
-                container.querySelector(`[data-table-id="${table.id}"]`)?.focus();
-
-                if (closeOnSelect) {
-                    closeMobileMap();
-                }
+                selectTable(table, { closeOnSelect, focusVisualMap: !closeOnSelect });
             });
         } else {
             button.disabled = true;
@@ -272,6 +393,7 @@ function renderMapContainer(container, { closeOnSelect = false } = {}) {
 function renderMap() {
     renderMapContainer(clientRestaurantMap);
     renderMapContainer(clientRestaurantMapModal, { closeOnSelect: true });
+    renderTableStatusSummary();
 }
 
 function validateReservationData() {
@@ -280,17 +402,17 @@ function validateReservationData() {
     const people = Number(reservationPeople.value);
     const table = getSelectedTable();
 
-    [reservationDate, reservationTime, reservationPeople].forEach((field) => setFieldInvalid(field, false));
+    clearReservationFieldErrors();
 
     if (!date || !people) {
-        setFieldInvalid(reservationDate, !date);
-        setFieldInvalid(reservationPeople, !people);
+        setFieldError(reservationDate, reservationDateError, !date ? 'Informe a data da reserva.' : '');
+        setFieldError(reservationPeople, reservationPeopleError, !people ? 'Informe a quantidade de pessoas.' : '');
         showMessage(reservationMessage, 'Preencha data e quantidade de pessoas.', 'error');
         return false;
     }
 
     if (people < 1 || people > 8) {
-        setFieldInvalid(reservationPeople);
+        setFieldError(reservationPeople, reservationPeopleError, 'Informe de 1 a 8 pessoas.');
         showMessage(reservationMessage, 'A quantidade de pessoas deve estar entre 1 e 8.', 'error');
         return false;
     }
@@ -306,34 +428,37 @@ function validateReservationData() {
     }
 
     if (!time) {
-        setFieldInvalid(reservationTime);
+        setFieldError(reservationTime, reservationTimeError, 'Escolha um horário disponível.');
         showMessage(reservationMessage, 'Escolha um horário disponível.', 'error');
         return false;
     }
 
     if (!isTimeAllowedForPeople(date, time, people, operatingConfig, operatingExceptions)) {
-        setFieldInvalid(reservationTime);
+        setFieldError(reservationTime, reservationTimeError, 'Escolha um horário conforme o funcionamento do restaurante.');
         showMessage(reservationMessage, 'Escolha um horário disponível conforme o funcionamento do restaurante.', 'error');
         return false;
     }
 
     if (!table) {
+        setFieldError(selectedTableBox, reservationTableError, 'Selecione uma mesa disponível no mapa ou na lista acessível.');
         showMessage(reservationMessage, 'Selecione uma mesa disponível no mapa.', 'error');
         return false;
     }
 
     if (people > table.capacidade) {
-        setFieldInvalid(reservationPeople);
+        setFieldError(reservationPeople, reservationPeopleError, 'A quantidade excede a capacidade da mesa selecionada.');
         showMessage(reservationMessage, 'A quantidade de pessoas excede a capacidade da mesa selecionada.', 'error');
         return false;
     }
 
     if (table.status === 'indisponivel') {
+        setFieldError(selectedTableBox, reservationTableError, 'A mesa selecionada está indisponível.');
         showMessage(reservationMessage, 'Esta mesa está indisponível.', 'error');
         return false;
     }
 
     if (isTableReserved(table.id, date, time)) {
+        setFieldError(selectedTableBox, reservationTableError, 'A mesa selecionada já está reservada para este horário.');
         showMessage(reservationMessage, 'Esta mesa já está reservada para a data e horário selecionados.', 'error');
         return false;
     }
@@ -423,13 +548,20 @@ function watchTablesRealtime() {
         (restaurantTables) => {
             tables = restaurantTables;
             const selectedTable = getSelectedTable();
+            let mapAnnouncement = '';
 
             if (selectedTable && selectedTable.status !== 'disponivel') {
                 selectedTableId = null;
+                setFieldError(selectedTableBox, reservationTableError, 'A mesa selecionada ficou indisponível. Escolha outra mesa.');
                 updateSelectedTableBox();
+                mapAnnouncement = 'A mesa selecionada ficou indisponível. Escolha outra mesa.';
             }
 
             renderMap();
+
+            if (mapAnnouncement) {
+                announceMapSummary(mapAnnouncement);
+            }
         },
         () => {
             tables = [];
@@ -462,13 +594,20 @@ function watchSelectedDateReservations() {
         (dayReservations) => {
             reservations = dayReservations;
             const selectedTable = getSelectedTable();
+            let mapAnnouncement = '';
 
             if (selectedTable && getTableVisualStatus(selectedTable) !== 'disponivel') {
                 selectedTableId = null;
+                setFieldError(selectedTableBox, reservationTableError, 'A mesa selecionada ficou indisponível para este horário. Escolha outra mesa.');
                 updateSelectedTableBox();
+                mapAnnouncement = 'A mesa selecionada ficou indisponível para este horário. Escolha outra mesa.';
             }
 
             renderMap();
+
+            if (mapAnnouncement) {
+                announceMapSummary(mapAnnouncement);
+            }
         },
         () => {
             reservations = [];
@@ -525,6 +664,7 @@ reservationForm.addEventListener('submit', async (event) => {
 
         if (conflict) {
             renderMap();
+            setFieldError(selectedTableBox, reservationTableError, 'A mesa selecionada ficou indisponível neste período.');
             showMessage(reservationMessage, 'Esta mesa está indisponível neste período. Escolha outra mesa ou horário.', 'error');
             return;
         }
@@ -537,6 +677,7 @@ reservationForm.addEventListener('submit', async (event) => {
         stopReservationsRealtime();
         reservations = [];
         selectedTableId = null;
+        clearReservationFieldErrors();
         updateSelectedTableBox();
         setMinDate();
         renderReservationTimeOptions();
@@ -548,6 +689,7 @@ reservationForm.addEventListener('submit', async (event) => {
 
 reservationDate.addEventListener('change', () => {
     clearMessage(reservationMessage);
+    clearReservationFieldErrors();
     selectedTableId = null;
     updateSelectedTableBox();
     renderReservationTimeOptions();
@@ -560,6 +702,7 @@ reservationDate.addEventListener('change', () => {
 });
 
 reservationTime.addEventListener('change', () => {
+    clearReservationFieldErrors();
     selectedTableId = null;
     updateSelectedTableBox();
     watchSelectedDateReservations();
@@ -567,6 +710,7 @@ reservationTime.addEventListener('change', () => {
 
 reservationPeople.addEventListener('input', () => {
     clearMessage(reservationMessage);
+    clearReservationFieldErrors();
     const table = getSelectedTable();
 
     renderReservationTimeOptions();
@@ -583,6 +727,23 @@ openMobileMapButton.addEventListener('click', openMobileMap);
 
 closeMobileMapButton.addEventListener('click', closeMobileMap);
 
+tableStatusList?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-select-table-summary]');
+
+    if (!button) {
+        return;
+    }
+
+    const table = tables.find((item) => item.id === button.dataset.selectTableSummary);
+
+    if (!table || getTableVisualStatus(table) !== 'disponivel') {
+        return;
+    }
+
+    selectTable(table);
+    tableStatusList.querySelector(`[data-select-table-summary="${table.id}"]`)?.focus({ preventScroll: true });
+});
+
 mobileMapModal.addEventListener('click', (event) => {
     if (event.target === mobileMapModal) {
         closeMobileMap();
@@ -592,6 +753,11 @@ mobileMapModal.addEventListener('click', (event) => {
 document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !mobileMapModal.classList.contains('hidden')) {
         closeMobileMap();
+        return;
+    }
+
+    if (!mobileMapModal.classList.contains('hidden')) {
+        trapFocus(event, mobileMapModal);
     }
 });
 

@@ -55,39 +55,43 @@
             <form id="reservationForm" class="space-y-4" aria-labelledby="reservation-form-title">
                 <div>
                     <label for="reservationDate" class="mb-1 block text-sm font-medium">Data</label>
-                    <input id="reservationDate" type="date" aria-describedby="reservationDateHelp"
+                    <input id="reservationDate" type="date" aria-describedby="reservationDateHelp reservationDateError"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required />
                     <p id="reservationDateHelp" class="app-help-text mt-1">Escolha uma data de funcionamento do
                         restaurante.</p>
+                    <p id="reservationDateError" class="mt-1 hidden text-sm font-semibold text-rose-700"></p>
                 </div>
 
                 <div>
                     <label for="reservationTime" class="mb-1 block text-sm font-medium">Horário</label>
-                    <select id="reservationTime" aria-describedby="reservationTimeHelp"
+                    <select id="reservationTime" aria-describedby="reservationTimeHelp reservationTimeError"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required>
                         <option value="">Selecione uma data primeiro</option>
                     </select>
                     <p id="reservationTimeHelp" class="app-help-text mt-1">Os horários seguem o funcionamento do
                         restaurante.</p>
+                    <p id="reservationTimeError" class="mt-1 hidden text-sm font-semibold text-rose-700"></p>
                 </div>
 
                 <div>
                     <label for="reservationPeople" class="mb-1 block text-sm font-medium">Quantidade de pessoas</label>
                     <input id="reservationPeople" type="number" min="1" max="8" value="1"
-                        aria-describedby="reservationPeopleHelp"
+                        aria-describedby="reservationPeopleHelp reservationPeopleError"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required />
                     <p id="reservationPeopleHelp" class="app-help-text mt-1">Informe de 1 a 8 pessoas.</p>
+                    <p id="reservationPeopleError" class="mt-1 hidden text-sm font-semibold text-rose-700"></p>
                 </div>
 
                 <div>
                     <p id="selectedTableLabel" class="mb-1 block text-sm font-medium">Mesa selecionada</p>
-                    <div id="selectedTableBox" aria-labelledby="selectedTableLabel"
+                    <div id="selectedTableBox" aria-labelledby="selectedTableLabel" aria-describedby="reservationTableError"
                         class="rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-500" aria-live="polite">
                         Nenhuma mesa
                         selecionada</div>
+                    <p id="reservationTableError" class="mt-1 hidden text-sm font-semibold text-rose-700"></p>
                 </div>
 
                 <button id="openMobileMapButton" type="button"
@@ -123,6 +127,12 @@
                 class="app-scroll overflow-auto rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 sm:p-4">
                 <div id="clientRestaurantMap" class="relative h-[520px] min-w-[800px] rounded-2xl bg-white"></div>
             </div>
+        </section>
+
+        <section class="app-card rounded-2xl bg-white p-6 shadow-sm lg:col-span-2" aria-labelledby="tables-summary-title">
+            <h2 id="tables-summary-title" class="text-xl font-bold">Resumo acessível das mesas</h2>
+            <p id="mapStatusMessage" class="sr-only" aria-live="polite" aria-atomic="true"></p>
+            <div id="tableStatusList" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
         </section>
 
     </main>
