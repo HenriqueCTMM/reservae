@@ -307,16 +307,24 @@ function getMapMessageHtml(message, tone = 'muted') {
 }
 
 function closeAdminMap() {
+    if (!adminMapModal) {
+        return;
+    }
+
     adminMapModal.classList.add('hidden');
     document.body.style.overflow = '';
-    openAdminMapButton.focus({ preventScroll: true });
+    openAdminMapButton?.focus({ preventScroll: true });
 }
 
 function openAdminMap() {
+    if (!adminMapModal) {
+        return;
+    }
+
     renderMap();
     adminMapModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-    closeAdminMapButton.focus({ preventScroll: true });
+    closeAdminMapButton?.focus({ preventScroll: true });
 }
 
 function renderMapContainer(container, { closeOnSelect = false } = {}) {
@@ -411,11 +419,19 @@ function renderMapContainer(container, { closeOnSelect = false } = {}) {
 }
 
 function renderMap() {
+    if (!restaurantMap || !restaurantMapModal) {
+        return;
+    }
+
     renderMapContainer(restaurantMap);
     renderMapContainer(restaurantMapModal, { closeOnSelect: true });
 }
 
 function renderTablesList() {
+    if (!tablesList) {
+        return;
+    }
+
     tablesList.innerHTML = '';
 
     if (!tables.length) {
@@ -525,6 +541,10 @@ function getReservationPeriodText(reservation) {
 }
 
 function renderReservations() {
+    if (!adminReservationsTable) {
+        return;
+    }
+
     const filteredReservations = getFilteredReservations();
 
     adminReservationsTable.innerHTML = '';
@@ -625,6 +645,10 @@ function renderReportTotals(reportReservations) {
 }
 
 function renderReservationReport() {
+    if (!reservationReportTable || !reservationReportTotals) {
+        return;
+    }
+
     const reportReservations = getReportReservations();
 
     reservationReportTable.innerHTML = '';
@@ -669,6 +693,10 @@ function formatDateTime(timestamp) {
 }
 
 function renderMessages() {
+    if (!adminMessagesList) {
+        return;
+    }
+
     adminMessagesList.innerHTML = '';
 
     if (!messages.length) {
@@ -800,6 +828,10 @@ function renderExceptions() {
 }
 
 function renderOperatingHours() {
+    if (!weeklyHoursFields || !exceptionsList) {
+        return;
+    }
+
     renderWeeklyHoursForm();
     renderExceptions();
 }
@@ -914,8 +946,13 @@ function renderAll() {
 }
 
 async function loadData() {
-    restaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando mesas...</div>';
-    tablesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Carregando mesas...</div>';
+    if (restaurantMap) {
+        restaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando mesas...</div>';
+    }
+
+    if (tablesList) {
+        tablesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Carregando mesas...</div>';
+    }
 
     try {
         tables = await getTables();
@@ -1025,7 +1062,7 @@ async function deleteTable(tableId) {
     }
 }
 
-tableForm.addEventListener('submit', async (event) => {
+tableForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(adminMessage);
 
@@ -1054,12 +1091,12 @@ tableForm.addEventListener('submit', async (event) => {
     }
 });
 
-resetFormButton.addEventListener('click', () => {
+resetFormButton?.addEventListener('click', () => {
     clearMessage(adminMessage);
     resetForm({ focusFirstField: true });
 });
 
-rotateTableButton.addEventListener('click', () => {
+rotateTableButton?.addEventListener('click', () => {
     const rotationField = document.getElementById('rotacao');
     const tableId = document.getElementById('tableId').value;
     const nextRotation = normalizeRotation(rotationField.value) === 90 ? 0 : 90;
@@ -1074,43 +1111,43 @@ rotateTableButton.addEventListener('click', () => {
     }
 });
 
-refreshReservationsButton.addEventListener('click', refreshReservations);
-refreshMessagesButton.addEventListener('click', refreshMessages);
+refreshReservationsButton?.addEventListener('click', refreshReservations);
+refreshMessagesButton?.addEventListener('click', refreshMessages);
 
-openAdminMapButton.addEventListener('click', openAdminMap);
+openAdminMapButton?.addEventListener('click', openAdminMap);
 
-closeAdminMapButton.addEventListener('click', closeAdminMap);
+closeAdminMapButton?.addEventListener('click', closeAdminMap);
 
-adminMapModal.addEventListener('click', (event) => {
+adminMapModal?.addEventListener('click', (event) => {
     if (event.target === adminMapModal) {
         closeAdminMap();
     }
 });
 
 document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !adminMapModal.classList.contains('hidden')) {
+    if (event.key === 'Escape' && adminMapModal && !adminMapModal.classList.contains('hidden')) {
         closeAdminMap();
     }
 });
 
-reservationFiltersForm.addEventListener('submit', (event) => {
+reservationFiltersForm?.addEventListener('submit', (event) => {
     event.preventDefault();
 });
 
-reservationDateFilter.addEventListener('change', renderReservations);
-reservationStatusFilter.addEventListener('change', renderReservations);
-reservationSearchFilter.addEventListener('input', renderReservations);
+reservationDateFilter?.addEventListener('change', renderReservations);
+reservationStatusFilter?.addEventListener('change', renderReservations);
+reservationSearchFilter?.addEventListener('input', renderReservations);
 
-reservationReportForm.addEventListener('submit', (event) => {
+reservationReportForm?.addEventListener('submit', (event) => {
     event.preventDefault();
 });
 
-reportStartDate.addEventListener('change', renderReservationReport);
-reportEndDate.addEventListener('change', renderReservationReport);
-reportStatusFilter.addEventListener('change', renderReservationReport);
-reportSearchFilter.addEventListener('input', renderReservationReport);
+reportStartDate?.addEventListener('change', renderReservationReport);
+reportEndDate?.addEventListener('change', renderReservationReport);
+reportStatusFilter?.addEventListener('change', renderReservationReport);
+reportSearchFilter?.addEventListener('input', renderReservationReport);
 
-clearReportFiltersButton.addEventListener('click', () => {
+clearReportFiltersButton?.addEventListener('click', () => {
     reportStartDate.value = '';
     reportEndDate.value = '';
     reportStatusFilter.value = '';
@@ -1118,14 +1155,14 @@ clearReportFiltersButton.addEventListener('click', () => {
     renderReservationReport();
 });
 
-clearReservationFiltersButton.addEventListener('click', () => {
+clearReservationFiltersButton?.addEventListener('click', () => {
     reservationDateFilter.value = '';
     reservationStatusFilter.value = '';
     reservationSearchFilter.value = '';
     renderReservations();
 });
 
-adminReservationsTable.addEventListener('click', (event) => {
+adminReservationsTable?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-update-reservation-status]');
 
     if (!button) {
@@ -1135,7 +1172,7 @@ adminReservationsTable.addEventListener('click', (event) => {
     finishReservation(button.dataset.updateReservationStatus);
 });
 
-weeklyHoursForm.addEventListener('submit', async (event) => {
+weeklyHoursForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(adminMessage);
 
@@ -1170,7 +1207,7 @@ weeklyHoursForm.addEventListener('submit', async (event) => {
     }
 });
 
-exceptionForm.addEventListener('submit', async (event) => {
+exceptionForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(adminMessage);
 
@@ -1220,11 +1257,11 @@ exceptionForm.addEventListener('submit', async (event) => {
     }
 });
 
-clearExceptionFormButton.addEventListener('click', () => {
+clearExceptionFormButton?.addEventListener('click', () => {
     resetExceptionForm();
 });
 
-exceptionsList.addEventListener('click', async (event) => {
+exceptionsList?.addEventListener('click', async (event) => {
     const editButton = event.target.closest('[data-edit-exception]');
     const deleteButton = event.target.closest('[data-delete-exception]');
 
@@ -1264,7 +1301,7 @@ exceptionsList.addEventListener('click', async (event) => {
     }
 });
 
-adminMessagesList.addEventListener('click', (event) => {
+adminMessagesList?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-save-message-reply]');
 
     if (!button) {

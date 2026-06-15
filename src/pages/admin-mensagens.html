@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reservaê | Mensagens administrativas</title>
+    <link rel="icon" href="../assets/logo-reservae.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../css/app.css" />
+</head>
+
+<body class="app-surface flex min-h-screen flex-col text-slate-900">
+    <a href="#conteudo-principal" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Pular para o conteúdo principal</a>
+    <header class="border-b border-slate-200 bg-white">
+        <div class="app-container flex flex-col gap-4 py-4 md:flex-row md:items-center md:justify-between">
+            <div class="flex items-center gap-4"><img src="../assets/logo-reservae.png" alt="Reservaê" class="h-10 w-auto" /><img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô" class="h-12 w-12 rounded-md object-cover" /><div><h1 id="admin-page-title" class="text-2xl font-bold">Mensagens</h1><p class="text-sm text-slate-500">Responda contatos enviados pelos clientes</p></div></div>
+            <nav class="app-mobile-stack flex flex-wrap items-center gap-3" aria-label="Navegação do administrador">
+                <a href="./admin.html" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mesas</a>
+                <a href="./admin-reservas.html" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Reservas</a>
+                <a href="./admin-configuracoes.html" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Configurações</a>
+                <a href="./admin-mensagens.html" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mensagens</a>
+                <span id="adminUserName" class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span><button id="logoutButton" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Sair</button>
+            </nav>
+        </div>
+    </header>
+    <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 space-y-6 py-5 md:py-6" aria-labelledby="admin-page-title">
+        <div id="adminMessage" class="hidden rounded-xl px-4 py-3 text-sm"></div>
+        <article class="app-card rounded-2xl bg-white p-3 shadow-sm" aria-labelledby="admin-messages-title">
+            <div class="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div><h2 id="admin-messages-title" class="text-xl font-bold">Mensagens dos clientes</h2><p class="text-sm text-slate-500">Acompanhe contatos enviados pelos usuários logados</p></div>
+                <button id="refreshMessagesButton" type="button" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Atualizar mensagens</button>
+            </div>
+            <div id="adminMessagesList" class="space-y-3" aria-live="polite"></div>
+        </article>
+    </main>
+    <footer class="border-t border-slate-200 bg-white"><div class="app-container grid gap-4 py-5 text-sm text-slate-600 md:grid-cols-[auto_1fr_auto] md:items-center"><div class="flex items-center gap-3"><img src="../assets/logo-reservae.png" alt="Reservaê" class="h-8 w-auto" /><img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô" class="h-10 w-10 rounded-md object-cover" /></div><div><p class="font-semibold text-slate-900">Dona Maragô Bistrô</p><p>Reservas online para crepes, pizzas e momentos especiais.</p></div><div class="md:text-right"><p class="font-medium text-slate-700">Atendimento conforme funcionamento do restaurante.</p><p>Gerencie reservas com praticidade e segurança.</p></div></div></footer>
+    <script type="module" src="../js/admin.js"></script>
+</body>
+
+</html>

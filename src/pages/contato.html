@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reservaê | Minhas reservas</title>
+    <title>Reservaê | Contato</title>
     <link rel="icon" href="../assets/logo-reservae.png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="../css/app.css" />
@@ -21,35 +21,60 @@
                 <img src="../assets/logo-reservae.png" alt="Reservaê" class="h-10 w-auto" />
                 <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô" class="h-12 w-12 rounded-md object-cover" />
                 <div>
-                    <h1 id="my-reservations-page-title" class="text-2xl font-bold">Minhas Reservas</h1>
-                    <p class="text-sm text-slate-500">Consulte as reservas realizadas na plataforma</p>
+                    <h1 id="contact-page-title" class="text-2xl font-bold">Contato</h1>
+                    <p class="text-sm text-slate-500">Envie dúvidas ou observações para o restaurante</p>
                 </div>
             </div>
+
             <nav class="app-mobile-stack flex flex-wrap items-center gap-3" aria-label="Navegação do cliente">
                 <a href="./reservas.html"
                     class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Nova
                     reserva</a>
-                <a href="./contato.html"
-                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Contato</a>
-                <span id="clientReservationsUserName"
-                    class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span>
+                <a href="./minhas-reservas.html"
+                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Minhas
+                    reservas</a>
+                <span id="clientUserName" class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span>
                 <button id="logoutButton"
                     class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Sair</button>
             </nav>
         </div>
     </header>
 
-    <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 py-5 md:py-6"
-        aria-labelledby="my-reservations-page-title">
-        <section class="app-card rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="reservations-history-title">
-            <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 id="reservations-history-title" class="text-xl font-bold">Histórico de reservas</h2>
-                    <p class="text-sm text-slate-500">Veja suas reservas atuais</p>
-                </div>
+    <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 py-5 md:py-6" aria-labelledby="contact-page-title">
+        <section class="app-card rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="contact-title">
+            <div class="mb-6">
+                <h2 id="contact-title" class="text-xl font-bold">Contato com o restaurante</h2>
+                <p class="text-sm text-slate-500">Envie mensagens e acompanhe as respostas do restaurante.</p>
             </div>
 
-            <div id="myReservationsList" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"></div>
+            <div class="grid gap-6 lg:grid-cols-[minmax(300px,360px)_1fr]">
+                <form id="contactForm" class="space-y-4" aria-labelledby="contact-title">
+                    <div>
+                        <label for="contactSubject" class="mb-1 block text-sm font-medium">Assunto</label>
+                        <input id="contactSubject" type="text" maxlength="80"
+                            class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                            required />
+                    </div>
+
+                    <div>
+                        <label for="contactMessageText" class="mb-1 block text-sm font-medium">Mensagem</label>
+                        <textarea id="contactMessageText" rows="5" maxlength="500"
+                            class="w-full resize-none rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                            required></textarea>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Enviar
+                        mensagem</button>
+
+                    <div id="contactMessage" class="hidden rounded-xl px-4 py-3 text-sm"></div>
+                </form>
+
+                <div>
+                    <h3 class="mb-3 font-bold">Minhas mensagens</h3>
+                    <div id="clientMessagesList" class="space-y-3" aria-live="polite"></div>
+                </div>
+            </div>
         </section>
     </main>
 
@@ -70,7 +95,7 @@
         </div>
     </footer>
 
-    <script type="module" src="../js/minhas-reservas.js"></script>
+    <script type="module" src="../js/contato.js"></script>
 </body>
 
 </html>
