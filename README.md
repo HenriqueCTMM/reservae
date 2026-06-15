@@ -12,9 +12,9 @@ A autenticação usa Firebase Authentication e os dados ficam no Firebase Realti
 
 ## Equipe
 
-- Nome do integrante 1: Henrique Mamprim Melo
-- Nome do integrante 2: Beatriz Krebs Yamaguchi
-- Nome do integrante 3: Igor Biassi Severich
+- Henrique Mamprim Melo
+- Beatriz Krebs Yamaguchi
+- Igor Biassi Severich
 
 ## Funcionalidades
 
