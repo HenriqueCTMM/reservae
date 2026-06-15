@@ -74,6 +74,31 @@ textarea {
     min-width: 0;
 }
 
+header .app-container {
+    min-width: 0;
+}
+
+header .app-container > div:first-child,
+header nav {
+    min-width: 0;
+    max-width: 100%;
+}
+
+header h1,
+header p {
+    overflow-wrap: anywhere;
+}
+
+#logoutButton {
+    border-color: rgb(254, 202, 202) !important;
+    background-color: rgb(254, 242, 242) !important;
+    color: rgb(185, 28, 28) !important;
+}
+
+#logoutButton:hover {
+    background-color: rgb(254, 226, 226) !important;
+}
+
 .app-scroll {
     -webkit-overflow-scrolling: touch;
     max-width: 100%;
@@ -180,22 +205,13 @@ textarea {
     z-index: 2;
 }
 
-#restaurantMap {
-    width: 800px;
-    min-width: 800px !important;
-    height: 520px !important;
-}
-
+#restaurantMap,
+#clientRestaurantMap,
+#clientRestaurantMapModal,
 #restaurantMapModal {
     width: 800px;
     min-width: 800px !important;
     height: 520px !important;
-}
-
-#clientRestaurantMap,
-#clientRestaurantMapModal {
-    min-width: 760px !important;
-    height: clamp(420px, 62vh, 560px) !important;
 }
 
 #restaurantMap button:not([data-toggle-table-orientation]),
@@ -235,6 +251,13 @@ table {
     }
 }
 
+@media (max-width: 1023px) {
+    header .app-container {
+        align-items: stretch !important;
+        flex-direction: column !important;
+    }
+}
+
 @media (max-width: 767px) {
     .app-container {
         padding-inline: 0.75rem;
@@ -243,6 +266,16 @@ table {
     .app-card {
         border-radius: 1.25rem;
         padding: 1rem !important;
+    }
+
+    header .app-container > div:first-child {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    header .app-container > div:first-child > div {
+        min-width: 0;
+        width: 100%;
     }
 
     #restaurantMap,
@@ -275,11 +308,7 @@ table {
         min-height: 14rem;
     }
 
-    #clientRestaurantMapModal {
-        height: 560px !important;
-        min-width: 760px !important;
-    }
-
+    #clientRestaurantMapModal,
     #restaurantMapModal {
         height: 520px !important;
         min-width: 800px !important;

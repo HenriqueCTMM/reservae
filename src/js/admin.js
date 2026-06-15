@@ -173,8 +173,13 @@ function getFormValues() {
     };
 }
 
-function resetForm({ focusFirstField = false } = {}) {
+function resetForm({ focusFirstField = false, blurActiveField = false } = {}) {
     clearTimeout(tableAutosaveTimer);
+
+    if (blurActiveField && tableForm.contains(document.activeElement)) {
+        document.activeElement.blur();
+    }
+
     tableForm.reset();
     document.getElementById('tableId').value = '';
     document.getElementById('numero').value = String(getNextTableNumber());
@@ -239,6 +244,7 @@ function selectTableForEditing(tableId, { closeMap = false } = {}) {
     }
 
     fillForm(tableId);
+    renderMap();
 
     if (closeMap) {
         closeAdminMap();
@@ -247,6 +253,18 @@ function selectTableForEditing(tableId, { closeMap = false } = {}) {
 
 function updateTablePositionPreview(tableId, x, y) {
     tables = tables.map((table) => table.id === tableId ? { ...table, posicaoX: x, posicaoY: y } : table);
+}
+
+function applyEditingMapStyle(card) {
+    card.classList.remove(
+        'bg-emerald-100',
+        'text-emerald-700',
+        'border-emerald-300',
+        'bg-slate-200',
+        'text-slate-700',
+        'border-slate-300'
+    );
+    card.classList.add('bg-blue-100', 'text-blue-950', 'border-blue-700', 'ring-4', 'ring-blue-300');
 }
 
 async function saveExistingTable(tableId, changes, successMessage = 'Mesa salva automaticamente.') {
@@ -275,6 +293,7 @@ async function saveExistingTable(tableId, changes, successMessage = 'Mesa salva 
     try {
         const updatedTable = await updateTable(tableId, nextTable);
         tables = tables.map((table) => table.id === tableId ? updatedTable : table);
+        resetForm({ blurActiveField: true });
         renderMap();
         renderTablesList();
 
@@ -343,6 +362,10 @@ function startTableDrag(event, table, card, container) {
 
         if (deltaX > 4 || deltaY > 4) {
             moved = true;
+            if (document.getElementById('tableId').value !== table.id) {
+                fillForm(table.id, { focusForm: false });
+            }
+            applyEditingMapStyle(card);
         }
 
         nextX = Math.max(0, Math.min(pointerEvent.clientX - mapRect.left - offsetX, maxMapWidth - dimensions.width));
@@ -422,9 +445,12 @@ function renderMapContainer(container, { closeOnSelect = false } = {}) {
 
     tables.forEach((table) => {
         const card = document.createElement('div');
-        const statusClasses = table.status === 'disponivel'
-            ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-            : 'bg-slate-200 text-slate-700 border-slate-300';
+        const isEditing = document.getElementById('tableId').value === table.id;
+        const statusClasses = isEditing
+            ? 'bg-blue-100 text-blue-950 border-blue-700 ring-4 ring-blue-300'
+            : table.status === 'disponivel'
+                ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                : 'bg-slate-200 text-slate-700 border-slate-300';
 
         card.role = 'button';
         card.tabIndex = 0;
@@ -701,11 +727,11 @@ function renderReportTotals(reportReservations) {
         nao_compareceu: reportReservations.filter((reservation) => reservation.status === 'nao_compareceu').length
     };
     const cards = [
-        ['Total', totals.total],
         ['Ativas', totals.ativa],
         ['Finalizadas', totals.finalizada],
         ['Canceladas', totals.cancelada],
-        ['Não compareceu', totals.nao_compareceu]
+        ['Não compareceu', totals.nao_compareceu],
+        ['Total', totals.total],
     ];
 
     reservationReportTotals.innerHTML = cards.map(([label, value]) => `
@@ -991,7 +1017,7 @@ function showAffectedReservationMessage(prefix, reservation) {
     showMessage(adminMessage, `${prefix} Existe reserva ativa em ${formatDate(reservation.data)} às ${reservation.horario} para a Mesa ${reservation.mesaNumero || '-'}.`, 'error');
 }
 
-function fillForm(tableId) {
+function fillForm(tableId, { focusForm = true } = {}) {
     const table = tables.find((item) => item.id === tableId);
 
     if (!table) {
@@ -1009,8 +1035,10 @@ function fillForm(tableId) {
     document.getElementById('status').value = table.status;
     updateRotationDisplay();
     updateTableFormMode();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    document.getElementById('numero').focus({ preventScroll: true });
+    if (focusForm) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.getElementById('numero').focus({ preventScroll: true });
+    }
 }
 
 function renderAll() {
@@ -1180,6 +1208,7 @@ tableForm?.addEventListener('submit', async (event) => {
 resetFormButton?.addEventListener('click', () => {
     clearMessage(adminMessage);
     resetForm({ focusFirstField: true });
+    renderMap();
 });
 
 rotateTableButton?.addEventListener('click', async () => {

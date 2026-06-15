@@ -19,25 +19,33 @@
         <div class="app-container flex flex-col gap-4 py-4 md:flex-row md:items-center md:justify-between">
             <div class="flex items-center gap-4">
                 <img src="../assets/logo-reservae.png" alt="Reservaê" class="h-10 w-auto" />
-                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô" class="h-12 w-12 rounded-md object-cover" />
+                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô"
+                    class="h-12 w-12 rounded-md object-cover" />
                 <div>
                     <h1 id="admin-page-title" class="text-2xl font-bold">Reservas</h1>
                     <p class="text-sm text-slate-500">Acompanhe reservas e relatórios do restaurante</p>
                 </div>
             </div>
             <nav class="app-mobile-stack flex flex-wrap items-center gap-3" aria-label="Navegação do administrador">
-                <a href="./admin.html" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mesas</a>
-                <a href="./admin-reservas.html" aria-current="page" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Reservas</a>
-                <a href="./admin-configuracoes.html" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Configurações</a>
-                <a href="./admin-mensagens.html" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mensagens</a>
+                <a href="./admin.html"
+                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mesas</a>
+                <a href="./admin-reservas.html" aria-current="page"
+                    class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Reservas</a>
+                <a href="./admin-configuracoes.html"
+                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Configurações</a>
+                <a href="./admin-mensagens.html"
+                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mensagens</a>
                 <span id="adminUserName" class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span>
-                <button id="logoutButton" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Sair</button>
+                <button id="logoutButton"
+                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Sair</button>
             </nav>
         </div>
     </header>
 
-    <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 space-y-6 py-5 md:py-6" aria-labelledby="admin-page-title">
-        <div id="adminMessage" class="hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true"></div>
+    <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 space-y-6 py-5 md:py-6"
+        aria-labelledby="admin-page-title">
+        <div id="adminMessage" class="hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true">
+        </div>
 
         <article class="app-card rounded-2xl bg-white p-3 shadow-sm" aria-labelledby="admin-reservations-title">
             <div class="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -46,18 +54,23 @@
                     <p class="text-sm text-slate-500">Visão completa das reservas criadas pelos clientes</p>
                 </div>
                 <div class="app-mobile-stack flex flex-wrap gap-3">
-                    <button id="refreshReservationsButton" type="button" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Atualizar</button>
-                    <button id="clearReservationFiltersButton" type="button" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Limpar filtros</button>
+                    <button id="refreshReservationsButton" type="button"
+                        class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Atualizar</button>
+                    <button id="clearReservationFiltersButton" type="button"
+                        class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Limpar
+                        filtros</button>
                 </div>
             </div>
             <form id="reservationFiltersForm" class="mb-4 grid gap-3 md:grid-cols-3" aria-label="Filtros de reservas">
                 <div>
                     <label for="reservationDateFilter" class="mb-1 block text-sm font-medium">Data</label>
-                    <input id="reservationDateFilter" type="date" class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
+                    <input id="reservationDateFilter" type="date"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
                 </div>
                 <div>
                     <label for="reservationStatusFilter" class="mb-1 block text-sm font-medium">Status</label>
-                    <select id="reservationStatusFilter" class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
+                    <select id="reservationStatusFilter"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
                         <option value="">Todos</option>
                         <option value="ativa">Ativa</option>
                         <option value="finalizada">Finalizada</option>
@@ -68,10 +81,13 @@
                 </div>
                 <div>
                     <label for="reservationSearchFilter" class="mb-1 block text-sm font-medium">Cliente ou mesa</label>
-                    <input id="reservationSearchFilter" type="search" class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" placeholder="Ex.: Maria ou Mesa 2" />
+                    <input id="reservationSearchFilter" type="search"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                        placeholder="Ex.: Maria ou Mesa 2" />
                 </div>
             </form>
-            <p id="reservationResultsCount" class="mb-3 text-sm text-slate-500" aria-live="polite">0 reservas encontradas</p>
+            <p id="reservationResultsCount" class="mb-3 text-sm text-slate-500" aria-live="polite">0 reservas
+                encontradas</p>
             <div class="app-scroll overflow-x-auto">
                 <table class="min-w-full border-separate border-spacing-y-2" aria-labelledby="admin-reservations-title">
                     <thead>
@@ -95,26 +111,71 @@
                 <h2 id="reservation-report-title" class="text-xl font-bold">Relatório de reservas</h2>
                 <p class="text-sm text-slate-500">Resumo simples por período, status, cliente ou mesa</p>
             </div>
-            <form id="reservationReportForm" class="mb-4 grid gap-3 md:grid-cols-4" aria-label="Filtros do relatório de reservas">
-                <div><label for="reportStartDate" class="mb-1 block text-sm font-medium">Data inicial</label><input id="reportStartDate" type="date" class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" /></div>
-                <div><label for="reportEndDate" class="mb-1 block text-sm font-medium">Data final</label><input id="reportEndDate" type="date" class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" /></div>
+            <form id="reservationReportForm" class="mb-4 grid gap-3 md:grid-cols-4"
+                aria-label="Filtros do relatório de reservas">
+                <div><label for="reportStartDate" class="mb-1 block text-sm font-medium">Data inicial</label><input
+                        id="reportStartDate" type="date"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
+                </div>
+                <div><label for="reportEndDate" class="mb-1 block text-sm font-medium">Data final</label><input
+                        id="reportEndDate" type="date"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
+                </div>
                 <div>
                     <label for="reportStatusFilter" class="mb-1 block text-sm font-medium">Status</label>
-                    <select id="reportStatusFilter" class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
-                        <option value="">Todos</option><option value="ativa">Ativa</option><option value="finalizada">Finalizada</option><option value="cancelada">Cancelada</option><option value="nao_compareceu">Não compareceu</option><option value="expirada">Expirada</option>
+                    <select id="reportStatusFilter"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
+                        <option value="">Todos</option>
+                        <option value="ativa">Ativa</option>
+                        <option value="finalizada">Finalizada</option>
+                        <option value="cancelada">Cancelada</option>
+                        <option value="nao_compareceu">Não compareceu</option>
+                        <option value="expirada">Expirada</option>
                     </select>
                 </div>
-                <div><label for="reportSearchFilter" class="mb-1 block text-sm font-medium">Cliente ou mesa</label><input id="reportSearchFilter" type="search" class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" placeholder="Ex.: Maria ou Mesa 2" /></div>
-                <div class="md:col-span-4"><button id="clearReportFiltersButton" type="button" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Limpar relatório</button></div>
+                <div><label for="reportSearchFilter" class="mb-1 block text-sm font-medium">Cliente ou
+                        mesa</label><input id="reportSearchFilter" type="search"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                        placeholder="Ex.: Maria ou Mesa 2" /></div>
+                <div class="md:col-span-4"><button id="clearReportFiltersButton" type="button"
+                        class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Limpar
+                        relatório</button></div>
             </form>
-            <div id="reservationReportTotals" class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3" aria-live="polite"></div>
+            <div id="reservationReportTotals" class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3" aria-live="polite">
+            </div>
             <div class="app-scroll overflow-x-auto">
-                <table class="min-w-full border-separate border-spacing-y-2" aria-labelledby="reservation-report-title"><thead><tr class="text-left text-sm text-slate-500"><th scope="col" class="px-3 py-2">Cliente</th><th scope="col" class="px-3 py-2">Mesa</th><th scope="col" class="px-3 py-2">Reserva</th><th scope="col" class="px-3 py-2">Status</th><th scope="col" class="px-3 py-2">Atualização</th><th scope="col" class="px-3 py-2">Motivo</th></tr></thead><tbody id="reservationReportTable"></tbody></table>
+                <table class="min-w-full border-separate border-spacing-y-2" aria-labelledby="reservation-report-title">
+                    <thead>
+                        <tr class="text-left text-sm text-slate-500">
+                            <th scope="col" class="px-3 py-2">Cliente</th>
+                            <th scope="col" class="px-3 py-2">Mesa</th>
+                            <th scope="col" class="px-3 py-2">Reserva</th>
+                            <th scope="col" class="px-3 py-2">Status</th>
+                            <th scope="col" class="px-3 py-2">Atualização</th>
+                            <th scope="col" class="px-3 py-2">Motivo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reservationReportTable"></tbody>
+                </table>
             </div>
         </article>
     </main>
 
-    <footer class="border-t border-slate-200 bg-white"><div class="app-container grid gap-4 py-5 text-sm text-slate-600 md:grid-cols-[auto_1fr_auto] md:items-center"><div class="flex items-center gap-3"><img src="../assets/logo-reservae.png" alt="Reservaê" class="h-8 w-auto" /><img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô" class="h-10 w-10 rounded-md object-cover" /></div><div><p class="font-semibold text-slate-900">Dona Maragô Bistrô</p><p>Reservas online para crepes, pizzas e momentos especiais.</p></div><div class="md:text-right"><p class="font-medium text-slate-700">Atendimento conforme funcionamento do restaurante.</p><p>Gerencie reservas com praticidade e segurança.</p></div></div></footer>
+    <footer class="border-t border-slate-200 bg-white">
+        <div class="app-container grid gap-4 py-5 text-sm text-slate-600 md:grid-cols-[auto_1fr_auto] md:items-center">
+            <div class="flex items-center gap-3"><img src="../assets/logo-reservae.png" alt="Reservaê"
+                    class="h-8 w-auto" /><img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô"
+                    class="h-10 w-10 rounded-md object-cover" /></div>
+            <div>
+                <p class="font-semibold text-slate-900">Dona Maragô Bistrô</p>
+                <p>Reservas online para crepes, pizzas e momentos especiais.</p>
+            </div>
+            <div class="md:text-right">
+                <p class="font-medium text-slate-700">Atendimento conforme funcionamento do restaurante.</p>
+                <p>Gerencie reservas com praticidade e segurança.</p>
+            </div>
+        </div>
+    </footer>
     <script type="module" src="../js/admin.js"></script>
 </body>
 

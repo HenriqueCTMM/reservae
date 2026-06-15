@@ -19,7 +19,8 @@
         <div class="app-container flex flex-col gap-4 py-4 md:flex-row md:items-center md:justify-between">
             <div class="flex items-center gap-4">
                 <img src="../assets/logo-reservae.png" alt="Reservaê" class="h-10 w-auto" />
-                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô" class="h-12 w-12 rounded-md object-cover" />
+                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô"
+                    class="h-12 w-12 rounded-md object-cover" />
                 <div>
                     <h1 id="reservation-page-title" class="text-2xl font-bold">Reserva de Mesas</h1>
                     <p class="text-sm text-slate-500">Escolha a data, horário e a mesa desejada</p>
@@ -28,7 +29,8 @@
 
             <nav class="app-mobile-stack flex flex-wrap items-center gap-3" aria-label="Navegação do cliente">
                 <a href="./reservas.html" aria-current="page"
-                    class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Nova reserva</a>
+                    class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Nova
+                    reserva</a>
                 <a href="./minhas-reservas.html"
                     class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Minhas
                     reservas</a>
@@ -41,7 +43,8 @@
         </div>
     </header>
 
-    <main id="conteudo-principal" tabindex="-1" class="app-container grid flex-1 gap-5 py-5 md:gap-6 md:py-6 lg:grid-cols-[minmax(320px,360px)_1fr]"
+    <main id="conteudo-principal" tabindex="-1"
+        class="app-container grid flex-1 gap-5 py-5 md:gap-6 md:py-6 lg:grid-cols-[minmax(320px,360px)_1fr]"
         aria-labelledby="reservation-page-title">
         <section class="app-card rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="reservation-form-title">
             <div class="mb-6">
@@ -55,7 +58,8 @@
                     <input id="reservationDate" type="date" aria-describedby="reservationDateHelp"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required />
-                    <p id="reservationDateHelp" class="app-help-text mt-1">Escolha uma data de funcionamento do restaurante.</p>
+                    <p id="reservationDateHelp" class="app-help-text mt-1">Escolha uma data de funcionamento do
+                        restaurante.</p>
                 </div>
 
                 <div>
@@ -65,12 +69,14 @@
                         required>
                         <option value="">Selecione uma data primeiro</option>
                     </select>
-                    <p id="reservationTimeHelp" class="app-help-text mt-1">Os horários seguem o funcionamento do restaurante.</p>
+                    <p id="reservationTimeHelp" class="app-help-text mt-1">Os horários seguem o funcionamento do
+                        restaurante.</p>
                 </div>
 
                 <div>
                     <label for="reservationPeople" class="mb-1 block text-sm font-medium">Quantidade de pessoas</label>
-                    <input id="reservationPeople" type="number" min="1" max="8" value="1" aria-describedby="reservationPeopleHelp"
+                    <input id="reservationPeople" type="number" min="1" max="8" value="1"
+                        aria-describedby="reservationPeopleHelp"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required />
                     <p id="reservationPeopleHelp" class="app-help-text mt-1">Informe de 1 a 8 pessoas.</p>
@@ -79,21 +85,24 @@
                 <div>
                     <p id="selectedTableLabel" class="mb-1 block text-sm font-medium">Mesa selecionada</p>
                     <div id="selectedTableBox" aria-labelledby="selectedTableLabel"
-                        class="rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-500" aria-live="polite">Nenhuma mesa
+                        class="rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-500" aria-live="polite">
+                        Nenhuma mesa
                         selecionada</div>
                 </div>
 
                 <button id="openMobileMapButton" type="button"
                     class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 md:hidden"
                     disabled>Selecionar mesa</button>
-                <p id="mobileMapButtonHelp" class="text-sm font-medium text-slate-500 md:hidden">Selecione uma data e um horário para escolher uma mesa.</p>
+                <p id="mobileMapButtonHelp" class="text-sm font-medium text-slate-500 md:hidden">Selecione uma data e um
+                    horário para escolher uma mesa.</p>
 
                 <button type="submit"
                     class="w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Confirmar
                     reserva</button>
             </form>
 
-            <div id="reservationMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true"></div>
+            <div id="reservationMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive"
+                aria-atomic="true"></div>
         </section>
 
         <section class="app-card hidden rounded-2xl bg-white p-6 shadow-sm md:block" aria-labelledby="tables-map-title">
@@ -102,22 +111,24 @@
                     <h2 id="tables-map-title" class="text-xl font-bold">Mapa de mesas</h2>
                     <p class="text-sm text-slate-500">Clique em uma mesa disponível para selecionar</p>
                 </div>
-                <div class="flex flex-wrap items-center gap-2 text-sm text-slate-500" role="group" aria-label="Legenda de status das mesas">
+                <div class="flex flex-wrap items-center gap-2 text-sm text-slate-500" role="group"
+                    aria-label="Legenda de status das mesas">
                     <span class="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Disponível</span>
                     <span class="rounded-full bg-rose-100 px-3 py-1 text-rose-700">Reservada</span>
                     <span class="rounded-full bg-slate-200 px-3 py-1 text-slate-700">Indisponível</span>
                 </div>
             </div>
 
-            <div class="app-scroll overflow-auto rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 sm:p-4">
-                <div id="clientRestaurantMap" class="relative h-[560px] min-w-[760px] rounded-2xl bg-white"></div>
+            <div
+                class="app-scroll overflow-auto rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 sm:p-4">
+                <div id="clientRestaurantMap" class="relative h-[520px] min-w-[800px] rounded-2xl bg-white"></div>
             </div>
         </section>
 
     </main>
 
-    <div id="mobileMapModal" class="fixed inset-0 z-50 hidden bg-slate-950/70 p-3 md:hidden" role="dialog" aria-modal="true"
-        aria-labelledby="mobile-map-title">
+    <div id="mobileMapModal" class="fixed inset-0 z-50 hidden bg-slate-950/70 p-3 md:hidden" role="dialog"
+        aria-modal="true" aria-labelledby="mobile-map-title">
         <div class="flex max-h-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div class="flex items-start justify-between gap-3 border-b border-slate-200 p-4">
                 <div>
@@ -137,7 +148,8 @@
         <div class="app-container grid gap-4 py-5 text-sm text-slate-600 md:grid-cols-[auto_1fr_auto] md:items-center">
             <div class="flex items-center gap-3">
                 <img src="../assets/logo-reservae.png" alt="Reservaê" class="h-8 w-auto" />
-                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô" class="h-10 w-10 rounded-md object-cover" />
+                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô"
+                    class="h-10 w-10 rounded-md object-cover" />
             </div>
             <div>
                 <p class="font-semibold text-slate-900">Dona Maragô Bistrô</p>

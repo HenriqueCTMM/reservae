@@ -19,7 +19,8 @@
         <div class="app-container flex flex-col gap-4 py-4 md:flex-row md:items-center md:justify-between">
             <div class="flex items-center gap-4">
                 <img src="../assets/logo-reservae.png" alt="Reservaê" class="h-10 w-auto" />
-                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô" class="h-12 w-12 rounded-md object-cover" />
+                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô"
+                    class="h-12 w-12 rounded-md object-cover" />
                 <div>
                     <h1 id="admin-page-title" class="text-2xl font-bold">Configurações</h1>
                     <p class="text-sm text-slate-500">Funcionamento semanal e exceções</p>
@@ -41,8 +42,10 @@
         </div>
     </header>
 
-    <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 space-y-6 py-5 md:py-6" aria-labelledby="admin-page-title">
-        <div id="adminMessage" class="hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true"></div>
+    <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 space-y-6 py-5 md:py-6"
+        aria-labelledby="admin-page-title">
+        <div id="adminMessage" class="hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true">
+        </div>
 
         <article class="app-card rounded-2xl bg-white p-3 shadow-sm" aria-labelledby="operating-hours-title">
             <div class="mb-6">
@@ -59,13 +62,15 @@
                 </form>
 
                 <div class="space-y-4">
-                    <form id="exceptionForm" class="space-y-4 rounded-2xl border border-slate-200 p-3" aria-label="Exceção de funcionamento">
+                    <form id="exceptionForm" class="space-y-4 rounded-2xl border border-slate-200 p-3"
+                        aria-label="Exceção de funcionamento">
                         <div>
                             <label for="exceptionDate" class="mb-1 block text-sm font-medium">Data da exceção</label>
                             <input id="exceptionDate" type="date" aria-describedby="exceptionDateHelp"
                                 class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                                 required />
-                            <p id="exceptionDateHelp" class="app-help-text mt-1">Escolha a data que terá funcionamento diferente do padrão semanal.</p>
+                            <p id="exceptionDateHelp" class="app-help-text mt-1">Escolha a data que terá funcionamento
+                                diferente do padrão semanal.</p>
                         </div>
                         <div>
                             <label for="exceptionOpen" class="mb-1 block text-sm font-medium">Funcionamento</label>
@@ -74,36 +79,43 @@
                                 <option value="true">Aberto com horário especial</option>
                                 <option value="false">Fechado</option>
                             </select>
-                            <p id="exceptionOpenHelp" class="app-help-text mt-1">Use fechado para bloquear reservas nesta data.</p>
+                            <p id="exceptionOpenHelp" class="app-help-text mt-1">Use fechado para bloquear reservas
+                                nesta data.</p>
                         </div>
                         <div class="grid gap-3 sm:grid-cols-2">
                             <div>
-                                <label for="exceptionShift1Start" class="mb-1 block text-sm font-medium">Turno 1 início</label>
+                                <label for="exceptionShift1Start" class="mb-1 block text-sm font-medium">Turno 1
+                                    início</label>
                                 <input id="exceptionShift1Start" type="time" step="1800"
                                     class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
                             </div>
                             <div>
-                                <label for="exceptionShift1End" class="mb-1 block text-sm font-medium">Turno 1 fim</label>
+                                <label for="exceptionShift1End" class="mb-1 block text-sm font-medium">Turno 1
+                                    fim</label>
                                 <input id="exceptionShift1End" type="time" step="1800"
                                     class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
                             </div>
                             <div>
-                                <label for="exceptionShift2Start" class="mb-1 block text-sm font-medium">Turno 2 início</label>
+                                <label for="exceptionShift2Start" class="mb-1 block text-sm font-medium">Turno 2
+                                    início</label>
                                 <input id="exceptionShift2Start" type="time" step="1800"
                                     class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
                             </div>
                             <div>
-                                <label for="exceptionShift2End" class="mb-1 block text-sm font-medium">Turno 2 fim</label>
+                                <label for="exceptionShift2End" class="mb-1 block text-sm font-medium">Turno 2
+                                    fim</label>
                                 <input id="exceptionShift2End" type="time" step="1800"
                                     class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
                             </div>
                         </div>
                         <div>
                             <label for="exceptionReason" class="mb-1 block text-sm font-medium">Motivo</label>
-                                <input id="exceptionReason" type="text" maxlength="120" aria-describedby="exceptionReasonHelp"
-                                    class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-                                    placeholder="Ex.: Feriado, evento especial" />
-                                <p id="exceptionReasonHelp" class="app-help-text mt-1">Opcional. Esse texto ajuda a equipe a entender a exceção.</p>
+                            <input id="exceptionReason" type="text" maxlength="120"
+                                aria-describedby="exceptionReasonHelp"
+                                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                                placeholder="Ex.: Feriado, evento especial" />
+                            <p id="exceptionReasonHelp" class="app-help-text mt-1">Opcional. Esse texto ajuda a equipe a
+                                entender a exceção.</p>
                         </div>
                         <div class="app-mobile-stack flex flex-wrap gap-3">
                             <button type="submit"
@@ -127,7 +139,8 @@
         <div class="app-container grid gap-4 py-5 text-sm text-slate-600 md:grid-cols-[auto_1fr_auto] md:items-center">
             <div class="flex items-center gap-3">
                 <img src="../assets/logo-reservae.png" alt="Reservaê" class="h-8 w-auto" />
-                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô" class="h-10 w-10 rounded-md object-cover" />
+                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô"
+                    class="h-10 w-10 rounded-md object-cover" />
             </div>
             <div>
                 <p class="font-semibold text-slate-900">Dona Maragô Bistrô</p>

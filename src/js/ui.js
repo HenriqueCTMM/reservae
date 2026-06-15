@@ -12,7 +12,6 @@ export function showMessage(element, message, type = 'success') {
 
     if (type === 'success') {
         element.classList.add('bg-emerald-100', 'text-emerald-700');
-        element.focus();
         return;
     }
 
