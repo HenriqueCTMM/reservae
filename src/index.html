@@ -15,6 +15,13 @@
         class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Pular
         para o conteúdo principal</a>
 
+    <header class="border-b border-slate-200 bg-white">
+        <div class="app-container flex items-center justify-between gap-4 py-4">
+            <img src="./assets/logo-reservae.png" alt="Reservaê" class="h-10 w-auto" />
+            <img src="./assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô" class="h-12 w-12 rounded-md object-cover" />
+        </div>
+    </header>
+
     <main id="conteudo-principal" tabindex="-1" class="app-container flex flex-1 items-center justify-center py-8 sm:py-10"
         aria-labelledby="login-title">
         <section class="app-auth-card app-card w-full max-w-md rounded-2xl bg-white p-6 shadow-lg sm:p-8" aria-labelledby="login-title">
@@ -22,7 +29,7 @@
                 <h1 id="login-title" class="sr-only">Reservaê</h1>
                 <img src="./assets/logo-reservae.png" alt="Reservaê" class="mx-auto h-16 w-auto" />
                 <img src="./assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô - Crepes e Pizzas"
-                    class="mx-auto mt-4 h-36 w-36 object-cover shadow-sm" />
+                    class="mx-auto mt-4 h-36 w-36 rounded-lg object-cover shadow-sm" />
                 <p class="mt-2 text-sm text-slate-500">Acesse como administrador ou cliente</p>
             </div>
 
@@ -78,8 +85,21 @@
         </section>
     </main>
 
-    <footer class="flex items-center justify-center border-t border-slate-200 bg-white px-4 py-4">
-        <img src="./assets/logo-reservae.png" alt="Reservaê" class="h-8 w-auto" />
+    <footer class="border-t border-slate-200 bg-white">
+        <div class="app-container grid gap-4 py-5 text-sm text-slate-600 md:grid-cols-[auto_1fr_auto] md:items-center">
+            <div class="flex items-center gap-3">
+                <img src="./assets/logo-reservae.png" alt="Reservaê" class="h-8 w-auto" />
+                <img src="./assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô" class="h-10 w-10 rounded-md object-cover" />
+            </div>
+            <div>
+                <p class="font-semibold text-slate-900">Dona Maragô Bistrô</p>
+                <p>Reservas online para crepes, pizzas e momentos especiais.</p>
+            </div>
+            <div class="md:text-right">
+                <p class="font-medium text-slate-700">Atendimento conforme funcionamento do restaurante.</p>
+                <p>Gerencie reservas com praticidade e segurança.</p>
+            </div>
+        </div>
     </footer>
 
     <script type="module" src="./app.js"></script>
