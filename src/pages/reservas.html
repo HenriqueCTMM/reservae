@@ -27,6 +27,8 @@
             </div>
 
             <nav class="app-mobile-stack flex flex-wrap items-center gap-3" aria-label="Navegação do cliente">
+                <a href="./reservas.html" aria-current="page"
+                    class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Nova reserva</a>
                 <a href="./minhas-reservas.html"
                     class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Minhas
                     reservas</a>
@@ -50,32 +52,34 @@
             <form id="reservationForm" class="space-y-4" aria-labelledby="reservation-form-title">
                 <div>
                     <label for="reservationDate" class="mb-1 block text-sm font-medium">Data</label>
-                    <input id="reservationDate" type="date"
+                    <input id="reservationDate" type="date" aria-describedby="reservationDateHelp"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required />
+                    <p id="reservationDateHelp" class="app-help-text mt-1">Escolha uma data de funcionamento do restaurante.</p>
                 </div>
 
                 <div>
                     <label for="reservationTime" class="mb-1 block text-sm font-medium">Horário</label>
-                    <select id="reservationTime"
+                    <select id="reservationTime" aria-describedby="reservationTimeHelp"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required>
                         <option value="">Selecione uma data primeiro</option>
                     </select>
-                    <p id="reservationTimeHelp" class="mt-1 text-xs text-slate-500">Os horários seguem o funcionamento do restaurante.</p>
+                    <p id="reservationTimeHelp" class="app-help-text mt-1">Os horários seguem o funcionamento do restaurante.</p>
                 </div>
 
                 <div>
                     <label for="reservationPeople" class="mb-1 block text-sm font-medium">Quantidade de pessoas</label>
-                    <input id="reservationPeople" type="number" min="1" max="8" value="1"
+                    <input id="reservationPeople" type="number" min="1" max="8" value="1" aria-describedby="reservationPeopleHelp"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required />
+                    <p id="reservationPeopleHelp" class="app-help-text mt-1">Informe de 1 a 8 pessoas.</p>
                 </div>
 
                 <div>
                     <p id="selectedTableLabel" class="mb-1 block text-sm font-medium">Mesa selecionada</p>
                     <div id="selectedTableBox" aria-labelledby="selectedTableLabel"
-                        class="rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-500">Nenhuma mesa
+                        class="rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-500" aria-live="polite">Nenhuma mesa
                         selecionada</div>
                 </div>
 
@@ -89,7 +93,7 @@
                     reserva</button>
             </form>
 
-            <div id="reservationMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm"></div>
+            <div id="reservationMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true"></div>
         </section>
 
         <section class="app-card hidden rounded-2xl bg-white p-6 shadow-sm md:block" aria-labelledby="tables-map-title">

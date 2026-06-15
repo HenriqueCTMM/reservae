@@ -17,7 +17,7 @@ import {
 } from './services/operating-hours-service.js';
 import { getReservations, getReservationsByTable, updateReservationStatus } from './services/reservations-service.js';
 import { getTables, removeTable, saveTable, updateTable } from './services/tables-service.js';
-import { clearMessage, escapeHtml, formatDate, showMessage } from './ui.js';
+import { clearMessage, escapeHtml, formatDate, setFieldInvalid, showMessage } from './ui.js';
 
 const user = await protectRoute(['admin']);
 
@@ -139,11 +139,11 @@ function resetForm({ focusFirstField = false } = {}) {
 
 function validateTableFormValues(formValues) {
     if (!Number.isFinite(formValues.numero) || formValues.numero < 1) {
-        return { valid: false, message: 'Informe um número de mesa válido.' };
+        return { valid: false, message: 'Informe um número de mesa válido.', fieldId: 'numero' };
     }
 
     if (!Number.isFinite(formValues.capacidade) || formValues.capacidade < 1 || formValues.capacidade > 8) {
-        return { valid: false, message: 'A capacidade da mesa deve estar entre 1 e 8 lugares.' };
+        return { valid: false, message: 'A capacidade da mesa deve estar entre 1 e 8 lugares.', fieldId: 'capacidade' };
     }
 
     if (![0, 90].includes(formValues.rotacao)) {
@@ -151,7 +151,7 @@ function validateTableFormValues(formValues) {
     }
 
     if (!Number.isFinite(formValues.posicaoX) || !Number.isFinite(formValues.posicaoY)) {
-        return { valid: false, message: 'Informe uma posição válida para a mesa.' };
+        return { valid: false, message: 'Informe uma posição válida para a mesa.', fieldId: !Number.isFinite(formValues.posicaoX) ? 'posicaoX' : 'posicaoY' };
     }
 
     const dimensions = getTableDimensions(formValues);
@@ -161,13 +161,13 @@ function validateTableFormValues(formValues) {
         || formValues.posicaoY + dimensions.height > MAP_HEIGHT;
 
     if (isPositionInvalid) {
-        return { valid: false, message: 'A posição da mesa está fora dos limites do mapa.' };
+        return { valid: false, message: 'A posição da mesa está fora dos limites do mapa.', fieldId: 'posicaoX' };
     }
 
     const duplicatedNumber = tables.some((item) => item.numero === formValues.numero && item.id !== formValues.id);
 
     if (duplicatedNumber) {
-        return { valid: false, message: 'Já existe uma mesa com esse número.' };
+        return { valid: false, message: 'Já existe uma mesa com esse número.', fieldId: 'numero' };
     }
 
     return { valid: true, message: '' };
@@ -1074,12 +1074,14 @@ async function deleteTable(tableId) {
 tableForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(adminMessage);
+    ['numero', 'capacidade', 'posicaoX', 'posicaoY', 'status'].forEach((fieldId) => setFieldInvalid(document.getElementById(fieldId), false));
 
     const formValues = getFormValues();
     const tableId = formValues.id;
     const validation = validateTableFormValues(formValues);
 
     if (!validation.valid) {
+        setFieldInvalid(document.getElementById(validation.fieldId));
         showMessage(adminMessage, validation.message, 'error');
         return;
     }
@@ -1184,11 +1186,13 @@ adminReservationsTable?.addEventListener('click', (event) => {
 weeklyHoursForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(adminMessage);
+    weeklyHoursForm.querySelectorAll('input, select').forEach((field) => setFieldInvalid(field, false));
 
     const nextConfig = collectWeeklyHoursConfig();
     const validation = validateOperatingConfig(nextConfig);
 
     if (!validation.valid) {
+        setFieldInvalid(weeklyHoursForm.querySelector('input[type="time"]'));
         showMessage(adminMessage, validation.message, 'error');
         return;
     }
@@ -1219,10 +1223,12 @@ weeklyHoursForm?.addEventListener('submit', async (event) => {
 exceptionForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(adminMessage);
+    exceptionForm.querySelectorAll('input, select').forEach((field) => setFieldInvalid(field, false));
 
     const nextException = collectException();
 
     if (!nextException.date) {
+        setFieldInvalid(exceptionDate);
         showMessage(adminMessage, 'Informe a data da exceção.', 'error');
         return;
     }
@@ -1230,6 +1236,7 @@ exceptionForm?.addEventListener('submit', async (event) => {
     const validation = validateSchedule(nextException);
 
     if (!validation.valid) {
+        setFieldInvalid(exceptionForm.querySelector('input[type="time"]'));
         showMessage(adminMessage, validation.message, 'error');
         return;
     }

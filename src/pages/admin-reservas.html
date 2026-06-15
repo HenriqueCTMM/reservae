@@ -27,7 +27,7 @@
             </div>
             <nav class="app-mobile-stack flex flex-wrap items-center gap-3" aria-label="Navegação do administrador">
                 <a href="./admin.html" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mesas</a>
-                <a href="./admin-reservas.html" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Reservas</a>
+                <a href="./admin-reservas.html" aria-current="page" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Reservas</a>
                 <a href="./admin-configuracoes.html" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Configurações</a>
                 <a href="./admin-mensagens.html" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mensagens</a>
                 <span id="adminUserName" class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span>
@@ -37,7 +37,7 @@
     </header>
 
     <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 space-y-6 py-5 md:py-6" aria-labelledby="admin-page-title">
-        <div id="adminMessage" class="hidden rounded-xl px-4 py-3 text-sm"></div>
+        <div id="adminMessage" class="hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true"></div>
 
         <article class="app-card rounded-2xl bg-white p-3 shadow-sm" aria-labelledby="admin-reservations-title">
             <div class="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -76,13 +76,13 @@
                 <table class="min-w-full border-separate border-spacing-y-2" aria-labelledby="admin-reservations-title">
                     <thead>
                         <tr class="text-left text-sm text-slate-500">
-                            <th class="px-3 py-2">Cliente</th>
-                            <th class="px-3 py-2">Mesa</th>
-                            <th class="px-3 py-2">Data</th>
-                            <th class="px-3 py-2">Horário</th>
-                            <th class="px-3 py-2">Pessoas</th>
-                            <th class="px-3 py-2">Status</th>
-                            <th class="px-3 py-2">Finalização</th>
+                            <th scope="col" class="px-3 py-2">Cliente</th>
+                            <th scope="col" class="px-3 py-2">Mesa</th>
+                            <th scope="col" class="px-3 py-2">Data</th>
+                            <th scope="col" class="px-3 py-2">Horário</th>
+                            <th scope="col" class="px-3 py-2">Pessoas</th>
+                            <th scope="col" class="px-3 py-2">Status</th>
+                            <th scope="col" class="px-3 py-2">Finalização</th>
                         </tr>
                     </thead>
                     <tbody id="adminReservationsTable"></tbody>
@@ -109,7 +109,7 @@
             </form>
             <div id="reservationReportTotals" class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3" aria-live="polite"></div>
             <div class="app-scroll overflow-x-auto">
-                <table class="min-w-full border-separate border-spacing-y-2" aria-labelledby="reservation-report-title"><thead><tr class="text-left text-sm text-slate-500"><th class="px-3 py-2">Cliente</th><th class="px-3 py-2">Mesa</th><th class="px-3 py-2">Reserva</th><th class="px-3 py-2">Status</th><th class="px-3 py-2">Atualização</th><th class="px-3 py-2">Motivo</th></tr></thead><tbody id="reservationReportTable"></tbody></table>
+                <table class="min-w-full border-separate border-spacing-y-2" aria-labelledby="reservation-report-title"><thead><tr class="text-left text-sm text-slate-500"><th scope="col" class="px-3 py-2">Cliente</th><th scope="col" class="px-3 py-2">Mesa</th><th scope="col" class="px-3 py-2">Reserva</th><th scope="col" class="px-3 py-2">Status</th><th scope="col" class="px-3 py-2">Atualização</th><th scope="col" class="px-3 py-2">Motivo</th></tr></thead><tbody id="reservationReportTable"></tbody></table>
             </div>
         </article>
     </main>

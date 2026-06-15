@@ -4,10 +4,13 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 import { auth } from './firebaseConfig.js';
 import { saveUserProfile } from './services/users-service.js';
-import { clearMessage, showMessage } from './ui.js';
+import { clearMessage, setFieldInvalid, showMessage } from './ui.js';
 
 const registerForm = document.getElementById('registerForm');
 const registerMessage = document.getElementById('registerMessage');
+const nameField = document.getElementById('nome');
+const emailField = document.getElementById('email');
+const passwordField = document.getElementById('senha');
 
 function getErrorMessage(error) {
     if (error.code === 'auth/email-already-in-use') {
@@ -28,10 +31,11 @@ function getErrorMessage(error) {
 registerForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(registerMessage);
+    [nameField, emailField, passwordField].forEach((field) => setFieldInvalid(field, false));
 
-    const nome = document.getElementById('nome').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const senha = document.getElementById('senha').value.trim();
+    const nome = nameField.value.trim();
+    const email = emailField.value.trim();
+    const senha = passwordField.value.trim();
 
     try {
         const credential = await createUserWithEmailAndPassword(auth, email, senha);
@@ -47,6 +51,14 @@ registerForm.addEventListener('submit', async (event) => {
         registerForm.reset();
         showMessage(registerMessage, 'Cadastro criado com sucesso.');
     } catch (error) {
+        if (error.code === 'auth/invalid-email' || error.code === 'auth/email-already-in-use') {
+            setFieldInvalid(emailField);
+        }
+
+        if (error.code === 'auth/weak-password') {
+            setFieldInvalid(passwordField);
+        }
+
         showMessage(registerMessage, getErrorMessage(error), 'error');
     }
 });

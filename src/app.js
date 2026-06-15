@@ -4,7 +4,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 import { auth, googleProvider } from './js/firebaseConfig.js';
 import { STORAGE_KEYS, setStorageData } from './js/services/session-storage-service.js';
-import { clearMessage, showMessage } from './js/ui.js';
+import { clearMessage, setFieldInvalid, showMessage } from './js/ui.js';
 import {
     ADMIN_EMAIL,
     ensureClientProfile,
@@ -15,6 +15,8 @@ import {
 const loginForm = document.getElementById('loginForm');
 const googleLoginButton = document.getElementById('googleLoginButton');
 const loginMessage = document.getElementById('loginMessage');
+const emailField = document.getElementById('email');
+const passwordField = document.getElementById('senha');
 
 function saveSession(profile) {
     const sessionUser = {
@@ -59,9 +61,11 @@ function getLoginErrorMessage(error) {
 loginForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(loginMessage);
+    setFieldInvalid(emailField, false);
+    setFieldInvalid(passwordField, false);
 
-    const email = document.getElementById('email').value.trim();
-    const senha = document.getElementById('senha').value.trim();
+    const email = emailField.value.trim();
+    const senha = passwordField.value.trim();
 
     try {
         const credential = await signInWithEmailAndPassword(auth, email, senha);
@@ -78,12 +82,16 @@ loginForm.addEventListener('submit', async (event) => {
 
         redirectByProfile(profile);
     } catch (error) {
+        setFieldInvalid(emailField);
+        setFieldInvalid(passwordField);
         showMessage(loginMessage, getLoginErrorMessage(error), 'error');
     }
 });
 
 googleLoginButton.addEventListener('click', async () => {
     clearMessage(loginMessage);
+    setFieldInvalid(emailField, false);
+    setFieldInvalid(passwordField, false);
 
     try {
         const credential = await signInWithPopup(auth, googleProvider);

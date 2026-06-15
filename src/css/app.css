@@ -3,6 +3,21 @@ html {
     scroll-behavior: smooth;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
 body {
     overflow-x: hidden;
 }
@@ -19,6 +34,22 @@ input,
 select,
 textarea {
     font-size: 16px;
+}
+
+.text-slate-400,
+.text-slate-500 {
+    color: rgb(71, 85, 105) !important;
+}
+
+.text-xs {
+    font-size: 0.8125rem !important;
+    line-height: 1.25rem !important;
+}
+
+.app-help-text {
+    color: rgb(51, 65, 85);
+    font-size: 0.9375rem;
+    line-height: 1.5rem;
 }
 
 .app-surface {

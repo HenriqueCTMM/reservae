@@ -1,6 +1,13 @@
 export function showMessage(element, message, type = 'success') {
+    if (!element) {
+        return;
+    }
+
     element.textContent = message;
     element.tabIndex = -1;
+    element.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+    element.setAttribute('aria-atomic', 'true');
+    element.setAttribute('role', type === 'error' ? 'alert' : 'status');
     element.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-700', 'bg-rose-100', 'text-rose-700');
 
     if (type === 'success') {
@@ -14,9 +21,27 @@ export function showMessage(element, message, type = 'success') {
 }
 
 export function clearMessage(element) {
+    if (!element) {
+        return;
+    }
+
     element.textContent = '';
     element.classList.add('hidden');
     element.removeAttribute('tabindex');
+    element.removeAttribute('role');
+}
+
+export function setFieldInvalid(field, invalid = true) {
+    if (!field) {
+        return;
+    }
+
+    if (invalid) {
+        field.setAttribute('aria-invalid', 'true');
+        return;
+    }
+
+    field.removeAttribute('aria-invalid');
 }
 
 export function formatDate(date) {

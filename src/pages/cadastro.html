@@ -35,30 +35,31 @@
             <form id="registerForm" class="space-y-4" aria-labelledby="register-title">
                 <div>
                     <label for="nome" class="mb-1 block text-sm font-medium">Nome</label>
-                    <input id="nome" name="nome" type="text"
+                    <input id="nome" name="nome" type="text" autocomplete="name"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         placeholder="Digite seu nome" required />
                 </div>
 
                 <div>
                     <label for="email" class="mb-1 block text-sm font-medium">E-mail</label>
-                    <input id="email" name="email" type="email"
+                    <input id="email" name="email" type="email" autocomplete="email"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         placeholder="Digite seu e-mail" required />
                 </div>
 
                 <div>
                     <label for="senha" class="mb-1 block text-sm font-medium">Senha</label>
-                    <input id="senha" name="senha" type="password" minlength="6"
+                    <input id="senha" name="senha" type="password" minlength="6" autocomplete="new-password" aria-describedby="passwordHelp"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         placeholder="Mínimo de 6 caracteres" required />
+                    <p id="passwordHelp" class="app-help-text mt-1">Use pelo menos 6 caracteres.</p>
                 </div>
 
                 <button type="submit"
                     class="w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Cadastrar</button>
             </form>
 
-            <div id="registerMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm"></div>
+            <div id="registerMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true"></div>
 
             <p class="mt-6 text-center text-sm text-slate-600">
                 Já tem conta?

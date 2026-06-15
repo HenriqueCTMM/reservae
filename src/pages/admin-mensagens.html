@@ -19,13 +19,13 @@
                 <a href="./admin.html" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mesas</a>
                 <a href="./admin-reservas.html" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Reservas</a>
                 <a href="./admin-configuracoes.html" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Configurações</a>
-                <a href="./admin-mensagens.html" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mensagens</a>
+                <a href="./admin-mensagens.html" aria-current="page" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mensagens</a>
                 <span id="adminUserName" class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span><button id="logoutButton" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Sair</button>
             </nav>
         </div>
     </header>
     <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 space-y-6 py-5 md:py-6" aria-labelledby="admin-page-title">
-        <div id="adminMessage" class="hidden rounded-xl px-4 py-3 text-sm"></div>
+        <div id="adminMessage" class="hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true"></div>
         <article class="app-card rounded-2xl bg-white p-3 shadow-sm" aria-labelledby="admin-messages-title">
             <div class="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div><h2 id="admin-messages-title" class="text-xl font-bold">Mensagens dos clientes</h2><p class="text-sm text-slate-500">Acompanhe contatos enviados pelos usuários logados</p></div>

@@ -1,6 +1,6 @@
 import { logout, protectRoute } from './auth.js';
 import { createMessage, getMessagesByUser } from './services/messages-service.js';
-import { clearMessage, escapeHtml, showMessage } from './ui.js';
+import { clearMessage, escapeHtml, setFieldInvalid, showMessage } from './ui.js';
 
 const currentUser = await protectRoute(['cliente']);
 
@@ -82,11 +82,15 @@ async function loadMessages() {
 contactForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(contactMessage);
+    setFieldInvalid(contactSubject, false);
+    setFieldInvalid(contactMessageText, false);
 
     const subject = contactSubject.value.trim();
     const text = contactMessageText.value.trim();
 
     if (!subject || !text) {
+        setFieldInvalid(contactSubject, !subject);
+        setFieldInvalid(contactMessageText, !text);
         showMessage(contactMessage, 'Preencha assunto e mensagem.', 'error');
         return;
     }

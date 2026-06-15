@@ -26,7 +26,7 @@
                 </div>
             </div>
             <nav class="app-mobile-stack flex flex-wrap items-center gap-3" aria-label="Navegação do administrador">
-                <a href="./admin.html"
+                <a href="./admin.html" aria-current="page"
                     class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mesas</a>
                 <a href="./admin-reservas.html"
                     class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Reservas</a>
@@ -55,16 +55,18 @@
 
                 <div>
                     <label for="numero" class="mb-1 block text-sm font-medium">Número da mesa</label>
-                    <input id="numero" type="number" min="1"
+                    <input id="numero" type="number" min="1" aria-describedby="numeroHelp"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required />
+                    <p id="numeroHelp" class="app-help-text mt-1">Use um número único para identificar a mesa.</p>
                 </div>
 
                 <div>
                     <label for="capacidade" class="mb-1 block text-sm font-medium">Capacidade</label>
-                    <input id="capacidade" type="number" min="1" max="8"
+                    <input id="capacidade" type="number" min="1" max="8" aria-describedby="capacidadeHelp"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required />
+                    <p id="capacidadeHelp" class="app-help-text mt-1">Informe de 1 a 8 lugares.</p>
                 </div>
 
                 <div class="rounded-2xl border border-slate-200 p-3">
@@ -83,15 +85,17 @@
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div>
                         <label for="posicaoX" class="mb-1 block text-sm font-medium">Posição X</label>
-                        <input id="posicaoX" type="number" min="0"
+                        <input id="posicaoX" type="number" min="0" aria-describedby="posicaoXHelp"
                             class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                             required />
+                        <p id="posicaoXHelp" class="app-help-text mt-1">Distância da esquerda no mapa.</p>
                     </div>
                     <div>
                         <label for="posicaoY" class="mb-1 block text-sm font-medium">Posição Y</label>
-                        <input id="posicaoY" type="number" min="0"
+                        <input id="posicaoY" type="number" min="0" aria-describedby="posicaoYHelp"
                             class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                             required />
+                        <p id="posicaoYHelp" class="app-help-text mt-1">Distância do topo no mapa.</p>
                     </div>
                 </div>
 
@@ -113,7 +117,7 @@
                 </div>
             </form>
 
-            <div id="adminMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm"></div>
+            <div id="adminMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true"></div>
         </section>
 
         <article class="app-card rounded-2xl bg-white p-3 shadow-sm" aria-labelledby="restaurant-layout-title">

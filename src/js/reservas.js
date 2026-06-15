@@ -1,5 +1,5 @@
 import { logout, protectRoute } from './auth.js';
-import { clearMessage, formatDate, showMessage } from './ui.js';
+import { clearMessage, formatDate, setFieldInvalid, showMessage } from './ui.js';
 import {
     CLOSED_DATE_MESSAGE,
     formatDuration,
@@ -172,7 +172,7 @@ function updateSelectedTableBox() {
 
     const people = Number(reservationPeople.value || 1);
     const durationMinutes = getReservationDurationMinutes(people);
-    selectedTableBox.textContent = `Mesa ${table.numero} • ${table.capacidade} lugares • permanencia prevista ${formatDuration(durationMinutes)}`;
+    selectedTableBox.textContent = `Mesa ${table.numero} • ${table.capacidade} lugares • permanência prevista ${formatDuration(durationMinutes)}`;
     selectedTableBox.className = 'rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700';
     openMobileMapButton.textContent = 'Trocar mesa';
     updateMobileMapButtonState();
@@ -280,12 +280,17 @@ function validateReservationData() {
     const people = Number(reservationPeople.value);
     const table = getSelectedTable();
 
+    [reservationDate, reservationTime, reservationPeople].forEach((field) => setFieldInvalid(field, false));
+
     if (!date || !people) {
+        setFieldInvalid(reservationDate, !date);
+        setFieldInvalid(reservationPeople, !people);
         showMessage(reservationMessage, 'Preencha data e quantidade de pessoas.', 'error');
         return false;
     }
 
     if (people < 1 || people > 8) {
+        setFieldInvalid(reservationPeople);
         showMessage(reservationMessage, 'A quantidade de pessoas deve estar entre 1 e 8.', 'error');
         return false;
     }
@@ -301,11 +306,13 @@ function validateReservationData() {
     }
 
     if (!time) {
+        setFieldInvalid(reservationTime);
         showMessage(reservationMessage, 'Escolha um horário disponível.', 'error');
         return false;
     }
 
     if (!isTimeAllowedForPeople(date, time, people, operatingConfig, operatingExceptions)) {
+        setFieldInvalid(reservationTime);
         showMessage(reservationMessage, 'Escolha um horário disponível conforme o funcionamento do restaurante.', 'error');
         return false;
     }
@@ -316,6 +323,7 @@ function validateReservationData() {
     }
 
     if (people > table.capacidade) {
+        setFieldInvalid(reservationPeople);
         showMessage(reservationMessage, 'A quantidade de pessoas excede a capacidade da mesa selecionada.', 'error');
         return false;
     }
