@@ -25,6 +25,7 @@ const adminUserName = document.getElementById('adminUserName');
 const logoutButton = document.getElementById('logoutButton');
 const tableForm = document.getElementById('tableForm');
 const tableFormTitle = document.getElementById('table-form-title');
+const tableSubmitButton = document.getElementById('tableSubmitButton');
 const resetFormButton = document.getElementById('resetFormButton');
 const rotateTableButton = document.getElementById('rotateTableButton');
 const rotationValue = document.getElementById('rotationValue');
@@ -76,11 +77,10 @@ let messages = [];
 let operatingConfig = getDefaultOperatingHoursConfig();
 let operatingExceptions = [];
 let ignoreMapClickAfterDrag = false;
-let tableAutosaveTimer = null;
+let editingTableSnapshot = null;
 const MAP_WIDTH = 800;
 const MAP_HEIGHT = 520;
 const DEFAULT_TABLE_CAPACITY = 4;
-const TABLE_AUTOSAVE_DELAY = 600;
 
 function normalizeRotation(rotation) {
     const value = Number(rotation || 0);
@@ -141,6 +141,10 @@ function updateTableFormMode() {
         tableFormTitle.textContent = isEditing ? 'Editar mesa' : 'Criar nova mesa';
     }
 
+    if (tableSubmitButton) {
+        tableSubmitButton.textContent = isEditing ? 'Salvar mesa' : 'Criar mesa';
+    }
+
     if (!positionFields) {
         return;
     }
@@ -173,8 +177,22 @@ function getFormValues() {
     };
 }
 
-function resetForm({ focusFirstField = false, blurActiveField = false } = {}) {
-    clearTimeout(tableAutosaveTimer);
+function restoreEditingPreview() {
+    const currentTableId = document.getElementById('tableId').value;
+
+    if (editingTableSnapshot && currentTableId === editingTableSnapshot.id) {
+        tables = tables.map((table) => table.id === editingTableSnapshot.id ? editingTableSnapshot : table);
+    }
+
+    editingTableSnapshot = null;
+}
+
+function resetForm({ focusFirstField = false, blurActiveField = false, restorePreview = true } = {}) {
+    if (restorePreview) {
+        restoreEditingPreview();
+    } else {
+        editingTableSnapshot = null;
+    }
 
     if (blurActiveField && tableForm.contains(document.activeElement)) {
         document.activeElement.blur();
@@ -243,6 +261,7 @@ function selectTableForEditing(tableId, { closeMap = false } = {}) {
         return;
     }
 
+    restoreEditingPreview();
     fillForm(tableId);
     renderMap();
 
@@ -267,7 +286,7 @@ function applyEditingMapStyle(card) {
     card.classList.add('bg-blue-100', 'text-blue-950', 'border-blue-700', 'ring-4', 'ring-blue-300');
 }
 
-async function saveExistingTable(tableId, changes, successMessage = 'Mesa salva automaticamente.') {
+async function saveExistingTable(tableId, changes, successMessage = 'Mesa salva automaticamente.', { resetAfterSave = false } = {}) {
     const currentTable = tables.find((table) => table.id === tableId);
 
     if (!currentTable) {
@@ -293,7 +312,13 @@ async function saveExistingTable(tableId, changes, successMessage = 'Mesa salva 
     try {
         const updatedTable = await updateTable(tableId, nextTable);
         tables = tables.map((table) => table.id === tableId ? updatedTable : table);
-        resetForm({ blurActiveField: true });
+
+        if (resetAfterSave) {
+            resetForm({ blurActiveField: true, restorePreview: false });
+        } else if (editingTableSnapshot?.id === tableId) {
+            editingTableSnapshot = { ...updatedTable };
+        }
+
         renderMap();
         renderTablesList();
 
@@ -309,28 +334,50 @@ async function saveExistingTable(tableId, changes, successMessage = 'Mesa salva 
     }
 }
 
-async function saveCurrentExistingTable(successMessage = 'Mesa salva automaticamente.') {
-    const formValues = getFormValues();
+async function saveTablePosition(tableId, posicaoX, posicaoY) {
+    const currentTable = tables.find((table) => table.id === tableId);
+    const baseTable = editingTableSnapshot?.id === tableId ? editingTableSnapshot : currentTable;
 
-    if (!formValues.id) {
+    if (!baseTable) {
         return false;
     }
 
-    return saveExistingTable(formValues.id, formValues, successMessage);
-}
+    const validation = validateTableFormValues({
+        ...baseTable,
+        posicaoX,
+        posicaoY
+    });
 
-function scheduleCurrentTableAutosave() {
-    const tableId = document.getElementById('tableId').value;
-
-    clearTimeout(tableAutosaveTimer);
-
-    if (!tableId) {
-        return;
+    if (!validation.valid) {
+        showMessage(adminMessage, validation.message, 'error');
+        return false;
     }
 
-    tableAutosaveTimer = setTimeout(() => {
-        saveCurrentExistingTable('');
-    }, TABLE_AUTOSAVE_DELAY);
+    try {
+        const updatedTable = await updateTable(tableId, { posicaoX, posicaoY });
+        tables = tables.map((table) => table.id === tableId ? updatedTable : table);
+
+        if (editingTableSnapshot?.id === tableId) {
+            editingTableSnapshot = { ...updatedTable };
+        }
+
+        if (document.getElementById('tableId').value === tableId) {
+            document.getElementById('posicaoX').value = String(updatedTable.posicaoX);
+            document.getElementById('posicaoY').value = String(updatedTable.posicaoY);
+            tables = tables.map((table) => table.id === tableId
+                ? { ...updatedTable, rotacao: normalizeRotation(document.getElementById('rotacao').value) }
+                : table);
+        }
+
+        renderMap();
+        renderTablesList();
+        showMessage(adminMessage, 'Posição da mesa salva automaticamente.');
+        return true;
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível salvar a posição da mesa.', 'error');
+        await loadData();
+        return false;
+    }
 }
 
 function startTableDrag(event, table, card, container) {
@@ -390,7 +437,7 @@ function startTableDrag(event, table, card, container) {
                 document.getElementById('posicaoY').value = String(roundedY);
             }
 
-            saveExistingTable(table.id, { posicaoX: roundedX, posicaoY: roundedY }, 'Posição da mesa salva automaticamente.');
+            saveTablePosition(table.id, roundedX, roundedY);
             setTimeout(() => {
                 ignoreMapClickAfterDrag = false;
             }, 0);
@@ -500,16 +547,22 @@ function renderMapContainer(container, { closeOnSelect = false } = {}) {
             selectTableForEditing(table.id, { closeMap: closeOnSelect });
         });
 
-        card.querySelector('[data-toggle-table-orientation]').addEventListener('click', async (event) => {
+        card.querySelector('[data-toggle-table-orientation]').addEventListener('click', (event) => {
             event.stopPropagation();
 
             const nextRotation = normalizeRotation(table.rotacao) === 90 ? 0 : 90;
-            const saved = await saveExistingTable(table.id, { rotacao: nextRotation }, 'Orientação da mesa salva automaticamente.');
 
-            if (saved && document.getElementById('tableId').value === table.id) {
-                document.getElementById('rotacao').value = String(nextRotation);
-                updateRotationDisplay();
+            if (document.getElementById('tableId').value !== table.id) {
+                restoreEditingPreview();
+                fillForm(table.id, { focusForm: false });
             }
+
+            document.getElementById('rotacao').value = String(nextRotation);
+            updateRotationDisplay();
+            tables = tables.map((item) => item.id === table.id ? { ...item, rotacao: nextRotation } : item);
+            renderMap();
+            renderTablesList();
+            showMessage(adminMessage, 'Orientação alterada no formulário. Clique em Salvar mesa para gravar.');
         });
 
         container.appendChild(card);
@@ -1024,7 +1077,7 @@ function fillForm(tableId, { focusForm = true } = {}) {
         return;
     }
 
-    clearTimeout(tableAutosaveTimer);
+    editingTableSnapshot = { ...table };
     clearTableFieldInvalidStates();
     document.getElementById('tableId').value = String(table.id);
     document.getElementById('numero').value = String(table.numero);
@@ -1156,7 +1209,6 @@ async function finishReservation(reservationId) {
 
 async function deleteTable(tableId) {
     clearMessage(adminMessage);
-    clearTimeout(tableAutosaveTimer);
 
     try {
         const linkedReservations = await getReservationsByTable(tableId);
@@ -1178,14 +1230,13 @@ async function deleteTable(tableId) {
 tableForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(adminMessage);
-    clearTimeout(tableAutosaveTimer);
     clearTableFieldInvalidStates();
 
     const formValues = getFormValues();
     const tableId = formValues.id;
 
     if (tableId) {
-        await saveExistingTable(tableId, formValues, 'Mesa atualizada com sucesso.');
+        await saveExistingTable(tableId, formValues, 'Mesa atualizada com sucesso.', { resetAfterSave: true });
         return;
     }
 
@@ -1211,22 +1262,19 @@ resetFormButton?.addEventListener('click', () => {
     renderMap();
 });
 
-rotateTableButton?.addEventListener('click', async () => {
+rotateTableButton?.addEventListener('click', () => {
     const rotationField = document.getElementById('rotacao');
     const tableId = document.getElementById('tableId').value;
-    const previousRotation = normalizeRotation(rotationField.value);
     const nextRotation = normalizeRotation(rotationField.value) === 90 ? 0 : 90;
 
     rotationField.value = String(nextRotation);
     updateRotationDisplay();
 
     if (tableId) {
-        const saved = await saveExistingTable(tableId, { rotacao: nextRotation }, 'Orientação da mesa salva automaticamente.');
-
-        if (!saved) {
-            rotationField.value = String(previousRotation);
-            updateRotationDisplay();
-        }
+        tables = tables.map((table) => table.id === tableId ? { ...table, rotacao: nextRotation } : table);
+        renderMap();
+        renderTablesList();
+        showMessage(adminMessage, 'Orientação alterada no formulário. Clique em Salvar mesa para gravar.');
         return;
     }
 
@@ -1242,10 +1290,7 @@ tableForm?.addEventListener('input', (event) => {
 
     if (!document.getElementById('tableId').value && fieldId === 'capacidade') {
         applyDefaultTablePosition();
-        return;
     }
-
-    scheduleCurrentTableAutosave();
 });
 
 tableForm?.addEventListener('change', (event) => {
@@ -1255,14 +1300,9 @@ tableForm?.addEventListener('change', (event) => {
         return;
     }
 
-    if (!document.getElementById('tableId').value) {
-        if (fieldId === 'capacidade') {
-            applyDefaultTablePosition();
-        }
-        return;
+    if (!document.getElementById('tableId').value && fieldId === 'capacidade') {
+        applyDefaultTablePosition();
     }
-
-    scheduleCurrentTableAutosave();
 });
 
 refreshReservationsButton?.addEventListener('click', refreshReservations);

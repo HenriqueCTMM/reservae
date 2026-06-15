@@ -24,7 +24,7 @@ A autenticação usa Firebase Authentication e os dados ficam no Firebase Realti
 - Área do cliente separada em `Nova reserva`, `Minhas reservas` e `Contato`
 - Área administrativa separada em `Mesas`, `Reservas`, `Configurações` e `Mensagens`
 - Cadastro, edição, remoção e posicionamento visual de mesas pelo administrador
-- Salvamento automático de mesas existentes ao arrastar, girar ou editar campos
+- Salvamento automático da posição de mesas existentes ao arrastar no mapa
 - Criação de mesa com número sugerido, capacidade padrão de 4 lugares e posição central no mapa
 - Orientação horizontal ou vertical das mesas, com controle por ícone
 - Visualização do mapa de mesas do restaurante para cliente e administrador
@@ -87,7 +87,8 @@ Na tela `src/pages/admin.html`, o administrador gerencia o layout do restaurante
 - A capacidade padrão de uma nova mesa é 4 lugares.
 - A posição inicial de uma nova mesa fica centralizada no mapa.
 - Os campos de posição X e Y ficam ocultos durante a criação e aparecem na edição.
-- Ao editar uma mesa existente, alterações no formulário, arraste no mapa e giro da mesa são salvos automaticamente.
+- Ao editar uma mesa existente, o arraste no mapa salva automaticamente a posição.
+- Alterações em número, capacidade, status e orientação são gravadas pelo botão `Salvar mesa`.
 - A mesa em edição recebe destaque visual azul no mapa.
 - Mesas de 2 e 4 lugares usam formato base; mesas de 5/6 lugares usam retângulo maior; mesas de 7/8 lugares usam retângulo ainda maior.
 - O mapa do cliente e o mapa do administrador usam a mesma área visual base de 800px por 520px.
@@ -224,7 +225,7 @@ Depois acesse a URL exibida no terminal.
 5. Confira a reserva em `src/pages/minhas-reservas.html`.
 6. Envie uma mensagem em `src/pages/contato.html`.
 7. Para testar como administrador, altere manualmente o campo `perfil` do usuário no Realtime Database para `admin`.
-8. Em `src/pages/admin.html`, valide criação de mesa com valores padrão, edição automática, arraste no mapa e giro da mesa.
+8. Em `src/pages/admin.html`, valide criação de mesa com valores padrão, salvamento automático da posição ao arrastar e salvamento manual dos campos pelo botão `Salvar mesa`.
 9. Em `src/pages/admin-reservas.html`, valide filtros, atualização de status definitivo e relatório.
 10. Em `src/pages/admin-configuracoes.html`, valide horários semanais e exceções de funcionamento.
 11. Em `src/pages/admin-mensagens.html`, responda uma mensagem de cliente.
