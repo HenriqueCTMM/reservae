@@ -1,10 +1,12 @@
-# Reservae
+<p align="center">
+  <img src="src/assets/logo-reservae.png" alt="Reservaê" width="220" />
+</p>
 
 Aplicacao web simples para gerenciamento e reserva de mesas de restaurante.
 
 ## Sobre
 
-O objetivo do Reservae e permitir que clientes reservem mesas online e que administradores gerenciem mesas, reservas e mensagens em uma aplicacao web integrada ao Firebase.
+O objetivo da aplicacao e permitir que clientes reservem mesas online e que administradores gerenciem mesas, reservas e mensagens em uma aplicacao web integrada ao Firebase.
 
 A autenticacao usa Firebase Authentication e os dados ficam no Firebase Realtime Database.
 

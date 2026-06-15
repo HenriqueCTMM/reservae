@@ -1,5 +1,4 @@
 /node_modules
 .env
-src/assets/*
 src/assets/docs/
 .firebase
