@@ -21,17 +21,42 @@ A autenticação usa Firebase Authentication e os dados ficam no Firebase Realti
 - Login com e-mail/senha ou Google
 - Cadastro de cliente
 - Controle de acesso por perfil de administrador ou cliente
-- Cadastro, edição e remoção de mesas pelo administrador
-- Visualização do mapa de mesas do restaurante
-- Criação de reservas por clientes
+- Área do cliente separada em `Nova reserva`, `Minhas reservas` e `Contato`
+- Área administrativa separada em `Mesas`, `Reservas`, `Configurações` e `Mensagens`
+- Cadastro, edição, remoção e posicionamento visual de mesas pelo administrador
+- Salvamento automático de mesas existentes ao arrastar, girar ou editar campos
+- Criação de mesa com número sugerido, capacidade padrão de 4 lugares e posição central no mapa
+- Orientação horizontal ou vertical das mesas, com controle por ícone
+- Visualização do mapa de mesas do restaurante para cliente e administrador
+- Mapa com tamanho padronizado entre cliente e administrador
+- Criação de reservas por clientes com data, horário, quantidade de pessoas e escolha da mesa
 - Bloqueio de reservas sobrepostas para a mesma mesa, data e horário
 - Consulta das reservas feitas pelo cliente
-- Listagem de reservas no painel administrativo
-- Filtros dinâmicos para mesas e reservas
+- Listagem, filtros e relatório de reservas no painel administrativo
+- Filtros dinâmicos para disponibilidade e reservas
 - Envio de mensagens de contato pelo cliente
-- Acompanhamento e alteração de status das mensagens pelo administrador
+- Acompanhamento de mensagens pelo cliente
+- Resposta administrativa única para mensagens dos clientes
 - Controle administrativo dos dias e horários de funcionamento
+- Cadastro de exceções de funcionamento por data
 - Finalização administrativa das reservas e relatório simples
+
+## Páginas e navegação
+
+O projeto usa páginas HTML separadas por função, sem comportamento de SPA.
+
+Menu do cliente:
+
+- `src/pages/reservas.html`: criação de nova reserva e seleção de mesa.
+- `src/pages/minhas-reservas.html`: histórico das reservas do cliente.
+- `src/pages/contato.html`: envio de mensagens ao restaurante e acompanhamento das respostas.
+
+Menu do administrador:
+
+- `src/pages/admin.html`: cadastro, edição, remoção e organização visual das mesas.
+- `src/pages/admin-reservas.html`: listagem de reservas, filtros, finalização de status e relatório.
+- `src/pages/admin-configuracoes.html`: funcionamento semanal e exceções por data.
+- `src/pages/admin-mensagens.html`: leitura e resposta das mensagens dos clientes.
 
 ## Filtros
 
@@ -41,7 +66,7 @@ Na tela `src/pages/reservas.html`, o cliente pode filtrar a disponibilidade das 
 - Horário da reserva
 - Quantidade de pessoas
 
-Na tela `src/pages/admin.html`, o administrador pode filtrar reservas por:
+Na tela `src/pages/admin-reservas.html`, o administrador pode filtrar reservas por:
 
 - Data
 - Status
@@ -54,15 +79,29 @@ Exemplo para validar:
 - No cliente, altere data, horário e quantidade de pessoas; mesas já reservadas ou com capacidade menor ficam indisponíveis.
 - No admin, filtre uma data, escolha um status e pesquise pelo nome do cliente ou pelo número da mesa; o contador deve atualizar sem recarregar a página.
 
+## Mesas e mapa
+
+Na tela `src/pages/admin.html`, o administrador gerencia o layout do restaurante:
+
+- O número sugerido para uma nova mesa usa o maior número cadastrado + 1.
+- A capacidade padrão de uma nova mesa é 4 lugares.
+- A posição inicial de uma nova mesa fica centralizada no mapa.
+- Os campos de posição X e Y ficam ocultos durante a criação e aparecem na edição.
+- Ao editar uma mesa existente, alterações no formulário, arraste no mapa e giro da mesa são salvos automaticamente.
+- A mesa em edição recebe destaque visual azul no mapa.
+- Mesas de 2 e 4 lugares usam formato base; mesas de 5/6 lugares usam retângulo maior; mesas de 7/8 lugares usam retângulo ainda maior.
+- O mapa do cliente e o mapa do administrador usam a mesma área visual base de 800px por 520px.
+- Em dispositivos móveis, os mapas abrem em modal para preservar espaço na tela.
+
 ## Contato
 
-Na tela `src/pages/reservas.html`, o cliente logado pode enviar uma mensagem com assunto e texto. A mensagem fica salva em `/messages` no Realtime Database com usuário, e-mail, status e data de criação.
+Na tela `src/pages/contato.html`, o cliente logado pode enviar uma mensagem com assunto e texto. A mensagem fica salva em `/messages` no Realtime Database com usuário, e-mail, status e data de criação.
 
-Na tela `src/pages/admin.html`, o administrador visualiza todas as mensagens e pode alterar o status para `aberta`, `lida` ou `respondida`.
+Na tela `src/pages/admin-mensagens.html`, o administrador visualiza todas as mensagens e pode enviar uma resposta. A resposta é salva uma única vez e marca a mensagem como `respondida`.
 
 ## Funcionamento e reservas
 
-O administrador controla os dias de funcionamento do restaurante com até dois turnos por dia e exceções para datas específicas.
+Na tela `src/pages/admin-configuracoes.html`, o administrador controla os dias de funcionamento do restaurante com até dois turnos por dia e exceções para datas específicas.
 
 Regras principais:
 
@@ -117,21 +156,28 @@ src/
     admin.js
     auth.js
     cadastro.js
+    contato.js
     firebaseConfig.js
     minhas-reservas.js
     reservas.js
     services/
+      default-data.js
       messages-service.js
       operating-hours-service.js
       realtime-database-service.js
       reservations-service.js
+      seed-service.js
       session-storage-service.js
       tables-service.js
       users-service.js
     ui.js
   pages/
     admin.html
+    admin-configuracoes.html
+    admin-mensagens.html
+    admin-reservas.html
     cadastro.html
+    contato.html
     minhas-reservas.html
     reservas.html
   assets/
@@ -174,10 +220,14 @@ Depois acesse a URL exibida no terminal.
 1. Acesse `https://reservae-5874f.web.app/` ou rode localmente com `npm run dev`.
 2. Crie uma conta de cliente pela tela de cadastro ou entre com Google.
 3. Como cliente, teste filtros de data, horário e quantidade de pessoas em `src/pages/reservas.html`.
-4. Crie uma reserva e confira a listagem em `Minhas reservas`.
-5. Envie uma mensagem de contato na tela de reservas.
-6. Para testar como administrador, altere manualmente o campo `perfil` do usuário no Realtime Database para `admin`.
-7. Entre como administrador e valide CRUD de mesas, filtros de reservas e status das mensagens.
+4. Selecione uma mesa pelo mapa ou pela lista acessível e crie uma reserva.
+5. Confira a reserva em `src/pages/minhas-reservas.html`.
+6. Envie uma mensagem em `src/pages/contato.html`.
+7. Para testar como administrador, altere manualmente o campo `perfil` do usuário no Realtime Database para `admin`.
+8. Em `src/pages/admin.html`, valide criação de mesa com valores padrão, edição automática, arraste no mapa e giro da mesa.
+9. Em `src/pages/admin-reservas.html`, valide filtros, atualização de status definitivo e relatório.
+10. Em `src/pages/admin-configuracoes.html`, valide horários semanais e exceções de funcionamento.
+11. Em `src/pages/admin-mensagens.html`, responda uma mensagem de cliente.
 
 ## Firebase
 
