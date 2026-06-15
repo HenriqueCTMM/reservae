@@ -22,6 +22,10 @@ body {
     overflow-x: hidden;
 }
 
+[hidden] {
+    display: none !important;
+}
+
 button,
 a,
 input,
@@ -102,7 +106,6 @@ textarea {
 #clientRestaurantMapModal,
 #restaurantMapModal {
     isolation: isolate;
-    min-width: 640px !important;
     overflow: hidden;
     border: 6px solid rgb(51, 65, 85);
     background-color: rgb(255, 251, 235);
@@ -178,12 +181,20 @@ textarea {
 }
 
 #restaurantMap {
-    height: clamp(360px, 55vh, 520px) !important;
+    width: 800px;
+    min-width: 800px !important;
+    height: 520px !important;
+}
+
+#restaurantMapModal {
+    width: 800px;
+    min-width: 800px !important;
+    height: 520px !important;
 }
 
 #clientRestaurantMap,
-#clientRestaurantMapModal,
-#restaurantMapModal {
+#clientRestaurantMapModal {
+    min-width: 760px !important;
     height: clamp(420px, 62vh, 560px) !important;
 }
 
@@ -204,6 +215,24 @@ textarea {
 
 table {
     min-width: 720px;
+}
+
+@media (min-width: 768px) {
+    .app-table-form input:not([type="hidden"]),
+    .app-table-form select {
+        border-radius: 0.75rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .app-table-form label {
+        margin-bottom: 0.125rem;
+    }
+
+    .app-table-form .app-help-text {
+        font-size: 0.8125rem;
+        line-height: 1.125rem;
+        margin-top: 0.125rem;
+    }
 }
 
 @media (max-width: 767px) {
@@ -246,10 +275,14 @@ table {
         min-height: 14rem;
     }
 
-    #clientRestaurantMapModal,
-    #restaurantMapModal {
+    #clientRestaurantMapModal {
         height: 560px !important;
         min-width: 760px !important;
+    }
+
+    #restaurantMapModal {
+        height: 520px !important;
+        min-width: 800px !important;
     }
 
     .app-mobile-stack > * {

@@ -24,6 +24,7 @@ const user = await protectRoute(['admin']);
 const adminUserName = document.getElementById('adminUserName');
 const logoutButton = document.getElementById('logoutButton');
 const tableForm = document.getElementById('tableForm');
+const tableFormTitle = document.getElementById('table-form-title');
 const resetFormButton = document.getElementById('resetFormButton');
 const rotateTableButton = document.getElementById('rotateTableButton');
 const rotationValue = document.getElementById('rotationValue');
@@ -75,8 +76,11 @@ let messages = [];
 let operatingConfig = getDefaultOperatingHoursConfig();
 let operatingExceptions = [];
 let ignoreMapClickAfterDrag = false;
-const MAP_WIDTH = 700;
+let tableAutosaveTimer = null;
+const MAP_WIDTH = 800;
 const MAP_HEIGHT = 520;
+const DEFAULT_TABLE_CAPACITY = 4;
+const TABLE_AUTOSAVE_DELAY = 600;
 
 function normalizeRotation(rotation) {
     const value = Number(rotation || 0);
@@ -114,6 +118,49 @@ function updateRotationDisplay() {
     rotationValue.textContent = getOrientationLabel(document.getElementById('rotacao').value);
 }
 
+function getNextTableNumber() {
+    const highestNumber = tables.reduce((highest, table) => Math.max(highest, Number(table.numero) || 0), 0);
+
+    return highestNumber + 1;
+}
+
+function getCenteredTablePosition(table) {
+    const dimensions = getTableDimensions(table);
+
+    return {
+        posicaoX: Math.max(0, Math.round((MAP_WIDTH - dimensions.width) / 2)),
+        posicaoY: Math.max(0, Math.round((MAP_HEIGHT - dimensions.height) / 2))
+    };
+}
+
+function updateTableFormMode() {
+    const positionFields = document.getElementById('positionFields');
+    const isEditing = Boolean(document.getElementById('tableId').value);
+
+    if (tableFormTitle) {
+        tableFormTitle.textContent = isEditing ? 'Editar mesa' : 'Criar nova mesa';
+    }
+
+    if (!positionFields) {
+        return;
+    }
+
+    positionFields.hidden = !isEditing;
+}
+
+function applyDefaultTablePosition() {
+    const capacity = Number(document.getElementById('capacidade').value) || DEFAULT_TABLE_CAPACITY;
+    const rotation = normalizeRotation(document.getElementById('rotacao').value);
+    const position = getCenteredTablePosition({ capacidade: capacity, rotacao: rotation });
+
+    document.getElementById('posicaoX').value = String(position.posicaoX);
+    document.getElementById('posicaoY').value = String(position.posicaoY);
+}
+
+function clearTableFieldInvalidStates() {
+    ['numero', 'capacidade', 'posicaoX', 'posicaoY', 'status'].forEach((fieldId) => setFieldInvalid(document.getElementById(fieldId), false));
+}
+
 function getFormValues() {
     return {
         id: document.getElementById('tableId').value,
@@ -127,10 +174,17 @@ function getFormValues() {
 }
 
 function resetForm({ focusFirstField = false } = {}) {
+    clearTimeout(tableAutosaveTimer);
     tableForm.reset();
     document.getElementById('tableId').value = '';
+    document.getElementById('numero').value = String(getNextTableNumber());
+    document.getElementById('capacidade').value = String(DEFAULT_TABLE_CAPACITY);
+    document.getElementById('status').value = 'disponivel';
     document.getElementById('rotacao').value = '0';
+    applyDefaultTablePosition();
     updateRotationDisplay();
+    updateTableFormMode();
+    clearTableFieldInvalidStates();
 
     if (focusFirstField) {
         document.getElementById('numero').focus();
@@ -173,38 +227,8 @@ function validateTableFormValues(formValues) {
     return { valid: true, message: '' };
 }
 
-function isNewTableFormStarted() {
-    return Boolean(
-        document.getElementById('numero').value
-        || document.getElementById('capacidade').value
-        || document.getElementById('posicaoX').value
-        || document.getElementById('posicaoY').value
-    );
-}
-
-function canChangeSelectedTable(nextTableId) {
-    const currentTableId = document.getElementById('tableId').value;
-
-    if (!currentTableId || currentTableId === nextTableId) {
-        if (!currentTableId && isNewTableFormStarted()) {
-            showMessage(adminMessage, 'Salve ou limpe a mesa atual antes de selecionar outra.', 'error');
-            return false;
-        }
-
-        return true;
-    }
-
-    showMessage(adminMessage, 'Salve ou limpe a mesa atual antes de selecionar outra.', 'error');
-    return false;
-}
-
 function selectTableForEditing(tableId, { closeMap = false } = {}) {
     const currentTableId = document.getElementById('tableId').value;
-    const canSwitch = canChangeSelectedTable(tableId);
-
-    if (!canSwitch) {
-        return;
-    }
 
     if (currentTableId === tableId) {
         if (closeMap) {
@@ -225,6 +249,71 @@ function updateTablePositionPreview(tableId, x, y) {
     tables = tables.map((table) => table.id === tableId ? { ...table, posicaoX: x, posicaoY: y } : table);
 }
 
+async function saveExistingTable(tableId, changes, successMessage = 'Mesa salva automaticamente.') {
+    const currentTable = tables.find((table) => table.id === tableId);
+
+    if (!currentTable) {
+        return false;
+    }
+
+    clearTableFieldInvalidStates();
+
+    const nextTable = {
+        ...currentTable,
+        ...changes,
+        id: tableId,
+        rotacao: normalizeRotation(changes.rotacao ?? currentTable.rotacao)
+    };
+    const validation = validateTableFormValues(nextTable);
+
+    if (!validation.valid) {
+        setFieldInvalid(document.getElementById(validation.fieldId));
+        showMessage(adminMessage, validation.message, 'error');
+        return false;
+    }
+
+    try {
+        const updatedTable = await updateTable(tableId, nextTable);
+        tables = tables.map((table) => table.id === tableId ? updatedTable : table);
+        renderMap();
+        renderTablesList();
+
+        if (successMessage) {
+            showMessage(adminMessage, successMessage);
+        }
+
+        return true;
+    } catch (error) {
+        showMessage(adminMessage, 'Não foi possível salvar a mesa automaticamente.', 'error');
+        await loadData();
+        return false;
+    }
+}
+
+async function saveCurrentExistingTable(successMessage = 'Mesa salva automaticamente.') {
+    const formValues = getFormValues();
+
+    if (!formValues.id) {
+        return false;
+    }
+
+    return saveExistingTable(formValues.id, formValues, successMessage);
+}
+
+function scheduleCurrentTableAutosave() {
+    const tableId = document.getElementById('tableId').value;
+
+    clearTimeout(tableAutosaveTimer);
+
+    if (!tableId) {
+        return;
+    }
+
+    tableAutosaveTimer = setTimeout(() => {
+        saveCurrentExistingTable('');
+    }, TABLE_AUTOSAVE_DELAY);
+}
+
 function startTableDrag(event, table, card, container) {
     if (event.target.closest('[data-toggle-table-orientation]')) {
         return;
@@ -234,17 +323,13 @@ function startTableDrag(event, table, card, container) {
         return;
     }
 
-    if (!canChangeSelectedTable(table.id)) {
-        return;
-    }
-
     const mapRect = container.getBoundingClientRect();
     const cardRect = card.getBoundingClientRect();
     const offsetX = event.clientX - cardRect.left;
     const offsetY = event.clientY - cardRect.top;
     const dimensions = getTableDimensions(table);
-    const maxMapWidth = Math.min(container.clientWidth, MAP_WIDTH);
-    const maxMapHeight = Math.min(container.clientHeight, MAP_HEIGHT);
+    const maxMapWidth = MAP_WIDTH;
+    const maxMapHeight = MAP_HEIGHT;
     let moved = false;
     let nextX = Number(table.posicaoX || 0);
     let nextY = Number(table.posicaoY || 0);
@@ -277,13 +362,12 @@ function startTableDrag(event, table, card, container) {
             const roundedY = Math.round(nextY);
 
             updateTablePositionPreview(table.id, roundedX, roundedY);
-            renderMap();
-            if (document.getElementById('tableId').value !== table.id) {
-                fillForm(table.id);
+            if (document.getElementById('tableId').value === table.id) {
+                document.getElementById('posicaoX').value = String(roundedX);
+                document.getElementById('posicaoY').value = String(roundedY);
             }
-            document.getElementById('posicaoX').value = String(roundedX);
-            document.getElementById('posicaoY').value = String(roundedY);
-            showMessage(adminMessage, 'Posição atualizada no formulário. Clique em Salvar mesa para gravar.');
+
+            saveExistingTable(table.id, { posicaoX: roundedX, posicaoY: roundedY }, 'Posição da mesa salva automaticamente.');
             setTimeout(() => {
                 ignoreMapClickAfterDrag = false;
             }, 0);
@@ -390,28 +474,16 @@ function renderMapContainer(container, { closeOnSelect = false } = {}) {
             selectTableForEditing(table.id, { closeMap: closeOnSelect });
         });
 
-        card.querySelector('[data-toggle-table-orientation]').addEventListener('click', (event) => {
+        card.querySelector('[data-toggle-table-orientation]').addEventListener('click', async (event) => {
             event.stopPropagation();
 
-            const canSwitch = canChangeSelectedTable(table.id);
+            const nextRotation = normalizeRotation(table.rotacao) === 90 ? 0 : 90;
+            const saved = await saveExistingTable(table.id, { rotacao: nextRotation }, 'Orientação da mesa salva automaticamente.');
 
-            if (!canSwitch) {
-                return;
+            if (saved && document.getElementById('tableId').value === table.id) {
+                document.getElementById('rotacao').value = String(nextRotation);
+                updateRotationDisplay();
             }
-
-            if (document.getElementById('tableId').value !== table.id) {
-                fillForm(table.id);
-            }
-
-            const rotationField = document.getElementById('rotacao');
-            const nextRotation = normalizeRotation(rotationField.value) === 90 ? 0 : 90;
-
-            rotationField.value = String(nextRotation);
-            updateRotationDisplay();
-            tables = tables.map((item) => item.id === table.id ? { ...item, rotacao: nextRotation } : item);
-            renderMap();
-            renderTablesList();
-            showMessage(adminMessage, 'Orientação atualizada no formulário. Clique em Salvar mesa para gravar.');
         });
 
         container.appendChild(card);
@@ -926,6 +998,8 @@ function fillForm(tableId) {
         return;
     }
 
+    clearTimeout(tableAutosaveTimer);
+    clearTableFieldInvalidStates();
     document.getElementById('tableId').value = String(table.id);
     document.getElementById('numero').value = String(table.numero);
     document.getElementById('capacidade').value = String(table.capacidade);
@@ -934,6 +1008,7 @@ function fillForm(tableId) {
     document.getElementById('rotacao').value = String(normalizeRotation(table.rotacao));
     document.getElementById('status').value = table.status;
     updateRotationDisplay();
+    updateTableFormMode();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     document.getElementById('numero').focus({ preventScroll: true });
 }
@@ -963,6 +1038,10 @@ async function loadData() {
         operatingConfig = await getOperatingHoursConfig();
         operatingExceptions = await getOperatingHourExceptions();
         renderAll();
+
+        if (tableForm && !document.getElementById('tableId').value) {
+            resetForm();
+        }
     } catch (error) {
         showMessage(adminMessage, 'Não foi possível carregar os dados do restaurante.', 'error');
     }
@@ -1049,10 +1128,7 @@ async function finishReservation(reservationId) {
 
 async function deleteTable(tableId) {
     clearMessage(adminMessage);
-
-    if (!canChangeSelectedTable(tableId)) {
-        return;
-    }
+    clearTimeout(tableAutosaveTimer);
 
     try {
         const linkedReservations = await getReservationsByTable(tableId);
@@ -1074,12 +1150,18 @@ async function deleteTable(tableId) {
 tableForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearMessage(adminMessage);
-    ['numero', 'capacidade', 'posicaoX', 'posicaoY', 'status'].forEach((fieldId) => setFieldInvalid(document.getElementById(fieldId), false));
+    clearTimeout(tableAutosaveTimer);
+    clearTableFieldInvalidStates();
 
     const formValues = getFormValues();
     const tableId = formValues.id;
-    const validation = validateTableFormValues(formValues);
 
+    if (tableId) {
+        await saveExistingTable(tableId, formValues, 'Mesa atualizada com sucesso.');
+        return;
+    }
+
+    const validation = validateTableFormValues(formValues);
     if (!validation.valid) {
         setFieldInvalid(document.getElementById(validation.fieldId));
         showMessage(adminMessage, validation.message, 'error');
@@ -1087,15 +1169,8 @@ tableForm?.addEventListener('submit', async (event) => {
     }
 
     try {
-        if (tableId) {
-            await updateTable(tableId, formValues);
-            showMessage(adminMessage, 'Mesa atualizada com sucesso.');
-        } else {
-            await saveTable(formValues);
-            showMessage(adminMessage, 'Mesa cadastrada com sucesso.');
-        }
-
-        resetForm();
+        await saveTable(formValues);
+        showMessage(adminMessage, 'Mesa cadastrada com sucesso.');
         await loadData();
     } catch (error) {
         showMessage(adminMessage, 'Não foi possível salvar a mesa.', 'error');
@@ -1107,19 +1182,58 @@ resetFormButton?.addEventListener('click', () => {
     resetForm({ focusFirstField: true });
 });
 
-rotateTableButton?.addEventListener('click', () => {
+rotateTableButton?.addEventListener('click', async () => {
     const rotationField = document.getElementById('rotacao');
     const tableId = document.getElementById('tableId').value;
+    const previousRotation = normalizeRotation(rotationField.value);
     const nextRotation = normalizeRotation(rotationField.value) === 90 ? 0 : 90;
 
     rotationField.value = String(nextRotation);
     updateRotationDisplay();
 
     if (tableId) {
-        tables = tables.map((table) => table.id === tableId ? { ...table, rotacao: nextRotation } : table);
-        renderMap();
-        renderTablesList();
+        const saved = await saveExistingTable(tableId, { rotacao: nextRotation }, 'Orientação da mesa salva automaticamente.');
+
+        if (!saved) {
+            rotationField.value = String(previousRotation);
+            updateRotationDisplay();
+        }
+        return;
     }
+
+    applyDefaultTablePosition();
+});
+
+tableForm?.addEventListener('input', (event) => {
+    const fieldId = event.target.id;
+
+    if (!['numero', 'capacidade', 'posicaoX', 'posicaoY'].includes(fieldId)) {
+        return;
+    }
+
+    if (!document.getElementById('tableId').value && fieldId === 'capacidade') {
+        applyDefaultTablePosition();
+        return;
+    }
+
+    scheduleCurrentTableAutosave();
+});
+
+tableForm?.addEventListener('change', (event) => {
+    const fieldId = event.target.id;
+
+    if (!['numero', 'capacidade', 'posicaoX', 'posicaoY', 'status'].includes(fieldId)) {
+        return;
+    }
+
+    if (!document.getElementById('tableId').value) {
+        if (fieldId === 'capacidade') {
+            applyDefaultTablePosition();
+        }
+        return;
+    }
+
+    scheduleCurrentTableAutosave();
 });
 
 refreshReservationsButton?.addEventListener('click', refreshReservations);

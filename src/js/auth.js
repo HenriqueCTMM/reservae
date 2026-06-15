@@ -82,16 +82,6 @@ export async function protectRoute(allowedProfiles = []) {
         return stopAfterRedirect(getLoginUrl());
     }
 
-    const storedUser = getCurrentUser();
-
-    if (storedUser?.id === firebaseUser.uid && storedUser.authProvider === 'google') {
-        profile = {
-            ...profile,
-            perfil: 'cliente',
-            authProvider: 'google'
-        };
-    }
-
     const user = saveCurrentUser(profile);
 
     if (allowedProfiles.length && !allowedProfiles.includes(user.perfil)) {

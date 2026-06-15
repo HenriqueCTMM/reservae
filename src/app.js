@@ -95,11 +95,12 @@ googleLoginButton.addEventListener('click', async () => {
 
     try {
         const credential = await signInWithPopup(auth, googleProvider);
-        const profile = await ensureClientProfile(credential.user);
+        const profile = credential.user.email === ADMIN_EMAIL
+            ? await saveAdminProfile(credential.user)
+            : await ensureClientProfile(credential.user);
 
         redirectByProfile({
             ...profile,
-            perfil: 'cliente',
             authProvider: 'google'
         });
     } catch (error) {

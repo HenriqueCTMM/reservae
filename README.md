@@ -12,9 +12,9 @@ A autenticacao usa Firebase Authentication e os dados ficam no Firebase Realtime
 
 ## Equipe
 
-- Nome do integrante 1: preencher antes da entrega
-- Nome do integrante 2: preencher antes da entrega
-- Nome do integrante 3: preencher antes da entrega, se houver
+- Nome do integrante 1: Henrique Mamprim Melo
+- Nome do integrante 2: Beatriz Krebs Yamaguchi
+- Nome do integrante 3: Igor Biassi Severich
 
 ## Funcionalidades
 
@@ -164,23 +164,15 @@ Depois acesse a URL exibida no terminal.
 
 - Realtime Database: `https://reservae-5874f-default-rtdb.firebaseio.com/`
 - Hosting publico: `https://reservae-5874f.web.app/`
-- Administrador inicial: `henriquemamprim.m@gmail.com`
-
-O login com Google sempre cria ou acessa perfil de cliente.
 
 ## Usuarios de teste
 
-Administrador:
-
-```text
-E-mail: henriquemamprim.m@gmail.com
-Senha: definida no Firebase Authentication pelo grupo
-```
+Administrador: Só é possível virar admin através de alteração direta no banco de dados.
 
 Cliente:
 
 ```text
-Use a tela de cadastro para criar uma conta de cliente ou entre com Google.
+Use a tela de cadastro para criar uma conta de cliente é (possível entrar com o Google).
 ```
 
 ## Observacoes de deploy
