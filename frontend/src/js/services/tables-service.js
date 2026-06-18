@@ -8,7 +8,7 @@ import {
     setById,
     updateById,
     watchCollection
-} from './realtime-database-service.js';
+} from './api-service.js';
 
 const TABLES_PATH = 'tables';
 

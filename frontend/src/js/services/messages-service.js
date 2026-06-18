@@ -6,7 +6,7 @@ import {
     queryByChild,
     removeById,
     updateById
-} from './realtime-database-service.js';
+} from './api-service.js';
 
 const MESSAGES_PATH = 'messages';
 const DEFAULT_MESSAGE_STATUS = 'aberta';

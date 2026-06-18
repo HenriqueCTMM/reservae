@@ -5,7 +5,7 @@ import {
     removeById,
     setById,
     setValue
-} from './realtime-database-service.js';
+} from './api-service.js';
 
 const OPERATING_HOURS_PATH = 'operatingHours';
 const OPERATING_CONFIG_PATH = `${OPERATING_HOURS_PATH}/config`;

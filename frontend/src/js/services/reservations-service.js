@@ -7,7 +7,7 @@ import {
     removeById,
     updateById,
     watchByChild
-} from './realtime-database-service.js';
+} from './api-service.js';
 import {
     getReservationDurationMinutes,
     getReservationEndTime,

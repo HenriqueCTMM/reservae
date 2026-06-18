@@ -1,17 +1,18 @@
 {
   "name": "restaurante-app",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "workspaces": ["frontend", "backend"],
+  "engines": { "node": ">=22" },
   "scripts": {
-    "dev": "firebase emulators:start --only hosting",
-    "build": "firebase deploy --only hosting"
+    "dev": "npm run dev --workspace backend",
+    "start": "npm start --workspace backend",
+    "db:init": "npm run db:init --workspace backend",
+    "test": "npm test --workspace backend"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "dependencies": {
-    "firebase": "^12.14.0"
-  }
+  "dependencies": {}
 }

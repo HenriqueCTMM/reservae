@@ -1,19 +1,5 @@
-import {
-    onAuthStateChanged,
-    signOut
-} from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
-import { auth } from './firebaseConfig.js';
+import { request } from './services/api-service.js';
 import { STORAGE_KEYS, getStorageData, setStorageData } from './services/session-storage-service.js';
-import { getUserProfile } from './services/users-service.js';
-
-function waitForAuthUser() {
-    return new Promise((resolve) => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            unsubscribe();
-            resolve(user);
-        });
-    });
-}
 
 function saveCurrentUser(profile) {
     const storedUser = getCurrentUser();
@@ -57,7 +43,7 @@ export function getCurrentUser() {
 }
 
 export async function logout() {
-    await signOut(auth);
+    await request('/auth/logout', { method: 'POST', body: '{}' });
     clearCurrentUser();
     window.location.href = getLoginUrl();
 }
@@ -67,18 +53,12 @@ export function redirectByUserRole(user) {
 }
 
 export async function protectRoute(allowedProfiles = []) {
-    const firebaseUser = await waitForAuthUser();
-
-    if (!firebaseUser) {
+    let profile;
+    try {
+        profile = await request('/auth/me');
+    } catch (error) {
+        if (error.status !== 401) throw error;
         clearCurrentUser();
-        return stopAfterRedirect(getLoginUrl());
-    }
-
-    let profile = await getUserProfile(firebaseUser.uid);
-
-    if (!profile) {
-        clearCurrentUser();
-        await signOut(auth);
         return stopAfterRedirect(getLoginUrl());
     }
 
