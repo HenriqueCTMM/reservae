@@ -2,12 +2,10 @@ import { protectRoute, logout } from './auth.js';
 import { getMessages, updateMessageReply } from './services/messages-service.js';
 import {
     formatDuration,
-    getDefaultOperatingHoursConfig,
     getOperatingHourExceptions,
     getOperatingHoursConfig,
     getReservationPeriod,
     hasReservationOutsideSchedule,
-    normalizeOperatingHoursConfig,
     normalizeSchedule,
     removeOperatingHourException,
     saveOperatingHourException,
@@ -57,6 +55,8 @@ const refreshMessagesButton = document.getElementById('refreshMessagesButton');
 const adminMessagesList = document.getElementById('adminMessagesList');
 const weeklyHoursForm = document.getElementById('weeklyHoursForm');
 const weeklyHoursFields = document.getElementById('weeklyHoursFields');
+const weeklyHoursControls = document.getElementById('weeklyHoursControls');
+const reloadOperatingHoursButton = document.getElementById('reloadOperatingHoursButton');
 const exceptionForm = document.getElementById('exceptionForm');
 const exceptionDate = document.getElementById('exceptionDate');
 const exceptionOpen = document.getElementById('exceptionOpen');
@@ -74,7 +74,7 @@ logoutButton.addEventListener('click', logout);
 let tables = [];
 let reservations = [];
 let messages = [];
-let operatingConfig = getDefaultOperatingHoursConfig();
+let operatingConfig = null;
 let operatingExceptions = [];
 let ignoreMapClickAfterDrag = false;
 let editingTableSnapshot = null;
@@ -918,22 +918,22 @@ function renderWeeklyHoursForm() {
       <div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div>
           <label for="weekly-${day.value}-0-start" class="mb-1 block text-sm font-medium">Turno 1 início</label>
-          <input id="weekly-${day.value}-0-start" type="time" step="1800" value="${firstShift.start}"
+          <input id="weekly-${day.value}-0-start" type="time" step="60" value="${firstShift.start}"
             class="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
         </div>
         <div>
           <label for="weekly-${day.value}-0-end" class="mb-1 block text-sm font-medium">Turno 1 fim</label>
-          <input id="weekly-${day.value}-0-end" type="time" step="1800" value="${firstShift.end}"
+          <input id="weekly-${day.value}-0-end" type="time" step="60" value="${firstShift.end}"
             class="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
         </div>
         <div>
           <label for="weekly-${day.value}-1-start" class="mb-1 block text-sm font-medium">Turno 2 início</label>
-          <input id="weekly-${day.value}-1-start" type="time" step="1800" value="${secondShift.start}"
+          <input id="weekly-${day.value}-1-start" type="time" step="60" value="${secondShift.start}"
             class="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
         </div>
         <div>
           <label for="weekly-${day.value}-1-end" class="mb-1 block text-sm font-medium">Turno 2 fim</label>
-          <input id="weekly-${day.value}-1-end" type="time" step="1800" value="${secondShift.end}"
+          <input id="weekly-${day.value}-1-end" type="time" step="60" value="${secondShift.end}"
             class="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
         </div>
       </div>
@@ -981,12 +981,11 @@ function renderExceptions() {
 }
 
 function renderOperatingHours() {
-    if (!weeklyHoursFields || !exceptionsList) {
+    if (!weeklyHoursFields || !operatingConfig) {
         return;
     }
 
     renderWeeklyHoursForm();
-    renderExceptions();
 }
 
 function collectWeeklyHoursConfig() {
@@ -1002,10 +1001,7 @@ function collectWeeklyHoursConfig() {
         });
     });
 
-    return normalizeOperatingHoursConfig({
-        ...operatingConfig,
-        weekly
-    });
+    return { weekly };
 }
 
 function validateOperatingConfig(config) {
@@ -1103,7 +1099,30 @@ function renderAll() {
     renderOperatingHours();
 }
 
+async function loadOperatingHours() {
+    clearMessage(adminMessage);
+    operatingConfig = null;
+    weeklyHoursControls.disabled = true;
+    reloadOperatingHoursButton.disabled = true;
+    weeklyHoursFields.textContent = 'Carregando horários...';
+
+    try {
+        operatingConfig = await getOperatingHoursConfig();
+        renderOperatingHours();
+        weeklyHoursControls.disabled = false;
+    } catch (error) {
+        weeklyHoursFields.textContent = 'Horários não carregados. Clique em Recarregar horários para tentar novamente.';
+        showMessage(adminMessage, error.message || 'Não foi possível carregar os horários de funcionamento.', 'error');
+    } finally {
+        reloadOperatingHoursButton.disabled = false;
+    }
+}
+
 async function loadData() {
+    if (weeklyHoursForm) {
+        await loadOperatingHours();
+        return;
+    }
     if (restaurantMap) {
         restaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando mesas...</div>';
     }
@@ -1369,6 +1388,7 @@ adminReservationsTable?.addEventListener('click', (event) => {
 
 weeklyHoursForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (!operatingConfig || weeklyHoursControls.disabled) return;
     clearMessage(adminMessage);
     weeklyHoursForm.querySelectorAll('input, select').forEach((field) => setFieldInvalid(field, false));
 
@@ -1381,28 +1401,21 @@ weeklyHoursForm?.addEventListener('submit', async (event) => {
         return;
     }
 
-    try {
-        await refreshReservationsForOperatingHours();
-    } catch (error) {
-        showMessage(adminMessage, 'Não foi possível conferir reservas ativas antes de salvar.', 'error');
-        return;
-    }
-
-    const affectedReservation = findReservationAffectedBySchedule(nextConfig, operatingExceptions);
-
-    if (affectedReservation) {
-        showAffectedReservationMessage('Não foi possível salvar os horários semanais.', affectedReservation);
-        return;
-    }
-
+    weeklyHoursControls.disabled = true;
+    reloadOperatingHoursButton.disabled = true;
     try {
         operatingConfig = await saveOperatingHoursConfig(nextConfig);
         renderOperatingHours();
         showMessage(adminMessage, 'Horários semanais atualizados.');
     } catch (error) {
-        showMessage(adminMessage, 'Não foi possível salvar os horários semanais.', 'error');
+        showMessage(adminMessage, error.message || 'Não foi possível salvar os horários semanais.', 'error');
+    } finally {
+        weeklyHoursControls.disabled = false;
+        reloadOperatingHoursButton.disabled = false;
     }
 });
+
+reloadOperatingHoursButton?.addEventListener('click', loadOperatingHours);
 
 exceptionForm?.addEventListener('submit', async (event) => {
     event.preventDefault();

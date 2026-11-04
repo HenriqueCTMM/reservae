@@ -1,28 +1,16 @@
 import {
     createTimestamp,
     getCollection,
-    getValue,
+    request,
     removeById,
-    setById,
-    setValue
+    setById
 } from './api-service.js';
 
 const OPERATING_HOURS_PATH = 'operatingHours';
-const OPERATING_CONFIG_PATH = `${OPERATING_HOURS_PATH}/config`;
 const OPERATING_EXCEPTIONS_PATH = `${OPERATING_HOURS_PATH}/exceptions`;
 const MIN_ADVANCE_MINUTES = 180;
 const SLOT_INTERVAL_MINUTES = 30;
 const CLOSED_DATE_MESSAGE = 'O restaurante não estará em funcionamento nesta data. Escolha outra data.';
-
-const DEFAULT_WEEKLY = {
-    0: { open: false, shifts: [] },
-    1: { open: true, shifts: [{ start: '11:00', end: '14:00' }, { start: '18:00', end: '23:00' }] },
-    2: { open: true, shifts: [{ start: '11:00', end: '14:00' }, { start: '18:00', end: '23:00' }] },
-    3: { open: true, shifts: [{ start: '11:00', end: '14:00' }, { start: '18:00', end: '23:00' }] },
-    4: { open: true, shifts: [{ start: '11:00', end: '14:00' }, { start: '18:00', end: '23:00' }] },
-    5: { open: true, shifts: [{ start: '11:00', end: '14:00' }, { start: '18:00', end: '23:30' }] },
-    6: { open: true, shifts: [{ start: '11:00', end: '15:00' }, { start: '18:00', end: '23:30' }] }
-};
 
 const WEEK_DAYS = [
     { value: 0, label: 'Domingo' },
@@ -34,16 +22,8 @@ const WEEK_DAYS = [
     { value: 6, label: 'Sábado' }
 ];
 
-export function getDefaultOperatingHoursConfig() {
-    return {
-        minAdvanceMinutes: MIN_ADVANCE_MINUTES,
-        slotIntervalMinutes: SLOT_INTERVAL_MINUTES,
-        weekly: JSON.parse(JSON.stringify(DEFAULT_WEEKLY))
-    };
-}
-
 function isTime(value) {
-    return /^\d{2}:\d{2}$/.test(value || '');
+    return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
 export function timeToMinutes(time) {
@@ -136,15 +116,17 @@ export function validateSchedule(schedule) {
         return { valid: false, message: 'Informe pelo menos um turno para dias abertos.' };
     }
 
-    const sortedShifts = shifts
-        .map((shift) => ({
-            ...shift,
-            startMinutes: timeToMinutes(shift.start),
-            endMinutes: timeToMinutes(shift.end)
-        }))
-        .sort((a, b) => a.startMinutes - b.startMinutes);
+    if (shifts.length > 2) {
+        return { valid: false, message: 'Informe no máximo dois turnos por dia.' };
+    }
 
-    for (const shift of sortedShifts) {
+    const timedShifts = shifts.map((shift) => ({
+        ...shift,
+        startMinutes: timeToMinutes(shift.start),
+        endMinutes: timeToMinutes(shift.end)
+    }));
+
+    for (const shift of timedShifts) {
         if (shift.startMinutes === null || shift.endMinutes === null) {
             return { valid: false, message: 'Preencha início e fim dos turnos.' };
         }
@@ -154,9 +136,9 @@ export function validateSchedule(schedule) {
         }
     }
 
-    for (let index = 1; index < sortedShifts.length; index += 1) {
-        if (sortedShifts[index].startMinutes < sortedShifts[index - 1].endMinutes) {
-            return { valid: false, message: 'Os turnos não podem se sobrepor.' };
+    for (let index = 1; index < timedShifts.length; index += 1) {
+        if (timedShifts[index].startMinutes < timedShifts[index - 1].endMinutes) {
+            return { valid: false, message: 'Os turnos devem estar ordenados e não podem se sobrepor.' };
         }
     }
 
@@ -170,36 +152,18 @@ export function normalizeSchedule(schedule) {
     return { open, shifts };
 }
 
-export function normalizeOperatingHoursConfig(config) {
-    const fallback = getDefaultOperatingHoursConfig();
-    const weekly = {};
-
-    WEEK_DAYS.forEach((day) => {
-        weekly[day.value] = normalizeSchedule(config?.weekly?.[day.value] || fallback.weekly[day.value]);
-    });
-
-    return {
-        minAdvanceMinutes: Number(config?.minAdvanceMinutes || fallback.minAdvanceMinutes),
-        slotIntervalMinutes: Number(config?.slotIntervalMinutes || fallback.slotIntervalMinutes),
-        weekly
-    };
-}
-
 export async function getOperatingHoursConfig() {
-    const config = await getValue(OPERATING_CONFIG_PATH);
-
-    return normalizeOperatingHoursConfig(config || getDefaultOperatingHoursConfig());
+    return request('/operating-hours');
 }
 
 export async function saveOperatingHoursConfig(config) {
-    const normalizedConfig = normalizeOperatingHoursConfig(config);
-
-    await setValue(OPERATING_CONFIG_PATH, {
-        ...normalizedConfig,
-        updatedAt: createTimestamp()
+    const data = { weekly: config.weekly };
+    for (const field of ['minAdvanceMinutes', 'slotIntervalMinutes']) {
+        if (Object.hasOwn(config, field)) data[field] = config[field];
+    }
+    return request('/operating-hours', {
+        method: 'PUT', body: JSON.stringify(data)
     });
-
-    return normalizedConfig;
 }
 
 export async function getOperatingHourExceptions() {
@@ -343,4 +307,4 @@ export function hasReservationOutsideSchedule(reservations, config, exceptions =
     }) || null;
 }
 
-export { OPERATING_HOURS_PATH, OPERATING_CONFIG_PATH, OPERATING_EXCEPTIONS_PATH, CLOSED_DATE_MESSAGE, WEEK_DAYS };
+export { OPERATING_HOURS_PATH, OPERATING_EXCEPTIONS_PATH, CLOSED_DATE_MESSAGE, WEEK_DAYS };

@@ -78,7 +78,7 @@ package-lock.json
 
 O Express entrega o frontend e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL para que os formulários acessem a API. `npm start` inicia sem o modo watch.
 
-## Etapa atual: autenticação, gestão de mesas e API de horários semanais
+## Etapa atual: autenticação, gestão de mesas e horários semanais
 
 - Cadastro com nome, e-mail e senha de pelo menos 6 caracteres (máximo de 72 bytes, limite do bcrypt).
 - E-mails são normalizados para minúsculas e não podem se repetir.
@@ -88,7 +88,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro, edição e exclusão de mesas e consulta/gravação de horários semanais. A tela administrativa de mesas (`pages/admin.html`) está integrada a esses endpoints e carrega apenas seus próprios dados. A API de horários semanais está disponível; sua integração ao frontend será feita na próxima parte. Reservas, contato e demais telas administrativas ainda usam `/api/data` para os módulos pendentes; essas chamadas serão substituídas nas próximas partes.
+Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro, edição e exclusão de mesas e consulta/gravação de horários semanais. A tela administrativa de mesas (`pages/admin.html`) e a programação semanal em Configurações (`pages/admin-configuracoes.html`) estão integradas às respectivas APIs e carregam seus próprios dados. Exceções por data, reservas, contato e demais módulos administrativos ainda dependem da migração de `/api/data`. A área de exceções em Configurações está desabilitada e identificada como pendente do M08.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -235,6 +235,14 @@ O sucesso retorna 200 com a configuração completa no formato do GET. Dados inv
 
 A trava de `operating_settings.id = 1`, leitura das reservas, gravação dos sete dias e leitura da resposta usam a mesma conexão transacional. Em caso de conflito ou falha, nenhuma alteração parcial é confirmada. A gravação não muda os parâmetros fixos nem as exceções por data.
 
+### Tela administrativa de horários
+
+Em Configurações, a programação semanal usa somente GET e PUT em `/api/operating-hours`. A página carrega os sete dias salvos, sem consultar mesas, reservas, mensagens ou exceções. O formulário fica desabilitado até o carregamento terminar com sucesso; em caso de falha, é possível tentar novamente pelo botão Recarregar horários. Não são exibidos horários de demonstração como substituição de uma falha da API.
+
+Ao salvar, o frontend envia `weekly` com os campos do formulário e usa a configuração retornada pelo servidor. Os controles ficam desabilitados durante a gravação. A validação local auxilia o preenchimento; a decisão sobre reservas é do backend. Mensagens de erro da API, incluindo conflitos com data e mesa, aparecem na tela e preservam os valores digitados para correção. Os turnos aceitam precisão de um minuto; o intervalo de 30 minutos se refere aos horários ofertados para reserva.
+
+O serviço de consulta compartilhado com a tela do cliente também usa o novo GET. O fluxo completo de reservas ainda depende dos próximos módulos, incluindo as exceções por data.
+
 ## Validar
 
 Validação exclusivamente manual: cadastrar cliente, repetir o e-mail, tentar senha incorreta, entrar, recarregar a página autenticada e sair.
@@ -260,6 +268,14 @@ Para conferir a gravação semanal, use um cliente HTTP manual em um banco de co
 4. Preparar reservas no MySQL: ativa futura, ativa em andamento, passada e com status definitivo. Fechar o dia, começar após o início reservado ou encerrar antes do término de uma ativa ainda não encerrada deve retornar 409, com data/mesa. Manter toda a reserva dentro de um turno, inclusive nos limites exatos, deve permitir 200. Reservas passadas ou encerradas não devem bloquear.
 5. Preparar uma exceção por data e uma reserva compatível com ela; fechar o dia semanal correspondente deve permitir 200 e preservar a exceção. Retirar a exceção pelo MySQL e tentar salvar novamente deve retornar 409 se a reserva não couber na semana.
 6. Em um banco novo após `db:init`, salvar toda a semana fechada pelo PUT e executar `db:seed`; conferir que o seed preserva o fechamento. Para demonstrar a trava, manter `SELECT id FROM operating_settings WHERE id = 1 FOR UPDATE` em uma transação MySQL aberta; enviar um PUT e liberar com COMMIT. O PUT deve aguardar e então revalidar os dados confirmados antes da gravação.
+
+Na tela Configurações, conferir manualmente no navegador:
+
+1. Entrar como administrador e abrir a página. Na aba Rede, confirmar que o carregamento usa `/api/auth/me` e GET `/api/operating-hours`, sem requisições a `/api/data` ou a outros módulos. Conferir os sete dias e os valores salvos.
+2. Alterar um dia para fechado, outro para um turno e outro para dois turnos. Salvar e conferir o PUT, a mensagem de sucesso e a persistência após recarregar. Experimentar um turno iniciado às 11:15.
+3. Preencher um turno incompleto, horários invertidos ou sobrepostos; conferir a mensagem local. Com uma reserva ativa futura preparada no banco, tentar fechar seu dia e conferir a mensagem 409 do backend com data/mesa. Os valores digitados devem permanecer para correção.
+4. Durante o carregamento e a gravação, conferir os controles desabilitados. Em uma falha inicial, nenhum horário padrão deve aparecer e Salvar deve continuar desabilitado. Restabelecer a API e clicar em Recarregar horários para recuperar o formulário.
+5. Encerrar a sessão em outra aba e tentar salvar; conferir a mensagem de sessão inválida. Conferir também que a área de exceções está desabilitada e informa a etapa pendente.
 
 O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 
