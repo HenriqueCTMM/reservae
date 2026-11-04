@@ -3,6 +3,7 @@ const path = require('node:path');
 const express = require('express');
 const session = require('express-session');
 const createAuthRoutes = require('./routes/authRoutes');
+const createAuthMiddleware = require('./middlewares/authMiddleware');
 
 function createApp({ User = require('./models/user'), sessionSecret = process.env.SESSION_SECRET } = {}) {
     if (!sessionSecret) throw new Error('Configure SESSION_SECRET em backend/.env.');
@@ -10,7 +11,7 @@ function createApp({ User = require('./models/user'), sessionSecret = process.en
     const app = express();
     app.disable('x-powered-by');
     app.use(express.json({ limit: '16kb' }));
-    app.use('/api/auth', session({
+    app.use('/api', session({
         name: 'reservae.sid',
         secret: sessionSecret,
         resave: false,
@@ -22,10 +23,13 @@ function createApp({ User = require('./models/user'), sessionSecret = process.en
             maxAge: 8 * 60 * 60 * 1000
         }
     }));
-    app.use('/api/auth', (req, res, next) => {
+    app.use('/api', (req, res, next) => {
         res.set('Cache-Control', 'no-store');
         next();
-    }, createAuthRoutes(User));
+    });
+    app.use('/api/auth', createAuthRoutes(User));
+    const { requireAuth } = createAuthMiddleware(User);
+    app.use('/api', requireAuth);
     app.use('/api', (req, res) => {
         res.status(404).json({ message: 'Endpoint não implementado nesta etapa.' });
     });
@@ -37,7 +41,7 @@ function createApp({ User = require('./models/user'), sessionSecret = process.en
         if (error.type === 'entity.too.large') {
             return res.status(413).json({ message: 'A requisição excede o tamanho permitido.' });
         }
-        console.error('Erro na autenticação:', error.message);
+        console.error('Erro na API:', error.message);
         res.status(500).json({ message: 'Não foi possível concluir a operação. Tente novamente.' });
     });
     return app;

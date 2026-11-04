@@ -74,23 +74,8 @@ module.exports = function createAuthController(User) {
             }
         },
 
-        async getMe(req, res, next) {
-            if (!req.session.isLoggedIn) {
-                return res.status(401).json({ message: 'Entre para continuar.' });
-            }
-            try {
-                const user = await User.findById(req.session.userId);
-                if (!user) {
-                    return req.session.destroy((error) => {
-                        if (error) return next(error);
-                        res.clearCookie('reservae.sid', { path: '/' });
-                        res.status(401).json({ message: 'Entre para continuar.' });
-                    });
-                }
-                res.json(publicProfile(user));
-            } catch (error) {
-                next(error);
-            }
+        getMe(req, res) {
+            res.json(publicProfile(req.user));
         },
 
         logout(req, res, next) {

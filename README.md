@@ -32,6 +32,7 @@ backend/
   config/              # Variáveis de ambiente e pool MySQL
   controllers/         # Cadastro, login, sessão atual e logout
   models/              # Consultas de usuários
+  middlewares/         # Autenticação e permissão por perfil
   routes/              # Rotas de autenticação
   sql/schema.sql       # Tabelas, relacionamentos e configurações básicas
   scripts/init-db.js    # Inicialização do banco sem apagar dados existentes
@@ -156,6 +157,10 @@ O cadastro recebe `{ nome, email, senha }`; o login recebe `{ email, senha }`. E
 Usuários ficam na tabela `users` do MySQL. Login e sessão atual retornam `{ id, uid, nome, email, perfil, authProvider }`, sem o hash da senha, compatível com os serviços existentes do frontend.
 
 Como no projeto de aula, sessões ficam na memória do servidor e são encerradas ao reiniciá-lo. O cookie tem duração de 8 horas, é HttpOnly e SameSite=Strict; com `NODE_ENV=production`, também é Secure e requer HTTPS. O localStorage usado pelo frontend guarda somente informações de exibição; a autenticação é validada no servidor pelo cookie.
+
+A sessão agora é compartilhada por toda a API. Cadastro e login continuam públicos; a consulta `/api/auth/me` e as demais rotas de dados exigem autenticação. O middleware `requireAuth` consulta o usuário no MySQL e disponibiliza `req.user` sem o hash da senha. Sessão ausente ou usuário removido resulta em 401; nesse último caso, a sessão também é encerrada.
+
+O middleware `requireProfile('admin')` ou `requireProfile('cliente')` será aplicado após `requireAuth` nas rotas específicas dos próximos módulos. Ele retorna 403 para um perfil diferente do exigido. Perfil e identidade enviados no corpo ou guardados no navegador não concedem acesso. As respostas da API recebem `Cache-Control: no-store`.
 
 ## Validar
 
