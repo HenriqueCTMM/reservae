@@ -1,5 +1,25 @@
 const pool = require('../config/database');
 
+async function findWeekly() {
+    const [rows] = await pool.execute(`
+        SELECT settings.min_advance_minutes, settings.slot_interval_minutes,
+            weekly.dia_semana, weekly.aberto,
+            TIME_FORMAT(weekly.inicio_turno_1, '%H:%i') AS inicio_turno_1,
+            TIME_FORMAT(weekly.fim_turno_1, '%H:%i') AS fim_turno_1,
+            TIME_FORMAT(weekly.inicio_turno_2, '%H:%i') AS inicio_turno_2,
+            TIME_FORMAT(weekly.fim_turno_2, '%H:%i') AS fim_turno_2,
+            UNIX_TIMESTAMP(GREATEST(settings.updated_at, weekly.updated_at)) * 1000 AS updated_at_ms
+        FROM operating_settings AS settings
+        CROSS JOIN weekly_operating_hours AS weekly
+        WHERE settings.id = 1
+        ORDER BY weekly.dia_semana
+    `);
+    if (rows.length !== 7) {
+        throw new Error('Execute npm run db:init para preparar a configuração e os sete dias da semana.');
+    }
+    return rows;
+}
+
 async function seedWeeklyDefaults(defaultDays) {
     const connection = await pool.getConnection();
     try {
@@ -47,4 +67,4 @@ async function seedWeeklyDefaults(defaultDays) {
     }
 }
 
-module.exports = { seedWeeklyDefaults };
+module.exports = { findWeekly, seedWeeklyDefaults };

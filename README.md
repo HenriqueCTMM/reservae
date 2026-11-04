@@ -30,10 +30,10 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Autenticação e operações de mesas
-  models/              # Consultas de usuários, mesas e preparação de horários
+  controllers/         # Autenticação, mesas e consulta de horários
+  models/              # Consultas de usuários, mesas e horários
   middlewares/         # Autenticação e permissão por perfil
-  routes/              # Rotas de autenticação e mesas
+  routes/              # Rotas de autenticação, mesas e horários
   sql/schema.sql       # Tabelas, relacionamentos e configurações básicas
   scripts/init-db.js    # Inicialização do banco sem apagar dados existentes
   .env.example
@@ -78,7 +78,7 @@ package-lock.json
 
 O Express entrega o frontend e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL para que os formulários acessem a API. `npm start` inicia sem o modo watch.
 
-## Etapa atual: autenticação e gestão de mesas
+## Etapa atual: autenticação, gestão de mesas e consulta de horários
 
 - Cadastro com nome, e-mail e senha de pelo menos 6 caracteres (máximo de 72 bytes, limite do bcrypt).
 - E-mails são normalizados para minúsculas e não podem se repetir.
@@ -88,7 +88,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro, edição e exclusão de mesas. A tela administrativa de mesas (`pages/admin.html`) está integrada a esses endpoints e carrega apenas seus próprios dados. Reservas, contato e demais telas administrativas ainda usam `/api/data` para os módulos pendentes; essas chamadas serão substituídas nas próximas partes.
+Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro, edição e exclusão de mesas e consulta de horários semanais. A tela administrativa de mesas (`pages/admin.html`) está integrada a esses endpoints e carrega apenas seus próprios dados. A consulta de horários está disponível na API; sua integração ao frontend e a gravação serão feitas nas próximas partes. Reservas, contato e demais telas administrativas ainda usam `/api/data` para os módulos pendentes; essas chamadas serão substituídas nas próximas partes.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -155,6 +155,7 @@ A carga só preenche a programação se os sete dias ainda estiverem no estado i
 - `POST /api/tables`: cadastro de mesa, exclusivo para administrador.
 - `PATCH /api/tables/:id`: edição parcial de mesa, exclusiva para administrador.
 - `DELETE /api/tables/:id`: exclusão de mesa sem reservas vinculadas, exclusiva para administrador.
+- `GET /api/operating-hours`: consulta de configurações e horários semanais para cliente ou administrador autenticado.
 
 O cadastro recebe `{ nome, email, senha }`; o login recebe `{ email, senha }`. Erros retornam JSON com `message` e status HTTP apropriado (400 para dados inválidos, 401 para credenciais/sessão inválidas, 409 para e-mail duplicado).
 
@@ -215,6 +216,14 @@ ID inválido ou dados não permitidos retornam 400; sessão ausente retorna 401;
 
 Após entrar como administrador, a página Mesas permite listar, cadastrar, editar e excluir usando os endpoints acima. O arraste salva apenas a posição pelo PATCH; a rotação feita pelo botão é uma prévia até clicar em Salvar mesa. O frontend envia apenas os campos editáveis e usa os IDs numéricos em string retornados pelo MySQL. Conflitos informados pelo servidor são mostrados na tela, incluindo a impossibilidade de excluir mesa com reservas.
 
+### Consulta de horários semanais
+
+`GET /api/operating-hours` retorna `minAdvanceMinutes` (180), `slotIntervalMinutes` (30), `weekly` e `updatedAt`. O objeto `weekly` contém os sete dias, de `"0"` (domingo) a `"6"` (sábado). Cada dia contém `open` booleano e `shifts`, com até dois objetos `{ "start": "11:00", "end": "14:00" }`. Horários usam `HH:mm`; dias fechados retornam `open: false` e `shifts: []`.
+
+`updatedAt` é um timestamp numérico em milissegundos, correspondente à alteração mais recente entre a configuração e os sete dias. A consulta lê esses dados em uma única instrução SQL. O campo interno `demo_hours_seeded` não é retornado. Exceções por data serão disponibilizadas em outra etapa.
+
+O sucesso retorna 200; parâmetros de query retornam 400 e sessão ausente ou encerrada retorna 401. Se faltar a configuração ou algum dia no banco, a consulta segue o tratamento de erro 500 da API; não cria uma programação padrão durante a leitura. Execute `npm run db:init` para preparar esses registros.
+
 ## Validar
 
 Validação exclusivamente manual: cadastrar cliente, repetir o e-mail, tentar senha incorreta, entrar, recarregar a página autenticada e sair.
@@ -222,6 +231,15 @@ Validação exclusivamente manual: cadastrar cliente, repetir o e-mail, tentar s
 Na tela administrativa de mesas: conferir lista e mapa; criar uma mesa; editar número, capacidade e status; girar e salvar; arrastar e recarregar para conferir a posição; excluir mesa sem reservas. Conferir também mensagens de número repetido, posição inválida e bloqueio de mesa com reserva vinculada quando houver esse registro no banco. Na aba Rede do navegador, as operações de mesas devem usar `/api/tables`, sem depender de `/api/data`.
 
 Para conferir o banco, execute `npm run db:init`, consulte as sete tabelas e confirme o registro em `operating_settings` e os sete dias em `weekly_operating_hours`. Execute o comando novamente e confira que registros existentes e configurações alteradas foram preservados. No MySQL, confira também rejeição de número de mesa repetido, capacidade fora de 1 a 8 e exclusão de mesa com reserva vinculada.
+
+Para conferir a consulta de horários, use um cliente HTTP manual com o cookie de sessão ou abra `/api/operating-hours` no mesmo navegador da aplicação:
+
+1. Sem login, conferir 401. Entrar como cliente e depois como administrador em sessões separadas; ambos devem receber 200.
+2. Acrescentar `?data=2030-11-15` à URL; conferir 400, pois a consulta não aceita filtros.
+3. Em um banco de conferência, após somente `db:init`, conferir sete dias fechados, `shifts: []`, antecedência 180 e intervalo 30.
+4. Executar `db:seed` nesse banco e comparar a resposta com os horários de demonstração acima. Conferir booleanos reais, horários `HH:mm`, até dois turnos por dia e ausência de campos internos.
+5. Comparar `updatedAt` com o maior `updated_at` de `operating_settings` (id 1) e `weekly_operating_hours`, convertido em milissegundos. Em um banco de conferência, alterar um dia pelo MySQL para um único turno e consultar novamente; conferir o turno e a atualização do timestamp.
+6. Sair da sessão e repetir a consulta; conferir 401.
 
 O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 
