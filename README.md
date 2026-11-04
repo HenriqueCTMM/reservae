@@ -30,7 +30,7 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Autenticação, listagem e cadastro de mesas
+  controllers/         # Autenticação, listagem, cadastro e edição de mesas
   models/              # Consultas de usuários, mesas e preparação de horários
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Rotas de autenticação e mesas
@@ -88,7 +88,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados os endpoints de autenticação, listagem e cadastro de mesas. As telas de reservas, contato e administração já existem no frontend, mas ainda chamam `/api/data`, que será substituído por endpoints específicos nas próximas partes; elas ainda podem exibir mensagens de erro ao buscar esses dados após o login. A integração das telas com as novas rotas de mesas será feita nas próximas partes.
+Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro e edição de mesas. As telas de reservas, contato e administração já existem no frontend, mas ainda chamam `/api/data`, que será substituído por endpoints específicos nas próximas partes; elas ainda podem exibir mensagens de erro ao buscar esses dados após o login. A integração das telas com as novas rotas de mesas será feita nas próximas partes.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -153,6 +153,7 @@ A carga só preenche a programação se os sete dias ainda estiverem no estado i
 - `GET /api/auth/me`: sessão atual.
 - `GET /api/tables`: listagem de mesas para cliente ou administrador autenticado.
 - `POST /api/tables`: cadastro de mesa, exclusivo para administrador.
+- `PATCH /api/tables/:id`: edição parcial de mesa, exclusiva para administrador.
 
 O cadastro recebe `{ nome, email, senha }`; o login recebe `{ email, senha }`. Erros retornam JSON com `message` e status HTTP apropriado (400 para dados inválidos, 401 para credenciais/sessão inválidas, 409 para e-mail duplicado).
 
@@ -188,6 +189,20 @@ A consulta não aceita filtros: parâmetros de query retornam 400. Sem sessão v
 Número e capacidade devem ser inteiros, respectivamente entre 1–65535 e 1–8. O status deve ser `disponivel` ou `indisponivel`; a rotação, 0 ou 90. As posições devem ser inteiras, não negativas e manter a mesa inteira dentro do mapa de 800 × 520 pixels, considerando sua capacidade e rotação.
 
 Retorna 201 com a mesa completa no mesmo formato da listagem. Dados inválidos retornam 400, sessão ausente retorna 401, perfil de cliente retorna 403 e número de mesa já cadastrado retorna 409. ID e timestamps são definidos pelo servidor.
+
+### Edição de mesas
+
+`PATCH /api/tables/:id` aceita um ou mais campos do cadastro. Exemplo de mudança de posição:
+
+```json
+{ "posicaoX": 120, "posicaoY": 80 }
+```
+
+Os campos omitidos são preservados. A mesa completa é validada após combinar os dados atuais com os campos enviados; alterar apenas a rotação ou a capacidade também considera os limites do mapa. Corpo vazio, campos extras, parâmetros de query e valores inválidos retornam 400. ID inválido retorna 400; mesa inexistente retorna 404; número já usado por outra mesa retorna 409. O sucesso retorna 200 com a mesa completa. Sem login retorna 401; cliente recebe 403.
+
+Reduzir capacidade abaixo da quantidade de pessoas de uma reserva ativa ou tornar a mesa indisponível com reserva ativa ainda não encerrada retorna 409. A verificação considera o término previsto no fuso `America/Sao_Paulo`, incluindo reservas em andamento; reservas passadas ou com status definitivo não impedem essas alterações. Posição, rotação e número podem ser alterados sem modificar os registros das reservas.
+
+A leitura da mesa, validação, consulta de reservas e gravação usam a mesma transação. Uma trava na configuração do restaurante coordena a edição com as futuras operações de reservas e funcionamento.
 
 ## Validar
 

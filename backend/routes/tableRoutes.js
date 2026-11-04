@@ -7,6 +7,7 @@ module.exports = function createTableRoutes(Table, requireProfile) {
 
     router.get('/', tableController.getTables);
     router.post('/', requireProfile('admin'), tableController.postTable);
+    router.patch('/:id', requireProfile('admin'), tableController.patchTable);
 
     return router;
 };

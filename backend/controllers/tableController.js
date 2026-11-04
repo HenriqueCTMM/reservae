@@ -1,3 +1,8 @@
+const pool = require('../config/database');
+const { getRestaurantDateTime } = require('../utils/dateTime');
+
+const TABLE_FIELDS = ['numero', 'capacidade', 'status', 'posicaoX', 'posicaoY', 'rotacao'];
+
 function publicTable(table) {
     return {
         id: String(table.id),
@@ -12,14 +17,22 @@ function publicTable(table) {
     };
 }
 
-function validateTable(data) {
+function validateTableFields(data) {
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
         return 'Informe os dados da mesa em um objeto JSON.';
     }
-    const fields = ['numero', 'capacidade', 'status', 'posicaoX', 'posicaoY', 'rotacao'];
-    if (Object.keys(data).some((field) => !fields.includes(field))) {
+    if (Object.keys(data).length === 0) {
+        return 'Informe pelo menos um campo da mesa.';
+    }
+    if (Object.keys(data).some((field) => !TABLE_FIELDS.includes(field))) {
         return 'Envie apenas numero, capacidade, status, posicaoX, posicaoY e rotacao.';
     }
+    return '';
+}
+
+function validateTable(data) {
+    const fieldsMessage = validateTableFields(data);
+    if (fieldsMessage) return fieldsMessage;
     if (!Number.isInteger(data.numero) || data.numero < 1 || data.numero > 65535) {
         return 'Informe um número de mesa inteiro entre 1 e 65535.';
     }
@@ -80,6 +93,68 @@ module.exports = function createTableController(Table) {
                     return res.status(409).json({ message: 'Já existe uma mesa com esse número.' });
                 }
                 next(error);
+            }
+        },
+
+        async patchTable(req, res, next) {
+            const id = req.params.id;
+            if (!/^[1-9]\d*$/.test(id) || Number(id) > 4294967295) {
+                return res.status(400).json({ message: 'Informe um ID de mesa válido.' });
+            }
+            if (Object.keys(req.query).length > 0) {
+                return res.status(400).json({ message: 'A edição de mesas não aceita parâmetros de query.' });
+            }
+            const fieldsMessage = validateTableFields(req.body);
+            if (fieldsMessage) return res.status(400).json({ message: fieldsMessage });
+
+            let connection;
+            try {
+                connection = await pool.getConnection();
+                await connection.beginTransaction();
+                // A mesma trava será usada pelas operações de reserva e funcionamento.
+                await Table.lockSettings(connection);
+                const current = await Table.findById(id, connection);
+                if (!current) {
+                    await connection.rollback();
+                    return res.status(404).json({ message: 'Mesa não encontrada.' });
+                }
+
+                const currentData = publicTable(current);
+                const data = {};
+                for (const field of TABLE_FIELDS) {
+                    data[field] = Object.hasOwn(req.body, field) ? req.body[field] : currentData[field];
+                }
+                const validationMessage = validateTable(data);
+                if (validationMessage) {
+                    await connection.rollback();
+                    return res.status(400).json({ message: validationMessage });
+                }
+
+                const makesUnavailable = data.status === 'indisponivel' && current.status !== data.status;
+                if (makesUnavailable || data.capacidade < current.capacidade) {
+                    const conflict = await Table.hasReservationConflict(id, {
+                        capacidade: data.capacidade,
+                        indisponivel: makesUnavailable,
+                        now: getRestaurantDateTime()
+                    }, connection);
+                    if (conflict) {
+                        await connection.rollback();
+                        return res.status(409).json({ message: 'Esta alteração inviabiliza uma reserva ativa da mesa.' });
+                    }
+                }
+
+                await Table.update(id, data, connection);
+                const table = await Table.findById(id, connection);
+                await connection.commit();
+                res.json(publicTable(table));
+            } catch (error) {
+                if (connection) await connection.rollback();
+                if (error.code === 'ER_DUP_ENTRY') {
+                    return res.status(409).json({ message: 'Já existe uma mesa com esse número.' });
+                }
+                next(error);
+            } finally {
+                if (connection) connection.release();
             }
         }
     };
