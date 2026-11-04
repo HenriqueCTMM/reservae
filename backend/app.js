@@ -3,9 +3,14 @@ const path = require('node:path');
 const express = require('express');
 const session = require('express-session');
 const createAuthRoutes = require('./routes/authRoutes');
+const createTableRoutes = require('./routes/tableRoutes');
 const createAuthMiddleware = require('./middlewares/authMiddleware');
 
-function createApp({ User = require('./models/user'), sessionSecret = process.env.SESSION_SECRET } = {}) {
+function createApp({
+    User = require('./models/user'),
+    Table = require('./models/table'),
+    sessionSecret = process.env.SESSION_SECRET
+} = {}) {
     if (!sessionSecret) throw new Error('Configure SESSION_SECRET em backend/.env.');
 
     const app = express();
@@ -30,6 +35,7 @@ function createApp({ User = require('./models/user'), sessionSecret = process.en
     app.use('/api/auth', createAuthRoutes(User));
     const { requireAuth } = createAuthMiddleware(User);
     app.use('/api', requireAuth);
+    app.use('/api/tables', createTableRoutes(Table));
     app.use('/api', (req, res) => {
         res.status(404).json({ message: 'Endpoint não implementado nesta etapa.' });
     });

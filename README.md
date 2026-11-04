@@ -30,10 +30,10 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Cadastro, login, sessão atual e logout
-  models/              # Consultas de usuários
+  controllers/         # Autenticação e listagem de mesas
+  models/              # Consultas de usuários, mesas e preparação de horários
   middlewares/         # Autenticação e permissão por perfil
-  routes/              # Rotas de autenticação
+  routes/              # Rotas de autenticação e mesas
   sql/schema.sql       # Tabelas, relacionamentos e configurações básicas
   scripts/init-db.js    # Inicialização do banco sem apagar dados existentes
   .env.example
@@ -88,7 +88,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, somente os endpoints de autenticação estão implementados. As telas de reservas, contato e administração já existem no frontend, mas ainda chamam `/api/data`, que será substituído por endpoints específicos nas próximas partes; elas ainda podem exibir mensagens de erro ao buscar esses dados após o login.
+Nesta etapa, estão implementados os endpoints de autenticação e a listagem de mesas. As telas de reservas, contato e administração já existem no frontend, mas ainda chamam `/api/data`, que será substituído por endpoints específicos nas próximas partes; elas ainda podem exibir mensagens de erro ao buscar esses dados após o login. A integração das telas com a nova rota de mesas será feita nas próximas partes.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -151,6 +151,7 @@ A carga só preenche a programação se os sete dias ainda estiverem no estado i
 
 - `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`.
 - `GET /api/auth/me`: sessão atual.
+- `GET /api/tables`: listagem de mesas para cliente ou administrador autenticado.
 
 O cadastro recebe `{ nome, email, senha }`; o login recebe `{ email, senha }`. Erros retornam JSON com `message` e status HTTP apropriado (400 para dados inválidos, 401 para credenciais/sessão inválidas, 409 para e-mail duplicado).
 
@@ -161,6 +162,12 @@ Como no projeto de aula, sessões ficam na memória do servidor e são encerrada
 A sessão agora é compartilhada por toda a API. Cadastro e login continuam públicos; a consulta `/api/auth/me` e as demais rotas de dados exigem autenticação. O middleware `requireAuth` consulta o usuário no MySQL e disponibiliza `req.user` sem o hash da senha. Sessão ausente ou usuário removido resulta em 401; nesse último caso, a sessão também é encerrada.
 
 O middleware `requireProfile('admin')` ou `requireProfile('cliente')` será aplicado após `requireAuth` nas rotas específicas dos próximos módulos. Ele retorna 403 para um perfil diferente do exigido. Perfil e identidade enviados no corpo ou guardados no navegador não concedem acesso. As respostas da API recebem `Cache-Control: no-store`.
+
+### Listagem de mesas
+
+`GET /api/tables` retorna um array ordenado pelo número da mesa, incluindo disponíveis e indisponíveis. Cada mesa contém `id` como string, `numero`, `capacidade`, `status`, `posicaoX`, `posicaoY`, `rotacao`, `createdAt` e `updatedAt`. Os timestamps são números em milissegundos. Sem mesas, retorna `[]`.
+
+A consulta não aceita filtros: parâmetros de query retornam 400. Sem sessão válida, retorna 401. A condição de mesa reservada para determinado período será calculada no módulo de disponibilidade.
 
 ## Validar
 
