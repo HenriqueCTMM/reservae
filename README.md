@@ -30,7 +30,7 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Autenticação, mesas, funcionamento e disponibilidade
+  controllers/         # Autenticação, mesas, funcionamento, disponibilidade e criação de reservas
   models/              # Consultas SQL por recurso
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Endpoints e permissões por recurso
@@ -79,7 +79,7 @@ package-lock.json
 
 O Express entrega o frontend e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL para que os formulários acessem a API. `npm start` inicia sem o modo watch.
 
-## Etapa atual: autenticação, mesas, funcionamento e disponibilidade
+## Etapa atual: autenticação, mesas, funcionamento, disponibilidade e criação de reservas
 
 - Cadastro com nome, e-mail e senha de pelo menos 6 caracteres (máximo de 72 bytes, limite do bcrypt).
 - E-mails são normalizados para minúsculas e não podem se repetir.
@@ -89,7 +89,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data e consulta de disponibilidade. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`) e a consulta de horários/mapa/lista em Reservas (`pages/reservas.html`) estão integradas às respectivas APIs. A confirmação da reserva será integrada no M10 e está identificada como pendente na tela. Histórico de reservas, contato e demais módulos administrativos ainda dependem da migração de `/api/data`.
+Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, consulta de disponibilidade e criação transacional de reservas. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`) e a seleção/confirmação em Reservas (`pages/reservas.html`) estão integradas às respectivas APIs. API e serviços foram conferidos manualmente; a validação visual dessas telas ainda está pendente. Histórico de reservas, contato e demais módulos administrativos ainda dependem da migração de `/api/data`.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -268,7 +268,7 @@ Ao salvar, o frontend envia `weekly` com os campos do formulário e usa a config
 
 As exceções podem ser criadas, editadas, fechadas e excluídas pela tela. O formulário é limpo somente após salvar com sucesso; falhas preservam os valores digitados. A lista é atualizada pela resposta do servidor e os controles ficam desabilitados durante cada operação. A data identifica o registro: mudar a data no formulário salva outra exceção, sem mover a anterior. A exclusão não depende de carregar reservas pelo navegador: sua proteção é aplicada no servidor.
 
-A tela do cliente consulta o funcionamento efetivo pela API de disponibilidade descrita abaixo. A exceção tem prioridade sobre a semana; ao removê-la, a semana volta a valer. A criação da reserva será integrada no M10.
+A tela do cliente consulta o funcionamento efetivo pela API de disponibilidade descrita abaixo. A exceção tem prioridade sobre a semana; ao removê-la, a semana volta a valer. A criação da reserva revalida esse funcionamento no servidor.
 
 ### Disponibilidade e tela de reservas
 
@@ -285,11 +285,31 @@ A resposta contém `data`, `pessoas`, `horario`, `duracaoMinutos`, `fimPrevisto`
 - Dia fechado: 200, `closed: true`, sem slots/mesas e motivo explicando o fechamento. Dia aberto sem slots também retorna 200, com `closed: false`.
 - Horário real fora dos slots: 200, `horarioPermitido: false`, término nulo, sem mesas e motivo orientando outra escolha.
 
-Funcionamento e condição das mesas são lidos na mesma transação de leitura (InnoDB/REPEATABLE READ), sem travar as gravações administrativas. A consulta retorna somente a condição por mesa: não inclui IDs/objetos de reservas, nomes, e-mails ou identidade dos clientes. Slots representam horários permitidos, mesmo quando nenhuma mesa está livre. Disponibilidade não confirma uma reserva; o M10 fará nova validação transacional ao gravar.
+Funcionamento e condição das mesas são lidos na mesma transação de leitura (InnoDB/REPEATABLE READ), sem travar as gravações administrativas. A consulta retorna somente a condição por mesa: não inclui IDs/objetos de reservas, nomes, e-mails ou identidade dos clientes. Slots representam horários permitidos, mesmo quando nenhuma mesa está livre. Disponibilidade não confirma uma reserva; o POST faz nova validação transacional ao gravar.
 
 Em Reservas, escolher data/pessoas consulta os horários; escolher um horário carrega o mapa e a lista acessível. Com seleção completa, o acompanhamento consulta a cada 3 segundos. Trocar filtros ou recarregar descarta a seleção anterior, cancela a requisição/acompanhamento anterior e ignora respostas antigas. Durante o acompanhamento, uma mesa selecionada que deixe de estar disponível é desmarcada. Falhas retiram as opções antigas e exibem a mensagem da API; Recarregar disponibilidade permite tentar novamente. O acompanhamento também recupera a exibição após uma falha, mesmo se os dados voltarem iguais aos anteriores.
 
-A página usa apenas `/api/auth/*` e `/api/availability` para essa consulta; não busca reservas de outros clientes nem depende de `/api/data`. O botão Confirmar reserva permanece desabilitado e identificado como pendente do M10.
+A página usa `/api/auth/*`, `/api/availability` e POST `/api/reservations`; não busca reservas de outros clientes nem depende de `/api/data`.
+
+### Criar reserva — M10
+
+`POST /api/reservations` é exclusivo de cliente autenticado. Enviar somente:
+
+```json
+{ "mesaId": "2", "data": "2030-11-11", "horario": "18:00", "pessoas": 4 }
+```
+
+Todos os campos são obrigatórios. `mesaId` é uma string decimal positiva até 4294967295; data/horário devem ser reais e `pessoas` um número inteiro entre 1 e 8. Campos extras e query são rejeitados. Identidade vem da sessão; duração, término e status inicial `ativa` são definidos no servidor, e a criação recebe o timestamp do banco.
+
+- **201:** reserva completa com IDs em string, dados do próprio cliente e da mesa obtidos por relacionamento, período, pessoas, duração, status e `createdAt` numérico em milissegundos. Auditoria inicial: `statusUpdatedAt`, `statusUpdatedBy` e `statusUpdatedByName` nulos; `statusReason` vazio.
+- **400:** entrada inválida, data passada ou período que não atende funcionamento/antecedência.
+- **401/403:** sem sessão / perfil diferente de cliente.
+- **404:** mesa inexistente.
+- **409:** mesa desativada, capacidade insuficiente ou sobreposição com reserva ativa.
+
+O controller inicia uma transação e sua primeira leitura é `SELECT id FROM operating_settings WHERE id = 1 FOR UPDATE`, a trava comum às alterações de disponibilidade. Depois bloqueia a mesa, consulta o funcionamento e revalida os slots com o relógio de São Paulo atualizado após a espera. Consulta conflitos, insere e lê a resposta pela mesma conexão antes do commit. Falhas desfazem a operação e a conexão é sempre liberada. Duas criações conflitantes são serializadas: apenas uma confirma. Períodos encostados continuam permitidos.
+
+Na tela, Confirmar reserva só fica habilitado com filtros completos e uma mesa disponível selecionada. Durante o envio, filtros, seleção e recarga ficam bloqueados, o botão mostra “Confirmando reserva...” e o acompanhamento de disponibilidade é cancelado. Novos envios são ignorados enquanto o primeiro aguarda resposta. Sucesso exibe mesa/data/período/pessoas retornados pela API; rejeição exibe a mensagem do servidor. Nos dois casos a seleção é limpa e a disponibilidade é consultada novamente, sem repetir automaticamente o POST. Histórico e gestão de reservas seguem pendentes do M11/M12.
 
 ## Validar
 
@@ -348,7 +368,16 @@ Para conferir a disponibilidade manualmente:
 3. Criar uma exceção aberta em domingo fechado, um fechamento em dia normalmente aberto e um turno menor que a duração da reserva. Conferir prioridade da exceção, `closed`, lista de slots vazia e motivos. Horário real fora dos slots deve retornar 200 sem mesas/término.
 4. Preparar reservas no MySQL para conferir sobreposição, períodos encostados, status definitivos e outra data. Comparar as condições retornadas com SQL, incluindo capacidade insuficiente e mesa desativada antes do status de conflito. Conferir ordenação, IDs em string, timestamps e ausência de dados de outros usuários. Sem mesas cadastradas, horário permitido ainda retorna 200 com `mesas: []`.
 5. No navegador, escolher filtros, selecionar pelo mapa e pela lista acessível, abrir/fechar o modal móvel, mudar pessoas/data/horário e recarregar. Conferir chamadas somente a `/api/availability`, descarte de respostas antigas e atualização a cada 3 segundos. Alterar uma mesa/reserva em outra sessão e conferir que uma seleção incompatível é removida.
-6. Simular falha da API durante o acompanhamento e recuperar a conexão; conferir que as opções antigas deixam de ser selecionáveis e que a mesma resposta volta a ser exibida após recuperação. Trocar filtros e sair da página deve encerrar o acompanhamento anterior. Conferir a identificação de confirmação pendente do M10.
+6. Simular falha da API durante o acompanhamento e recuperar a conexão; conferir que as opções antigas deixam de ser selecionáveis e que a mesma resposta volta a ser exibida após recuperação. Trocar filtros e sair da página deve encerrar o acompanhamento anterior.
+
+Para conferir a criação de reservas manualmente, use um banco de conferência e sessões distintas:
+
+1. Sem sessão e após logout, conferir 401; como administrador, 403. Como cliente, criar uma reserva válida e conferir 201, objeto completo, autoria da sessão, duração/término, status `ativa`, timestamp e persistência por SQL.
+2. Conferir 400 para campo ausente, corpo vazio/lista, query, ID numérico/zero/fora do limite, data inexistente/passada, horário inválido, pessoas textual/fracionária/fora de 1–8 e campos extras como `usuarioId`, `duracaoMinutos`, `fimPrevisto`, `status` ou timestamps. Mesa válida mas inexistente retorna 404.
+3. Conferir 409 para mesa desativada, capacidade insuficiente e sobreposição ativa. Conferir 90/120/150 minutos para 2/4/6 pessoas, períodos encostados e reservas com status definitivo que não bloqueiam. Dia fechado, antecedência menor que 180 minutos, horário fora dos slots ou permanência que ultrapassa/divide turnos retornam 400. Exceção substitui semana, inclusive com slots iniciados às 11:15.
+4. Em duas sessões de clientes diferentes, enviar solicitações conflitantes quase ao mesmo tempo. Conferir um 201, um 409 e apenas um registro ativo para o período. Manter a trava comum em outra conexão, enviar o POST e confirmar uma reserva conflitante ou fechar a data antes do COMMIT; o POST deve aguardar e considerar o novo estado. O relógio da antecedência é recalculado após essa espera.
+5. Provocar uma falha SQL em banco de conferência, por exemplo com trigger temporária AFTER INSERT que gera SIGNAL. Conferir 500 sem detalhes de SQL e ausência da reserva no banco; remover a trigger e confirmar que uma nova solicitação válida funciona. Após criar uma reserva, alterações incompatíveis de mesa/funcionamento continuam retornando 409.
+6. No navegador, selecionar mesa pelo mapa/lista e confirmar; conferir corpo com apenas os quatro campos, mensagem com dados reais e atualização do mapa. Durante o envio, tentar clique duplo/Enter e troca de filtros; deve haver apenas um POST e controles bloqueados. Simular disputa em outra sessão e conferir erro, limpeza da seleção e possibilidade de escolher outra mesa. Conferir também recuperação de falha, sessão encerrada, modal móvel e recarga/persistência. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
 
 O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 

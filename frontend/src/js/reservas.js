@@ -2,6 +2,7 @@ import { logout, protectRoute } from './auth.js';
 import { clearMessage, escapeHtml, setFieldError, showMessage, trapFocus } from './ui.js';
 import { formatDuration } from './services/operating-hours-service.js';
 import { getAvailability, watchAvailability } from './services/availability-service.js';
+import { createReservation } from './services/reservations-service.js';
 
 const currentUser = await protectRoute(['cliente']);
 const clientUserName = document.getElementById('clientUserName');
@@ -26,6 +27,7 @@ const reservationTableError = document.getElementById('reservationTableError');
 const mapStatusMessage = document.getElementById('mapStatusMessage');
 const tableStatusList = document.getElementById('tableStatusList');
 const reloadAvailabilityButton = document.getElementById('reloadAvailabilityButton');
+const confirmReservationButton = document.getElementById('confirmReservationButton');
 
 clientUserName.textContent = currentUser.nome;
 logoutButton.addEventListener('click', logout);
@@ -38,6 +40,7 @@ let selectedTableId = null;
 let stopWatchingAvailability = null;
 let availabilityController = null;
 let availabilityRequest = 0;
+let reservationSaving = false;
 
 function setMinDate() {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
@@ -51,6 +54,7 @@ function getSelectedTable() {
 }
 
 function getAvailabilityMessage() {
+    if (reservationSaving) return 'Confirmando reserva...';
     if (!reservationDate.value) return 'Selecione uma data e um horário para visualizar as mesas.';
     const people = Number(reservationPeople.value);
     if (!Number.isInteger(people) || people < 1 || people > 8) return 'Informe uma quantidade inteira de 1 a 8 pessoas.';
@@ -79,7 +83,7 @@ function getMapMessageHtml(message, tone = 'muted') {
 }
 
 function canOpenTableMap() {
-    return !availabilityLoading && !availabilityError && availability?.horarioPermitido
+    return !reservationSaving && !availabilityLoading && !availabilityError && availability?.horarioPermitido
         && availability.data === reservationDate.value && availability.pessoas === Number(reservationPeople.value)
         && availability.horario === reservationTime.value;
 }
@@ -89,6 +93,12 @@ function updateMobileMapButtonState() {
 
     openMobileMapButton.disabled = !canOpenMap;
     mobileMapButtonHelp.classList.toggle('hidden', canOpenMap);
+    reservationDate.disabled = reservationSaving;
+    reservationPeople.disabled = reservationSaving;
+    reloadAvailabilityButton.disabled = reservationSaving || availabilityLoading;
+    confirmReservationButton.disabled = !canOpenMap || getSelectedTable()?.visualStatus !== 'disponivel';
+    confirmReservationButton.textContent = reservationSaving ? 'Confirmando reserva...' : 'Confirmar reserva';
+    reservationForm.setAttribute('aria-busy', String(reservationSaving));
 }
 
 function getTableVisualStatus(table) {
@@ -324,7 +334,7 @@ function renderReservationTimeOptions() {
     });
 
     if (slots.includes(selectedTime)) reservationTime.value = selectedTime;
-    reservationTime.disabled = availabilityLoading || !slots.length;
+    reservationTime.disabled = reservationSaving || availabilityLoading || !slots.length;
     reservationTimeHelp.textContent = availability?.reason || (availability
         ? `Permanência prevista: ${formatDuration(availability.duracaoMinutos)}. Horários calculados pelo restaurante, com antecedência mínima de 3 horas.`
         : 'Selecione data e quantidade de pessoas para consultar os horários.');
@@ -374,6 +384,7 @@ function showAvailabilityError(error) {
 }
 
 async function refreshAvailability() {
+    if (reservationSaving) return;
     stopAvailabilityRealtime();
     const requestId = ++availabilityRequest;
     const filters = { data: reservationDate.value, pessoas: Number(reservationPeople.value), horario: reservationTime.value };
@@ -402,9 +413,41 @@ async function refreshAvailability() {
     }
 }
 
-reservationForm.addEventListener('submit', (event) => {
+reservationForm.addEventListener('submit', async (event) => {
     event.preventDefault();
-    showMessage(reservationMessage, 'A confirmação de reservas será disponibilizada na próxima etapa (M10).', 'error');
+    if (reservationSaving) return;
+    clearMessage(reservationMessage);
+    clearReservationFieldErrors();
+    if (!canOpenTableMap() || getSelectedTable()?.visualStatus !== 'disponivel') {
+        setFieldError(selectedTableBox, reservationTableError, 'Selecione os filtros e uma mesa disponível antes de confirmar.');
+        return;
+    }
+    const data = {
+        mesaId: selectedTableId, data: reservationDate.value,
+        horario: reservationTime.value, pessoas: Number(reservationPeople.value)
+    };
+    reservationSaving = true;
+    availabilityRequest += 1;
+    stopAvailabilityRealtime();
+    if (!mobileMapModal.classList.contains('hidden')) closeMobileMap();
+    renderReservationTimeOptions();
+    renderMap();
+    let message;
+    let tone;
+    try {
+        const reservation = await createReservation(data);
+        const date = reservation.data.split('-').reverse().join('/');
+        message = `Reserva confirmada! Mesa ${reservation.mesaNumero}, dia ${date}, das ${reservation.horario} às ${reservation.fimPrevisto}, para ${reservation.pessoas} pessoa(s).`;
+        tone = 'success';
+    } catch (error) {
+        message = error.message || 'Não foi possível confirmar a reserva. Recarregue a disponibilidade e tente novamente.';
+        tone = 'error';
+    } finally {
+        reservationSaving = false;
+        // Limpar a seleção e consultar o estado real após sucesso ou rejeição, sem repetir o POST.
+        await refreshAvailability();
+        showMessage(reservationMessage, message, tone);
+    }
 });
 
 reservationDate.addEventListener('change', () => {

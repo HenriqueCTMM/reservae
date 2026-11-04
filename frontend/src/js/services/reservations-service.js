@@ -1,6 +1,6 @@
 import {
     createTimestamp,
-    createWithPush,
+    request,
     getById,
     getCollection,
     queryByChild,
@@ -10,7 +10,6 @@ import {
 } from './api-service.js';
 import {
     getReservationDurationMinutes,
-    getReservationEndTime,
     getReservationPeriod,
     hasTimeOverlap,
     timeToMinutes
@@ -73,16 +72,12 @@ export async function getActiveReservationConflict({ mesaId, data, horario, pess
 }
 
 export async function createReservation(reservation) {
-    const pessoas = Number(reservation.pessoas);
-    const duracaoMinutos = Number(reservation.duracaoMinutos || getReservationDurationMinutes(pessoas));
-
-    return createWithPush(RESERVATIONS_PATH, {
-        ...reservation,
-        pessoas,
-        duracaoMinutos,
-        fimPrevisto: reservation.fimPrevisto || getReservationEndTime(reservation.horario, duracaoMinutos),
-        status: reservation.status || BLOCKING_RESERVATION_STATUS,
-        createdAt: reservation.createdAt || createTimestamp()
+    return request('/reservations', {
+        method: 'POST',
+        body: JSON.stringify({
+            mesaId: reservation.mesaId, data: reservation.data,
+            horario: reservation.horario, pessoas: reservation.pessoas
+        })
     });
 }
 

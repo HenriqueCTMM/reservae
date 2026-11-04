@@ -6,6 +6,7 @@ const createAuthRoutes = require('./routes/authRoutes');
 const createTableRoutes = require('./routes/tableRoutes');
 const createOperatingHoursRoutes = require('./routes/operatingHoursRoutes');
 const createAvailabilityRoutes = require('./routes/availabilityRoutes');
+const createReservationRoutes = require('./routes/reservationRoutes');
 const createAuthMiddleware = require('./middlewares/authMiddleware');
 
 function createApp({
@@ -13,6 +14,7 @@ function createApp({
     Table = require('./models/table'),
     OperatingHours = require('./models/operatingHours'),
     Availability = require('./models/availability'),
+    Reservation = require('./models/reservation'),
     sessionSecret = process.env.SESSION_SECRET
 } = {}) {
     if (!sessionSecret) throw new Error('Configure SESSION_SECRET em backend/.env.');
@@ -42,6 +44,7 @@ function createApp({
     app.use('/api/tables', createTableRoutes(Table, requireProfile));
     app.use('/api/operating-hours', createOperatingHoursRoutes(OperatingHours, requireProfile));
     app.use('/api/availability', createAvailabilityRoutes(Availability));
+    app.use('/api/reservations', createReservationRoutes(Reservation, requireProfile));
     app.use('/api', (req, res) => {
         res.status(404).json({ message: 'Endpoint não implementado nesta etapa.' });
     });
