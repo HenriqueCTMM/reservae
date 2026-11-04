@@ -91,7 +91,7 @@ Nesta etapa, somente os endpoints de autenticação estão implementados. As tel
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
-A inicialização pode ser repetida: tabelas existentes não são recriadas e registros/configurações salvos não são apagados nem sobrescritos. Ela não atualiza a estrutura de tabelas antigas que já existam com outro formato. Horários de abertura de demonstração serão preparados na próxima parte.
+A inicialização pode ser repetida: tabelas existentes não são recriadas e registros/configurações salvos não são apagados nem sobrescritos. Para bancos das etapas anteriores, ela adiciona o campo de controle `demo_hours_seeded`, utilizado pelo seed de horários. Outras diferenças em estruturas antigas não são atualizadas automaticamente.
 
 ## Criar o administrador inicial
 
@@ -105,9 +105,9 @@ npm run db:admin
 
 O comando cria um usuário com perfil `admin` e senha armazenada como hash bcrypt. Use o e-mail e a senha configurados para entrar pela tela de login. Executar novamente mantém a conta existente sem trocar nome ou senha. Se o e-mail pertencer a um cliente, o comando informa o conflito e não altera seu perfil. O cadastro público continua criando apenas clientes.
 
-## Preparar o cliente e as mesas de demonstração
+## Preparar os dados de demonstração
 
-Após executar `npm run db:init`, execute na raiz:
+Execute novamente `npm run db:init` para atualizar o banco, caso ele tenha sido criado nas etapas anteriores. Depois, execute na raiz:
 
 ```sh
 npm run db:seed
@@ -132,6 +132,19 @@ Também prepara as mesas abaixo, com posições do mapa original e rotação ini
 | 5 | 8 | indisponivel | 360, 220 |
 
 A identificação é pelo número da mesa: números já cadastrados são preservados com seus dados atuais e somente os que faltam são inseridos. Outras mesas também permanecem intactas. Executar novamente não duplica as mesas nem redefine capacidade, status, posição ou rotação. As mesas são preparadas mesmo quando o cliente de demonstração já existe.
+
+### Horários de demonstração
+
+O mesmo comando também prepara a programação semanal original:
+
+| Dias | Turno 1 | Turno 2 |
+| --- | --- | --- |
+| Domingo | Fechado | — |
+| Segunda a quinta | 11:00–14:00 | 18:00–23:00 |
+| Sexta | 11:00–14:00 | 18:00–23:30 |
+| Sábado | 11:00–15:00 | 18:00–23:30 |
+
+A carga só preenche a programação se os sete dias ainda estiverem no estado inicial fechado e sem turnos. Se já houver uma programação personalizada, ela é preservada por inteiro. Um marcador no banco registra que essa etapa já foi executada; repetir o seed não reabre dias fechados depois, mesmo que toda a semana tenha sido fechada manualmente. Exceções por data também são preservadas. A gravação dos horários e do marcador usa uma única transação.
 
 ## API e persistência
 

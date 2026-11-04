@@ -11,6 +11,11 @@ async function main() {
         for (const statement of statements) {
             await pool.query(statement);
         }
+        // Atualiza também os bancos criados antes da carga de horários do M04.
+        const [columns] = await pool.query("SHOW COLUMNS FROM operating_settings LIKE 'demo_hours_seeded'");
+        if (columns.length === 0) {
+            await pool.query('ALTER TABLE operating_settings ADD COLUMN demo_hours_seeded BOOLEAN NOT NULL DEFAULT FALSE');
+        }
         console.log('Tabelas e configurações básicas inicializadas com sucesso.');
     } finally {
         await pool.end();

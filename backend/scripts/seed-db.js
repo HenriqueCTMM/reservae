@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const pool = require('../config/database');
 const User = require('../models/user');
 const Table = require('../models/table');
+const OperatingHours = require('../models/operatingHours');
 
 const DEFAULT_TABLES = [
     { numero: 1, capacidade: 2, status: 'disponivel', posicaoX: 40, posicaoY: 40 },
@@ -9,6 +10,16 @@ const DEFAULT_TABLES = [
     { numero: 3, capacidade: 4, status: 'disponivel', posicaoX: 420, posicaoY: 40 },
     { numero: 4, capacidade: 6, status: 'disponivel', posicaoX: 120, posicaoY: 210 },
     { numero: 5, capacidade: 8, status: 'indisponivel', posicaoX: 360, posicaoY: 220 }
+];
+
+const DEFAULT_WEEKLY_HOURS = [
+    { diaSemana: 0, turnos: [] },
+    { diaSemana: 1, turnos: [['11:00', '14:00'], ['18:00', '23:00']] },
+    { diaSemana: 2, turnos: [['11:00', '14:00'], ['18:00', '23:00']] },
+    { diaSemana: 3, turnos: [['11:00', '14:00'], ['18:00', '23:00']] },
+    { diaSemana: 4, turnos: [['11:00', '14:00'], ['18:00', '23:00']] },
+    { diaSemana: 5, turnos: [['11:00', '14:00'], ['18:00', '23:30']] },
+    { diaSemana: 6, turnos: [['11:00', '15:00'], ['18:00', '23:30']] }
 ];
 
 async function seedClient() {
@@ -46,6 +57,10 @@ async function main() {
     try {
         await seedClient();
         await seedTables();
+        const hoursCreated = await OperatingHours.seedWeeklyDefaults(DEFAULT_WEEKLY_HOURS);
+        console.log(hoursCreated
+            ? 'Horários de demonstração preparados com sucesso.'
+            : 'Horários existentes preservados. Nenhuma programação foi alterada.');
     } finally {
         await pool.end();
     }

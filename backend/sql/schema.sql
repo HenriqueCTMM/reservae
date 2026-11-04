@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS operating_settings (
     id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
     min_advance_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 180,
     slot_interval_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 30,
+    demo_hours_seeded BOOLEAN NOT NULL DEFAULT FALSE,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT operating_settings_id_check CHECK (id = 1),
     CONSTRAINT operating_settings_advance_check CHECK (min_advance_minutes = 180),
