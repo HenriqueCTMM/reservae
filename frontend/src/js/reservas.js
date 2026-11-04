@@ -1,19 +1,7 @@
 import { logout, protectRoute } from './auth.js';
-import { clearMessage, formatDate, setFieldError, showMessage, trapFocus } from './ui.js';
-import {
-    CLOSED_DATE_MESSAGE,
-    formatDuration,
-    getOperatingHourExceptions,
-    getOperatingHoursConfig,
-    getReservationDurationMinutes,
-    getReservationEndTime,
-    getScheduleForDate,
-    hasReservationConflictForPeriod,
-    getReservationSlotsForDate,
-    isTimeAllowedForPeople
-} from './services/operating-hours-service.js';
-import { createReservation, getReservationsByDate, watchReservationsByDate } from './services/reservations-service.js';
-import { watchTables } from './services/tables-service.js';
+import { clearMessage, escapeHtml, setFieldError, showMessage, trapFocus } from './ui.js';
+import { formatDuration } from './services/operating-hours-service.js';
+import { getAvailability, watchAvailability } from './services/availability-service.js';
 
 const currentUser = await protectRoute(['cliente']);
 const clientUserName = document.getElementById('clientUserName');
@@ -37,37 +25,43 @@ const reservationPeopleError = document.getElementById('reservationPeopleError')
 const reservationTableError = document.getElementById('reservationTableError');
 const mapStatusMessage = document.getElementById('mapStatusMessage');
 const tableStatusList = document.getElementById('tableStatusList');
+const reloadAvailabilityButton = document.getElementById('reloadAvailabilityButton');
 
 clientUserName.textContent = currentUser.nome;
 logoutButton.addEventListener('click', logout);
 
 let tables = [];
-let reservations = [];
-let operatingConfig = null;
-let operatingExceptions = [];
+let availability = null;
+let availabilityLoading = false;
+let availabilityError = '';
 let selectedTableId = null;
-let stopWatchingReservations = null;
-let stopWatchingTables = null;
+let stopWatchingAvailability = null;
+let availabilityController = null;
+let availabilityRequest = 0;
 
 function setMinDate() {
-    const today = new Date().toISOString().split('T')[0];
-    reservationDate.min = today;
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date()).map(({ type, value }) => [type, value]));
+    reservationDate.min = `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 function getSelectedTable() {
     return tables.find((item) => item.id === selectedTableId);
 }
 
-function isSelectedDateClosed() {
-    if (!reservationDate.value || !operatingConfig) {
-        return false;
-    }
-
-    return !getScheduleForDate(reservationDate.value, operatingConfig, operatingExceptions).open;
-}
-
-function renderClosedDateMapMessage(container) {
-    container.innerHTML = getMapMessageHtml(CLOSED_DATE_MESSAGE, 'warning');
+function getAvailabilityMessage() {
+    if (!reservationDate.value) return 'Selecione uma data e um horário para visualizar as mesas.';
+    const people = Number(reservationPeople.value);
+    if (!Number.isInteger(people) || people < 1 || people > 8) return 'Informe uma quantidade inteira de 1 a 8 pessoas.';
+    if (availabilityLoading) return 'Consultando disponibilidade...';
+    if (availabilityError) return availabilityError;
+    if (!availability) return 'Clique em Recarregar disponibilidade para consultar os horários.';
+    if (availability.reason) return availability.reason;
+    if (!reservationTime.value) return 'Selecione um horário para visualizar as mesas.';
+    if (!canOpenTableMap()) return 'Escolha um horário disponível para esta quantidade de pessoas.';
+    if (!tables.length) return 'Nenhuma mesa cadastrada.';
+    return '';
 }
 
 function getMapMessageHtml(message, tone = 'muted') {
@@ -79,19 +73,15 @@ function getMapMessageHtml(message, tone = 'muted') {
 
     return `
       <div class="app-map-message flex h-full min-h-64 items-center justify-center p-4 text-center">
-        <div class="max-w-sm rounded-2xl border px-5 py-4 text-base font-semibold shadow-sm ${toneClasses[tone] || toneClasses.muted}">${message}</div>
+         <div class="max-w-sm rounded-2xl border px-5 py-4 text-base font-semibold shadow-sm ${toneClasses[tone] || toneClasses.muted}">${escapeHtml(message)}</div>
       </div>
     `;
 }
 
 function canOpenTableMap() {
-    const people = Number(reservationPeople.value);
-
-    if (!reservationDate.value || !reservationTime.value || people < 1 || people > 8 || isSelectedDateClosed() || !operatingConfig) {
-        return false;
-    }
-
-    return isTimeAllowedForPeople(reservationDate.value, reservationTime.value, people, operatingConfig, operatingExceptions);
+    return !availabilityLoading && !availabilityError && availability?.horarioPermitido
+        && availability.data === reservationDate.value && availability.pessoas === Number(reservationPeople.value)
+        && availability.horario === reservationTime.value;
 }
 
 function updateMobileMapButtonState() {
@@ -101,39 +91,8 @@ function updateMobileMapButtonState() {
     mobileMapButtonHelp.classList.toggle('hidden', canOpenMap);
 }
 
-function isTableReserved(tableId, date, time) {
-    const people = Number(reservationPeople.value);
-
-    if (!date || !time || !people || !operatingConfig) {
-        return false;
-    }
-
-    return hasReservationConflictForPeriod({
-        mesaId: tableId,
-        data: date,
-        horario: time,
-        pessoas: people
-    }, reservations);
-}
-
 function getTableVisualStatus(table) {
-    const date = reservationDate.value;
-    const time = reservationTime.value;
-    const people = Number(reservationPeople.value);
-
-    if (table.status === 'indisponivel') {
-        return 'indisponivel';
-    }
-
-    if (people && people > table.capacidade) {
-        return 'indisponivel';
-    }
-
-    if (!date || !time) {
-        return 'disponivel';
-    }
-
-    return isTableReserved(table.id, date, time) ? 'reservada' : 'disponivel';
+    return table.visualStatus || 'indisponivel';
 }
 
 function getTableStatusLabel(status) {
@@ -146,32 +105,13 @@ function getTableStatusLabel(status) {
     return labels[status] || 'Indisponível';
 }
 
-function getTableStatusReason(table, status) {
-    const people = Number(reservationPeople.value);
-
-    if (status === 'disponivel') {
-        return 'Pode ser selecionada para esta reserva.';
-    }
-
-    if (table.status === 'indisponivel') {
-        return 'Mesa marcada como indisponível pelo restaurante.';
-    }
-
-    if (people && people > table.capacidade) {
-        return `Capacidade menor que ${people} pessoas.`;
-    }
-
-    if (status === 'reservada') {
-        return 'Mesa já reservada neste horário.';
-    }
-
-    return 'Mesa indisponível para os filtros atuais.';
+function getTableStatusReason(table) {
+    return table.motivo || 'Mesa indisponível para os filtros atuais.';
 }
 
 function getMapSummaryText() {
-    if (!reservationDate.value || !reservationTime.value || !tables.length) {
-        return 'Mapa de mesas aguardando data, horário e mesas cadastradas.';
-    }
+    const message = getAvailabilityMessage();
+    if (message) return message;
 
     const totals = tables.reduce((summary, table) => {
         const status = getTableVisualStatus(table);
@@ -228,8 +168,7 @@ function updateSelectedTableBox() {
         return;
     }
 
-    const people = Number(reservationPeople.value || 1);
-    const durationMinutes = getReservationDurationMinutes(people);
+    const durationMinutes = availability.duracaoMinutos;
     selectedTableBox.textContent = `Mesa ${table.numero} • ${table.capacidade} lugares • permanência prevista ${formatDuration(durationMinutes)}`;
     selectedTableBox.className = 'rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700';
     openMobileMapButton.textContent = 'Trocar mesa';
@@ -244,6 +183,8 @@ function clearReservationFieldErrors() {
 }
 
 function selectTable(table, { closeOnSelect = false, focusVisualMap = false } = {}) {
+    table = tables.find((item) => item.id === table.id);
+    if (!table || !canOpenTableMap() || getTableVisualStatus(table) !== 'disponivel') return;
     selectedTableId = table.id;
     setFieldError(selectedTableBox, reservationTableError);
     updateSelectedTableBox();
@@ -264,14 +205,9 @@ function renderTableStatusSummary() {
         return;
     }
 
-    if (!reservationDate.value || !reservationTime.value) {
-        tableStatusList.innerHTML = '<p class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 sm:col-span-2 lg:col-span-3">Escolha data e horário para ver a lista de mesas disponíveis, reservadas e indisponíveis.</p>';
-        announceMapSummary();
-        return;
-    }
-
-    if (!tables.length) {
-        tableStatusList.innerHTML = '<p class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 sm:col-span-2 lg:col-span-3">Nenhuma mesa cadastrada.</p>';
+    const message = getAvailabilityMessage();
+    if (message) {
+        tableStatusList.innerHTML = `<p class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 sm:col-span-2 lg:col-span-3">${escapeHtml(message)}</p>`;
         announceMapSummary();
         return;
     }
@@ -290,7 +226,7 @@ function renderTableStatusSummary() {
           <div class="rounded-2xl border p-4 ${statusClasses}">
             <h3 class="font-bold">Mesa ${table.numero}</h3>
             <p class="text-sm">${table.capacidade} lugares. Status: ${getTableStatusLabel(status)}.</p>
-            <p class="text-sm">${getTableStatusReason(table, status)}</p>
+             <p class="text-sm">${escapeHtml(getTableStatusReason(table))}</p>
             ${isSelected ? '<p class="mt-2 text-sm font-bold">Mesa selecionada.</p>' : ''}
             ${isAvailable ? `<button type="button" data-select-table-summary="${table.id}" aria-pressed="${String(isSelected)}" class="mt-3 rounded-xl border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Selecionar mesa ${table.numero}</button>` : ''}
           </div>
@@ -319,33 +255,9 @@ function openMobileMap() {
 function renderMapContainer(container, { closeOnSelect = false } = {}) {
     container.innerHTML = '';
 
-    if (!reservationDate.value) {
-        container.innerHTML = getMapMessageHtml('Selecione uma data e um horário para visualizar o mapa de mesas.');
-        return;
-    }
-
-    if (isSelectedDateClosed()) {
-        renderClosedDateMapMessage(container);
-        return;
-    }
-
-    if (!reservationTime.value) {
-        container.innerHTML = getMapMessageHtml('Selecione um horário para visualizar o mapa de mesas.');
-        return;
-    }
-
-    if (Number(reservationPeople.value) < 1 || Number(reservationPeople.value) > 8) {
-        container.innerHTML = getMapMessageHtml('A quantidade de pessoas deve estar entre 1 e 8.', 'warning');
-        return;
-    }
-
-    if (!isTimeAllowedForPeople(reservationDate.value, reservationTime.value, Number(reservationPeople.value), operatingConfig, operatingExceptions)) {
-        container.innerHTML = getMapMessageHtml('O horário selecionado não está disponível para esta quantidade de pessoas. Escolha outro horário.');
-        return;
-    }
-
-    if (!tables.length) {
-        container.innerHTML = getMapMessageHtml('Nenhuma mesa cadastrada.');
+    const message = getAvailabilityMessage();
+    if (message) {
+        container.innerHTML = getMapMessageHtml(message, availabilityError ? 'error' : 'muted');
         return;
     }
 
@@ -396,120 +308,14 @@ function renderMap() {
     renderTableStatusSummary();
 }
 
-function validateReservationData() {
-    const date = reservationDate.value;
-    const time = reservationTime.value;
-    const people = Number(reservationPeople.value);
-    const table = getSelectedTable();
-
-    clearReservationFieldErrors();
-
-    if (!date || !people) {
-        setFieldError(reservationDate, reservationDateError, !date ? 'Informe a data da reserva.' : '');
-        setFieldError(reservationPeople, reservationPeopleError, !people ? 'Informe a quantidade de pessoas.' : '');
-        showMessage(reservationMessage, 'Preencha data e quantidade de pessoas.', 'error');
-        return false;
-    }
-
-    if (people < 1 || people > 8) {
-        setFieldError(reservationPeople, reservationPeopleError, 'Informe de 1 a 8 pessoas.');
-        showMessage(reservationMessage, 'A quantidade de pessoas deve estar entre 1 e 8.', 'error');
-        return false;
-    }
-
-    if (!operatingConfig) {
-        showMessage(reservationMessage, 'Aguarde o carregamento dos horários de funcionamento.', 'error');
-        return false;
-    }
-
-    if (isSelectedDateClosed()) {
-        showMessage(reservationMessage, CLOSED_DATE_MESSAGE, 'error');
-        return false;
-    }
-
-    if (!time) {
-        setFieldError(reservationTime, reservationTimeError, 'Escolha um horário disponível.');
-        showMessage(reservationMessage, 'Escolha um horário disponível.', 'error');
-        return false;
-    }
-
-    if (!isTimeAllowedForPeople(date, time, people, operatingConfig, operatingExceptions)) {
-        setFieldError(reservationTime, reservationTimeError, 'Escolha um horário conforme o funcionamento do restaurante.');
-        showMessage(reservationMessage, 'Escolha um horário disponível conforme o funcionamento do restaurante.', 'error');
-        return false;
-    }
-
-    if (!table) {
-        setFieldError(selectedTableBox, reservationTableError, 'Selecione uma mesa disponível no mapa ou na lista acessível.');
-        showMessage(reservationMessage, 'Selecione uma mesa disponível no mapa.', 'error');
-        return false;
-    }
-
-    if (people > table.capacidade) {
-        setFieldError(reservationPeople, reservationPeopleError, 'A quantidade excede a capacidade da mesa selecionada.');
-        showMessage(reservationMessage, 'A quantidade de pessoas excede a capacidade da mesa selecionada.', 'error');
-        return false;
-    }
-
-    if (table.status === 'indisponivel') {
-        setFieldError(selectedTableBox, reservationTableError, 'A mesa selecionada está indisponível.');
-        showMessage(reservationMessage, 'Esta mesa está indisponível.', 'error');
-        return false;
-    }
-
-    if (isTableReserved(table.id, date, time)) {
-        setFieldError(selectedTableBox, reservationTableError, 'A mesa selecionada já está reservada para este horário.');
-        showMessage(reservationMessage, 'Esta mesa já está reservada para a data e horário selecionados.', 'error');
-        return false;
-    }
-
-    return true;
-}
-
 function renderReservationTimeOptions() {
-    const selectedTime = reservationTime.value;
-    const people = Number(reservationPeople.value || 1);
-    const durationMinutes = getReservationDurationMinutes(people);
+    const selectedTime = availability?.horario || reservationTime.value;
+    const slots = availability?.slots || [];
     reservationTime.innerHTML = '';
-
-    if (!reservationDate.value || !operatingConfig) {
-        reservationTime.innerHTML = '<option value="">Selecione uma data primeiro</option>';
-        reservationTimeHelp.textContent = `Os horários seguem o funcionamento do restaurante. Permanência prevista: ${formatDuration(durationMinutes)}.`;
-        updateMobileMapButtonState();
-        return;
-    }
-
-    const { slots, reason, closed } = getReservationSlotsForDate(reservationDate.value, operatingConfig, operatingExceptions, new Date(), people);
-    const shouldKeepSelectedTime = Boolean(selectedTime && slots.includes(selectedTime));
-    const selectedTimeBecameUnavailable = Boolean(selectedTime && !slots.includes(selectedTime));
-
-    if (!slots.length) {
-        if (selectedTimeBecameUnavailable && !closed) {
-            reservationTime.innerHTML = `<option value="${selectedTime}" selected>${selectedTime} indisponível para ${people} pessoas</option>`;
-        } else {
-            reservationTime.innerHTML = '<option value="">Sem horários disponíveis</option>';
-        }
-
-        reservationTimeHelp.textContent = reason || 'Não há horários disponíveis para esta data. Escolha outro dia.';
-
-        if (closed) {
-            selectedTableId = null;
-            updateSelectedTableBox();
-        }
-
-        updateMobileMapButtonState();
-        return;
-    }
-
-    reservationTime.innerHTML = '<option value="">Selecione um horário</option>';
-
-    if (selectedTimeBecameUnavailable) {
-        const unavailableOption = document.createElement('option');
-        unavailableOption.value = selectedTime;
-        unavailableOption.textContent = `${selectedTime} indisponível para ${people} pessoas`;
-        reservationTime.appendChild(unavailableOption);
-    }
-
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = availabilityLoading ? 'Consultando horários...' : slots.length ? 'Selecione um horário' : 'Sem horários carregados';
+    reservationTime.appendChild(placeholder);
     slots.forEach((slot) => {
         const option = document.createElement('option');
         option.value = slot;
@@ -517,210 +323,114 @@ function renderReservationTimeOptions() {
         reservationTime.appendChild(option);
     });
 
-    if (shouldKeepSelectedTime || selectedTimeBecameUnavailable) {
-        reservationTime.value = selectedTime;
-    }
-
-    reservationTimeHelp.textContent = selectedTimeBecameUnavailable
-        ? `O horário selecionado não comporta ${people} pessoas. Escolha outro horário disponível.`
-        : `Permanência prevista: ${formatDuration(durationMinutes)}. Reservas para hoje exigem pelo menos 3 horas de antecedência.`;
+    if (slots.includes(selectedTime)) reservationTime.value = selectedTime;
+    reservationTime.disabled = availabilityLoading || !slots.length;
+    reservationTimeHelp.textContent = availability?.reason || (availability
+        ? `Permanência prevista: ${formatDuration(availability.duracaoMinutos)}. Horários calculados pelo restaurante, com antecedência mínima de 3 horas.`
+        : 'Selecione data e quantidade de pessoas para consultar os horários.');
     updateMobileMapButtonState();
 }
 
-function stopReservationsRealtime() {
-    if (stopWatchingReservations) {
-        stopWatchingReservations();
-        stopWatchingReservations = null;
-    }
+function stopAvailabilityRealtime() {
+    stopWatchingAvailability?.();
+    stopWatchingAvailability = null;
+    availabilityController?.abort();
+    availabilityController = null;
 }
 
-function stopTablesRealtime() {
-    if (stopWatchingTables) {
-        stopWatchingTables();
-        stopWatchingTables = null;
-    }
-}
-
-function watchTablesRealtime() {
-    stopTablesRealtime();
-
-    stopWatchingTables = watchTables(
-        (restaurantTables) => {
-            tables = restaurantTables;
-            const selectedTable = getSelectedTable();
-            let mapAnnouncement = '';
-
-            if (selectedTable && selectedTable.status !== 'disponivel') {
-                selectedTableId = null;
-                setFieldError(selectedTableBox, reservationTableError, 'A mesa selecionada ficou indisponível. Escolha outra mesa.');
-                updateSelectedTableBox();
-                mapAnnouncement = 'A mesa selecionada ficou indisponível. Escolha outra mesa.';
-            }
-
-            renderMap();
-
-            if (mapAnnouncement) {
-                announceMapSummary(mapAnnouncement);
-            }
-        },
-        () => {
-            tables = [];
-            clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-rose-600">Não foi possível acompanhar as mesas em tempo real.</div>';
-            clientRestaurantMapModal.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-rose-600">Não foi possível acompanhar as mesas em tempo real.</div>';
-            showMessage(reservationMessage, 'Não foi possível acompanhar as mesas em tempo real.', 'error');
-        }
-    );
-}
-
-function watchSelectedDateReservations() {
-    stopReservationsRealtime();
-    reservations = [];
-
-    if (!reservationDate.value || !reservationTime.value) {
-        renderMap();
-        return;
-    }
-
-    if (isSelectedDateClosed()) {
-        renderMap();
-        return;
-    }
-
-    clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando reservas do dia...</div>';
-    clientRestaurantMapModal.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando reservas do dia...</div>';
-
-    stopWatchingReservations = watchReservationsByDate(
-        reservationDate.value,
-        (dayReservations) => {
-            reservations = dayReservations;
-            const selectedTable = getSelectedTable();
-            let mapAnnouncement = '';
-
-            if (selectedTable && getTableVisualStatus(selectedTable) !== 'disponivel') {
-                selectedTableId = null;
-                setFieldError(selectedTableBox, reservationTableError, 'A mesa selecionada ficou indisponível para este horário. Escolha outra mesa.');
-                updateSelectedTableBox();
-                mapAnnouncement = 'A mesa selecionada ficou indisponível para este horário. Escolha outra mesa.';
-            }
-
-            renderMap();
-
-            if (mapAnnouncement) {
-                announceMapSummary(mapAnnouncement);
-            }
-        },
-        () => {
-            reservations = [];
-            clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-rose-600">Não foi possível acompanhar as reservas desta data em tempo real.</div>';
-            clientRestaurantMapModal.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-rose-600">Não foi possível acompanhar as reservas desta data em tempo real.</div>';
-            showMessage(reservationMessage, 'Não foi possível acompanhar as reservas desta data em tempo real.', 'error');
-        }
-    );
-}
-
-async function loadData() {
-    clientRestaurantMap.innerHTML = '<div class="flex h-full items-center justify-center px-4 text-center text-slate-400">Selecione uma data para carregar as mesas.</div>';
-
-    try {
-        operatingConfig = await getOperatingHoursConfig();
-        operatingExceptions = await getOperatingHourExceptions();
-        renderReservationTimeOptions();
-    } catch (error) {
-        showMessage(reservationMessage, 'Não foi possível carregar os horários de funcionamento.', 'error');
-    }
-
-    watchTablesRealtime();
-}
-
-reservationForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    clearMessage(reservationMessage);
-
-    if (!validateReservationData()) {
-        return;
-    }
-
-    const table = getSelectedTable();
-    const people = Number(reservationPeople.value);
-    const durationMinutes = getReservationDurationMinutes(people);
-    const newReservation = {
-        usuarioId: currentUser.id,
-        usuarioNome: currentUser.nome,
-        usuarioEmail: currentUser.email,
-        mesaId: table.id,
-        mesaNumero: table.numero,
-        mesaCapacidade: table.capacidade,
-        data: reservationDate.value,
-        horario: reservationTime.value,
-        pessoas: people,
-        duracaoMinutos: durationMinutes,
-        fimPrevisto: getReservationEndTime(reservationTime.value, durationMinutes),
-        status: 'ativa'
-    };
-
-    try {
-        reservations = await getReservationsByDate(newReservation.data);
-        const conflict = hasReservationConflictForPeriod(newReservation, reservations);
-
-        if (conflict) {
-            renderMap();
-            setFieldError(selectedTableBox, reservationTableError, 'A mesa selecionada ficou indisponível neste período.');
-            showMessage(reservationMessage, 'Esta mesa está indisponível neste período. Escolha outra mesa ou horário.', 'error');
-            return;
-        }
-
-        const createdReservation = await createReservation(newReservation);
-        reservations = [...reservations.filter((reservation) => reservation.id !== createdReservation.id), createdReservation];
-        showMessage(reservationMessage, `Reserva confirmada para a Mesa ${table.numero} em ${formatDate(newReservation.data)} das ${newReservation.horario} às ${newReservation.fimPrevisto}.`);
-
-        reservationForm.reset();
-        stopReservationsRealtime();
-        reservations = [];
+function applyAvailability(result) {
+    if (availabilityError) clearMessage(reservationMessage);
+    availabilityError = '';
+    availabilityLoading = false;
+    reloadAvailabilityButton.disabled = false;
+    availability = result;
+    tables = result.mesas;
+    const selected = getSelectedTable();
+    const lostSelection = selectedTableId && (!selected || getTableVisualStatus(selected) !== 'disponivel' || !result.horarioPermitido);
+    if (lostSelection) {
         selectedTableId = null;
-        clearReservationFieldErrors();
-        updateSelectedTableBox();
-        setMinDate();
-        renderReservationTimeOptions();
-        renderMap();
-    } catch (error) {
-        showMessage(reservationMessage, 'Não foi possível salvar a reserva. Tente novamente.', 'error');
+        setFieldError(selectedTableBox, reservationTableError, 'A mesa selecionada não está mais disponível. Escolha outra mesa.');
     }
+    renderReservationTimeOptions();
+    updateSelectedTableBox();
+    renderMap();
+    if (lostSelection) announceMapSummary('A mesa selecionada não está mais disponível. Escolha outra mesa.');
+    if (!result.horarioPermitido) stopAvailabilityRealtime();
+}
+
+function showAvailabilityError(error) {
+    const message = error.message || 'Não foi possível consultar a disponibilidade. Tente recarregar.';
+    const changed = availabilityError !== message;
+    availabilityLoading = false;
+    reloadAvailabilityButton.disabled = false;
+    availabilityError = message;
+    availability = null;
+    tables = [];
+    selectedTableId = null;
+    renderReservationTimeOptions();
+    updateSelectedTableBox();
+    renderMap();
+    if (changed) showMessage(reservationMessage, message, 'error');
+}
+
+async function refreshAvailability() {
+    stopAvailabilityRealtime();
+    const requestId = ++availabilityRequest;
+    const filters = { data: reservationDate.value, pessoas: Number(reservationPeople.value), horario: reservationTime.value };
+    availability = null;
+    availabilityError = '';
+    tables = [];
+    selectedTableId = null;
+    availabilityLoading = Boolean(filters.data && Number.isInteger(filters.pessoas) && filters.pessoas >= 1 && filters.pessoas <= 8);
+    reloadAvailabilityButton.disabled = availabilityLoading;
+    renderReservationTimeOptions();
+    updateSelectedTableBox();
+    renderMap();
+    if (!availabilityLoading) return;
+
+    const onChange = (result) => { if (requestId === availabilityRequest) applyAvailability(result); };
+    const onError = (error) => { if (requestId === availabilityRequest) showAvailabilityError(error); };
+    if (filters.horario) {
+        stopWatchingAvailability = watchAvailability(filters, onChange, onError);
+    } else {
+        availabilityController = new AbortController();
+        try {
+            onChange(await getAvailability(filters, { signal: availabilityController.signal }));
+        } catch (error) {
+            if (error.name !== 'AbortError') onError(error);
+        }
+    }
+}
+
+reservationForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    showMessage(reservationMessage, 'A confirmação de reservas será disponibilizada na próxima etapa (M10).', 'error');
 });
 
 reservationDate.addEventListener('change', () => {
     clearMessage(reservationMessage);
     clearReservationFieldErrors();
-    selectedTableId = null;
-    updateSelectedTableBox();
-    renderReservationTimeOptions();
-
-    if (isSelectedDateClosed()) {
-        showMessage(reservationMessage, CLOSED_DATE_MESSAGE, 'error');
-    }
-
-    watchSelectedDateReservations();
+    reservationTime.value = '';
+    refreshAvailability();
 });
 
 reservationTime.addEventListener('change', () => {
     clearReservationFieldErrors();
-    selectedTableId = null;
-    updateSelectedTableBox();
-    watchSelectedDateReservations();
+    clearMessage(reservationMessage);
+    refreshAvailability();
 });
 
 reservationPeople.addEventListener('input', () => {
     clearMessage(reservationMessage);
     clearReservationFieldErrors();
-    const table = getSelectedTable();
+    refreshAvailability();
+});
 
-    renderReservationTimeOptions();
-
-    if (table && getTableVisualStatus(table) !== 'disponivel') {
-        selectedTableId = null;
-    }
-
-    updateSelectedTableBox();
-    renderMap();
+reloadAvailabilityButton.addEventListener('click', () => {
+    clearMessage(reservationMessage);
+    clearReservationFieldErrors();
+    setMinDate();
+    refreshAvailability();
 });
 
 openMobileMapButton.addEventListener('click', openMobileMap);
@@ -762,9 +472,9 @@ document.addEventListener('keydown', (event) => {
 });
 
 window.addEventListener('beforeunload', () => {
-    stopReservationsRealtime();
-    stopTablesRealtime();
+    availabilityRequest += 1;
+    stopAvailabilityRealtime();
 });
 
 setMinDate();
-await loadData();
+await refreshAvailability();

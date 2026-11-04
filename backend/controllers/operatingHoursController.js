@@ -1,20 +1,10 @@
 const pool = require('../config/database');
-const { getRestaurantDateTime } = require('../utils/dateTime');
+const { getRestaurantDateTime, isDate, isTime } = require('../utils/dateTime');
 
 const WEEK_DAYS = ['0', '1', '2', '3', '4', '5', '6'];
 
 function isObject(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function isTime(value) {
-    return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-}
-
-function isDate(value) {
-    if (!/^[1-9]\d{3}-\d{2}-\d{2}$/.test(value)) return false;
-    const date = new Date(`${value}T00:00:00Z`);
-    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 function validateSchedule(schedule) {

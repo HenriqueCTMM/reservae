@@ -30,10 +30,11 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Autenticação, mesas e funcionamento
-  models/              # Consultas de usuários, mesas e horários
+  controllers/         # Autenticação, mesas, funcionamento e disponibilidade
+  models/              # Consultas SQL por recurso
   middlewares/         # Autenticação e permissão por perfil
-  routes/              # Rotas de autenticação, mesas e horários
+  routes/              # Endpoints e permissões por recurso
+  utils/               # Datas, horários e regras de duração/slots
   sql/schema.sql       # Tabelas, relacionamentos e configurações básicas
   scripts/init-db.js    # Inicialização do banco sem apagar dados existentes
   .env.example
@@ -78,7 +79,7 @@ package-lock.json
 
 O Express entrega o frontend e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL para que os formulários acessem a API. `npm start` inicia sem o modo watch.
 
-## Etapa atual: autenticação, gestão de mesas e horários semanais
+## Etapa atual: autenticação, mesas, funcionamento e disponibilidade
 
 - Cadastro com nome, e-mail e senha de pelo menos 6 caracteres (máximo de 72 bytes, limite do bcrypt).
 - E-mails são normalizados para minúsculas e não podem se repetir.
@@ -88,7 +89,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados os endpoints de autenticação, listagem/cadastro/edição/exclusão de mesas, consulta/gravação de horários semanais e consulta/gravação/exclusão de exceções por data. A tela administrativa de mesas (`pages/admin.html`) e Configurações (`pages/admin-configuracoes.html`) estão integradas às respectivas APIs. Configurações carrega somente a semana e as exceções, sem depender de reservas ou mensagens. Reservas, contato e demais módulos administrativos ainda dependem da migração de `/api/data`.
+Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data e consulta de disponibilidade. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`) e a consulta de horários/mapa/lista em Reservas (`pages/reservas.html`) estão integradas às respectivas APIs. A confirmação da reserva será integrada no M10 e está identificada como pendente na tela. Histórico de reservas, contato e demais módulos administrativos ainda dependem da migração de `/api/data`.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -160,6 +161,7 @@ A carga só preenche a programação se os sete dias ainda estiverem no estado i
 - `GET /api/operating-hours/exceptions`: listagem de exceções por data para cliente ou administrador autenticado.
 - `PUT /api/operating-hours/exceptions/:date`: criação ou substituição de exceção por data, exclusiva para administrador.
 - `DELETE /api/operating-hours/exceptions/:date`: remoção de exceção por data, exclusiva para administrador.
+- `GET /api/availability?data=2030-11-11&pessoas=4&horario=11:00`: horários e condição das mesas, para cliente ou administrador autenticado; `horario` é opcional.
 
 O cadastro recebe `{ nome, email, senha }`; o login recebe `{ email, senha }`. Erros retornam JSON com `message` e status HTTP apropriado (400 para dados inválidos, 401 para credenciais/sessão inválidas, 409 para e-mail duplicado).
 
@@ -266,7 +268,28 @@ Ao salvar, o frontend envia `weekly` com os campos do formulário e usa a config
 
 As exceções podem ser criadas, editadas, fechadas e excluídas pela tela. O formulário é limpo somente após salvar com sucesso; falhas preservam os valores digitados. A lista é atualizada pela resposta do servidor e os controles ficam desabilitados durante cada operação. A data identifica o registro: mudar a data no formulário salva outra exceção, sem mover a anterior. A exclusão não depende de carregar reservas pelo navegador: sua proteção é aplicada no servidor.
 
-Os serviços compartilhados com a tela do cliente consultam semana e exceções pela nova API. A exceção tem prioridade na exibição dos horários; ao removê-la, a semana volta a valer. O fluxo completo de disponibilidade e criação de reservas ainda depende dos próximos módulos.
+A tela do cliente consulta o funcionamento efetivo pela API de disponibilidade descrita abaixo. A exceção tem prioridade sobre a semana; ao removê-la, a semana volta a valer. A criação da reserva será integrada no M10.
+
+### Disponibilidade e tela de reservas
+
+`GET /api/availability` exige `data` real e não passada (`YYYY-MM-DD`) e `pessoas` inteiro de 1 a 8. `horario` é opcional, em `HH:mm`; vazio é tratado como ausente. Parâmetros desconhecidos, repetidos ou malformados retornam 400. Sem sessão válida, retorna 401. Cliente e administrador podem consultar.
+
+O backend aplica a exceção da data ou, na ausência dela, o dia semanal. Calcula permanência de 90 minutos para 1–2 pessoas, 120 para 3–4 e 150 para 5–8. Os horários começam no início de cada turno e avançam a cada 30 minutos; toda a permanência deve caber em um único turno. A antecedência mínima de 180 minutos usa o relógio do servidor no fuso `America/Sao_Paulo`, incluindo segundos e a virada do dia.
+
+A resposta contém `data`, `pessoas`, `horario`, `duracaoMinutos`, `fimPrevisto`, `closed`, `horarioPermitido`, `slots`, `reason` e `mesas`:
+
+- Sem horário: retorna os slots, `horario: null`, `fimPrevisto: null`, `horarioPermitido: false` e `mesas: []`.
+- Com horário permitido: retorna término previsto e todas as mesas ordenadas por número, com os campos públicos de Mesa, mais `visualStatus` e `motivo`.
+- Mesa desativada ou sem capacidade fica `indisponivel`; caso contrário, conflito com reserva ativa resulta em `reservada`; nos demais casos, `disponivel`.
+- Há sobreposição quando a reserva começa antes do término consultado e termina após o início consultado. Períodos encostados são permitidos; reservas canceladas/finalizadas/não comparecimento ou de outra data não bloqueiam.
+- Dia fechado: 200, `closed: true`, sem slots/mesas e motivo explicando o fechamento. Dia aberto sem slots também retorna 200, com `closed: false`.
+- Horário real fora dos slots: 200, `horarioPermitido: false`, término nulo, sem mesas e motivo orientando outra escolha.
+
+Funcionamento e condição das mesas são lidos na mesma transação de leitura (InnoDB/REPEATABLE READ), sem travar as gravações administrativas. A consulta retorna somente a condição por mesa: não inclui IDs/objetos de reservas, nomes, e-mails ou identidade dos clientes. Slots representam horários permitidos, mesmo quando nenhuma mesa está livre. Disponibilidade não confirma uma reserva; o M10 fará nova validação transacional ao gravar.
+
+Em Reservas, escolher data/pessoas consulta os horários; escolher um horário carrega o mapa e a lista acessível. Com seleção completa, o acompanhamento consulta a cada 3 segundos. Trocar filtros ou recarregar descarta a seleção anterior, cancela a requisição/acompanhamento anterior e ignora respostas antigas. Durante o acompanhamento, uma mesa selecionada que deixe de estar disponível é desmarcada. Falhas retiram as opções antigas e exibem a mensagem da API; Recarregar disponibilidade permite tentar novamente. O acompanhamento também recupera a exibição após uma falha, mesmo se os dados voltarem iguais aos anteriores.
+
+A página usa apenas `/api/auth/*` e `/api/availability` para essa consulta; não busca reservas de outros clientes nem depende de `/api/data`. O botão Confirmar reserva permanece desabilitado e identificado como pendente do M10.
 
 ## Validar
 
@@ -317,6 +340,15 @@ Para conferir PUT e DELETE de exceções em um cliente HTTP manual:
 3. Preparar no MySQL reservas ativas futuras e em andamento. Tentar fechamento ou turno insuficiente pelo PUT e conferir 409 sem mudança. Reservas nos limites exatos de um único turno devem permitir salvar; uma permanência dividida entre dois turnos não deve permitir. Reservas passadas, canceladas, finalizadas ou de outra data não devem bloquear.
 4. Abrir uma exceção em domingo fechado e preparar uma reserva nessa data. DELETE deve retornar 409; uma exceção cuja reserva cabe na semana deve permitir 200. Após exclusão, conferir retorno à programação semanal e preservação do histórico no MySQL.
 5. Em outra conexão, manter a trava de configuração numa transação aberta; enviar PUT/DELETE e inserir uma reserva antes do COMMIT. A requisição deve aguardar a liberação e considerar a reserva confirmada. Em erro SQL provocado em banco de conferência, a exceção anterior deve permanecer intacta.
+
+Para conferir a disponibilidade manualmente:
+
+1. Sem sessão e após logout, conferir 401. Com cliente e administrador, conferir 200. Rejeitar data passada/inexistente, pessoas fora de 1–8/fracionárias, horário inválido, parâmetros extras e valores repetidos com 400.
+2. Consultar sem horário para 2, 4 e 6 pessoas; comparar slots e durações de 90/120/150 minutos. Testar turnos começando às 11:15 e conferir slots ancorados nesse início, sem atravessar o fim ou o intervalo entre turnos. Conferir a antecedência de hoje, incluindo seu limite exato, segundos e virada do dia.
+3. Criar uma exceção aberta em domingo fechado, um fechamento em dia normalmente aberto e um turno menor que a duração da reserva. Conferir prioridade da exceção, `closed`, lista de slots vazia e motivos. Horário real fora dos slots deve retornar 200 sem mesas/término.
+4. Preparar reservas no MySQL para conferir sobreposição, períodos encostados, status definitivos e outra data. Comparar as condições retornadas com SQL, incluindo capacidade insuficiente e mesa desativada antes do status de conflito. Conferir ordenação, IDs em string, timestamps e ausência de dados de outros usuários. Sem mesas cadastradas, horário permitido ainda retorna 200 com `mesas: []`.
+5. No navegador, escolher filtros, selecionar pelo mapa e pela lista acessível, abrir/fechar o modal móvel, mudar pessoas/data/horário e recarregar. Conferir chamadas somente a `/api/availability`, descarte de respostas antigas e atualização a cada 3 segundos. Alterar uma mesa/reserva em outra sessão e conferir que uma seleção incompatível é removida.
+6. Simular falha da API durante o acompanhamento e recuperar a conexão; conferir que as opções antigas deixam de ser selecionáveis e que a mesma resposta volta a ser exibida após recuperação. Trocar filtros e sair da página deve encerrar o acompanhamento anterior. Conferir a identificação de confirmação pendente do M10.
 
 O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 

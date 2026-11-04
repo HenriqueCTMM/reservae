@@ -32,21 +32,25 @@ export function watch(load, onChange, onError) {
     let stopped = false;
     let timer;
     let lastValue;
+    let controller;
     async function poll() {
+        controller = new AbortController();
         try {
-            const data = await load();
+            const data = await load(controller.signal);
             if (!stopped && JSON.stringify(data) !== lastValue) {
                 lastValue = JSON.stringify(data);
                 onChange(data);
             }
         } catch (error) {
+            // A recuperação precisa reaplicar os dados, mesmo que sejam iguais aos anteriores.
+            lastValue = undefined;
             if (!stopped) onError?.(error);
         } finally {
             if (!stopped) timer = setTimeout(poll, 3000);
         }
     }
     poll();
-    return () => { stopped = true; clearTimeout(timer); };
+    return () => { stopped = true; clearTimeout(timer); controller?.abort(); };
 }
 export const watchCollection = (path, onChange, onError) => watch(() => getCollection(path), onChange, onError);
 export const watchByChild = (path, field, value, onChange, onError) => watch(() => queryByChild(path, field, value), onChange, onError);
