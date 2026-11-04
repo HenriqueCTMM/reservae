@@ -30,7 +30,7 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Autenticação, mesas e consulta de horários
+  controllers/         # Autenticação, mesas e horários semanais
   models/              # Consultas de usuários, mesas e horários
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Rotas de autenticação, mesas e horários
@@ -78,7 +78,7 @@ package-lock.json
 
 O Express entrega o frontend e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL para que os formulários acessem a API. `npm start` inicia sem o modo watch.
 
-## Etapa atual: autenticação, gestão de mesas e consulta de horários
+## Etapa atual: autenticação, gestão de mesas e API de horários semanais
 
 - Cadastro com nome, e-mail e senha de pelo menos 6 caracteres (máximo de 72 bytes, limite do bcrypt).
 - E-mails são normalizados para minúsculas e não podem se repetir.
@@ -88,7 +88,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro, edição e exclusão de mesas e consulta de horários semanais. A tela administrativa de mesas (`pages/admin.html`) está integrada a esses endpoints e carrega apenas seus próprios dados. A consulta de horários está disponível na API; sua integração ao frontend e a gravação serão feitas nas próximas partes. Reservas, contato e demais telas administrativas ainda usam `/api/data` para os módulos pendentes; essas chamadas serão substituídas nas próximas partes.
+Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro, edição e exclusão de mesas e consulta/gravação de horários semanais. A tela administrativa de mesas (`pages/admin.html`) está integrada a esses endpoints e carrega apenas seus próprios dados. A API de horários semanais está disponível; sua integração ao frontend será feita na próxima parte. Reservas, contato e demais telas administrativas ainda usam `/api/data` para os módulos pendentes; essas chamadas serão substituídas nas próximas partes.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -145,7 +145,7 @@ O mesmo comando também prepara a programação semanal original:
 | Sexta | 11:00–14:00 | 18:00–23:30 |
 | Sábado | 11:00–15:00 | 18:00–23:30 |
 
-A carga só preenche a programação se os sete dias ainda estiverem no estado inicial fechado e sem turnos. Se já houver uma programação personalizada, ela é preservada por inteiro. Um marcador no banco registra que essa etapa já foi executada; repetir o seed não reabre dias fechados depois, mesmo que toda a semana tenha sido fechada manualmente. Exceções por data também são preservadas. A gravação dos horários e do marcador usa uma única transação.
+A carga só preenche a programação se os sete dias ainda estiverem no estado inicial fechado e sem turnos. Se já houver uma programação personalizada, ela é preservada por inteiro. Um marcador no banco registra que essa etapa já foi executada; repetir o seed não reabre dias fechados depois, mesmo que toda a semana tenha sido fechada manualmente. Salvar pelo PUT também marca a programação como definida, preservando uma semana explicitamente fechada mesmo antes do primeiro seed. Exceções por data também são preservadas. A gravação dos horários e do marcador usa uma única transação.
 
 ## API e persistência
 
@@ -156,6 +156,7 @@ A carga só preenche a programação se os sete dias ainda estiverem no estado i
 - `PATCH /api/tables/:id`: edição parcial de mesa, exclusiva para administrador.
 - `DELETE /api/tables/:id`: exclusão de mesa sem reservas vinculadas, exclusiva para administrador.
 - `GET /api/operating-hours`: consulta de configurações e horários semanais para cliente ou administrador autenticado.
+- `PUT /api/operating-hours`: substituição dos sete dias da semana, exclusiva para administrador.
 
 O cadastro recebe `{ nome, email, senha }`; o login recebe `{ email, senha }`. Erros retornam JSON com `message` e status HTTP apropriado (400 para dados inválidos, 401 para credenciais/sessão inválidas, 409 para e-mail duplicado).
 
@@ -165,7 +166,7 @@ Como no projeto de aula, sessões ficam na memória do servidor e são encerrada
 
 A sessão agora é compartilhada por toda a API. Cadastro e login continuam públicos; a consulta `/api/auth/me` e as demais rotas de dados exigem autenticação. O middleware `requireAuth` consulta o usuário no MySQL e disponibiliza `req.user` sem o hash da senha. Sessão ausente ou usuário removido resulta em 401; nesse último caso, a sessão também é encerrada.
 
-O middleware `requireProfile` é aplicado após `requireAuth`: cadastro, edição e exclusão de mesas exigem `requireProfile('admin')` e retornam 403 para clientes. As próximas rotas poderão exigir perfil de administrador ou cliente da mesma forma. Perfil e identidade enviados no corpo ou guardados no navegador não concedem acesso. As respostas da API recebem `Cache-Control: no-store`.
+O middleware `requireProfile` é aplicado após `requireAuth`: cadastro, edição e exclusão de mesas e gravação de horários exigem `requireProfile('admin')` e retornam 403 para clientes. As próximas rotas poderão exigir perfil de administrador ou cliente da mesma forma. Perfil e identidade enviados no corpo ou guardados no navegador não concedem acesso. As respostas da API recebem `Cache-Control: no-store`.
 
 ### Listagem de mesas
 
@@ -224,6 +225,16 @@ Após entrar como administrador, a página Mesas permite listar, cadastrar, edit
 
 O sucesso retorna 200; parâmetros de query retornam 400 e sessão ausente ou encerrada retorna 401. Se faltar a configuração ou algum dia no banco, a consulta segue o tratamento de erro 500 da API; não cria uma programação padrão durante a leitura. Execute `npm run db:init` para preparar esses registros.
 
+### Gravação de horários semanais
+
+`PUT /api/operating-hours` recebe `{ "weekly": { ... } }` com os sete dias completos no formato do GET. `minAdvanceMinutes` e `slotIntervalMinutes` podem ser omitidos; se enviados, devem ser os números 180 e 30. Não envie `updatedAt`, campos extras ou parâmetros de query.
+
+Cada dia exige `open` booleano e `shifts`: fechado exige lista vazia; aberto exige um ou dois turnos. Cada turno aceita somente `start` e `end` em `HH:mm`, de `00:00` a `23:59`, com início anterior ao fim. Os turnos devem estar ordenados, sem sobreposição e dentro do mesmo dia. Turnos encostados são aceitos, mas a permanência de uma reserva deve caber integralmente em um único turno.
+
+O sucesso retorna 200 com a configuração completa no formato do GET. Dados inválidos retornam 400; sem sessão retorna 401; cliente recebe 403. Retorna 409 se a programação não comportar alguma reserva ativa com término ainda futuro, inclusive em andamento, informando data e número da mesa. Reservas passadas ou com status definitivo não impedem a gravação. Datas com exceção seguem sua programação própria e não são afetadas pela troca da semana.
+
+A trava de `operating_settings.id = 1`, leitura das reservas, gravação dos sete dias e leitura da resposta usam a mesma conexão transacional. Em caso de conflito ou falha, nenhuma alteração parcial é confirmada. A gravação não muda os parâmetros fixos nem as exceções por data.
+
 ## Validar
 
 Validação exclusivamente manual: cadastrar cliente, repetir o e-mail, tentar senha incorreta, entrar, recarregar a página autenticada e sair.
@@ -240,6 +251,15 @@ Para conferir a consulta de horários, use um cliente HTTP manual com o cookie d
 4. Executar `db:seed` nesse banco e comparar a resposta com os horários de demonstração acima. Conferir booleanos reais, horários `HH:mm`, até dois turnos por dia e ausência de campos internos.
 5. Comparar `updatedAt` com o maior `updated_at` de `operating_settings` (id 1) e `weekly_operating_hours`, convertido em milissegundos. Em um banco de conferência, alterar um dia pelo MySQL para um único turno e consultar novamente; conferir o turno e a atualização do timestamp.
 6. Sair da sessão e repetir a consulta; conferir 401.
+
+Para conferir a gravação semanal, use um cliente HTTP manual em um banco de conferência:
+
+1. A partir do GET, copie apenas `weekly` para o corpo do PUT; mudar o objeto retornado inteiro sem remover `updatedAt` deve resultar em 400.
+2. Sem sessão, conferir 401; como cliente, 403; como administrador, salvar uma programação com dias fechados, um turno e dois turnos. Conferir 200, repetir o GET e comparar os sete dias com o MySQL.
+3. Conferir 400 para corpo vazio ou lista, dia ausente/adicional, `open` não booleano, lista de turnos incompatível com aberto/fechado, campos extras, turno incompleto, três turnos, `24:00`, `12:60`, início igual/posterior ao fim, ordem invertida e sobreposição. Conferir também parâmetros fixos diferentes de 180/30 e parâmetros de query. Após rejeições, a configuração deve permanecer intacta.
+4. Preparar reservas no MySQL: ativa futura, ativa em andamento, passada e com status definitivo. Fechar o dia, começar após o início reservado ou encerrar antes do término de uma ativa ainda não encerrada deve retornar 409, com data/mesa. Manter toda a reserva dentro de um turno, inclusive nos limites exatos, deve permitir 200. Reservas passadas ou encerradas não devem bloquear.
+5. Preparar uma exceção por data e uma reserva compatível com ela; fechar o dia semanal correspondente deve permitir 200 e preservar a exceção. Retirar a exceção pelo MySQL e tentar salvar novamente deve retornar 409 se a reserva não couber na semana.
+6. Em um banco novo após `db:init`, salvar toda a semana fechada pelo PUT e executar `db:seed`; conferir que o seed preserva o fechamento. Para demonstrar a trava, manter `SELECT id FROM operating_settings WHERE id = 1 FOR UPDATE` em uma transação MySQL aberta; enviar um PUT e liberar com COMMIT. O PUT deve aguardar e então revalidar os dados confirmados antes da gravação.
 
 O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 

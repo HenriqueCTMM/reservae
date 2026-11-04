@@ -1,7 +1,7 @@
 const pool = require('../config/database');
 
-async function findWeekly() {
-    const [rows] = await pool.execute(`
+async function findWeekly(connection = pool) {
+    const [rows] = await connection.execute(`
         SELECT settings.min_advance_minutes, settings.slot_interval_minutes,
             weekly.dia_semana, weekly.aberto,
             TIME_FORMAT(weekly.inicio_turno_1, '%H:%i') AS inicio_turno_1,
@@ -18,6 +18,41 @@ async function findWeekly() {
         throw new Error('Execute npm run db:init para preparar a configuração e os sete dias da semana.');
     }
     return rows;
+}
+
+async function lockSettings(connection) {
+    const [rows] = await connection.execute('SELECT id FROM operating_settings WHERE id = 1 FOR UPDATE');
+    if (!rows.length) throw new Error('Execute npm run db:init antes de alterar os horários.');
+}
+
+async function findReservationsWithoutException(now, connection) {
+    const [rows] = await connection.execute(`
+        SELECT DATE_FORMAT(reservation.data, '%Y-%m-%d') AS data,
+            DAYOFWEEK(reservation.data) - 1 AS dia_semana, table_data.numero,
+            TIME_FORMAT(reservation.horario, '%H:%i') AS horario,
+            TIME_FORMAT(reservation.fim_previsto, '%H:%i') AS fim_previsto
+        FROM reservations AS reservation
+        JOIN tables AS table_data ON table_data.id = reservation.mesa_id
+        LEFT JOIN operating_exceptions AS exception_data ON exception_data.data = reservation.data
+        WHERE reservation.status = 'ativa'
+            AND TIMESTAMP(reservation.data, reservation.fim_previsto) > ?
+            AND exception_data.data IS NULL
+        ORDER BY reservation.data, reservation.horario, reservation.id
+    `, [now]);
+    return rows;
+}
+
+async function updateWeekly(weekly, connection) {
+    for (const [day, schedule] of Object.entries(weekly)) {
+        const [first, second] = schedule.shifts;
+        await connection.execute(
+            'UPDATE weekly_operating_hours SET aberto = ?, inicio_turno_1 = ?, fim_turno_1 = ?, inicio_turno_2 = ?, fim_turno_2 = ? WHERE dia_semana = ?',
+            [schedule.open, first ? first.start : null, first ? first.end : null,
+                second ? second.start : null, second ? second.end : null, day]
+        );
+    }
+    // Uma semana salva explicitamente, mesmo toda fechada, não deve ser preenchida pelo seed.
+    await connection.execute('UPDATE operating_settings SET demo_hours_seeded = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = 1');
 }
 
 async function seedWeeklyDefaults(defaultDays) {
@@ -67,4 +102,4 @@ async function seedWeeklyDefaults(defaultDays) {
     }
 }
 
-module.exports = { findWeekly, seedWeeklyDefaults };
+module.exports = { findWeekly, lockSettings, findReservationsWithoutException, updateWeekly, seedWeeklyDefaults };

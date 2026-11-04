@@ -38,7 +38,7 @@ function createApp({
     const { requireAuth, requireProfile } = createAuthMiddleware(User);
     app.use('/api', requireAuth);
     app.use('/api/tables', createTableRoutes(Table, requireProfile));
-    app.use('/api/operating-hours', createOperatingHoursRoutes(OperatingHours));
+    app.use('/api/operating-hours', createOperatingHoursRoutes(OperatingHours, requireProfile));
     app.use('/api', (req, res) => {
         res.status(404).json({ message: 'Endpoint não implementado nesta etapa.' });
     });
