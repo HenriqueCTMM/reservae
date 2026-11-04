@@ -30,7 +30,7 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Autenticação, mesas e horários semanais
+  controllers/         # Autenticação, mesas e funcionamento
   models/              # Consultas de usuários, mesas e horários
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Rotas de autenticação, mesas e horários
@@ -88,7 +88,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro, edição e exclusão de mesas e consulta/gravação de horários semanais. A tela administrativa de mesas (`pages/admin.html`) e a programação semanal em Configurações (`pages/admin-configuracoes.html`) estão integradas às respectivas APIs e carregam seus próprios dados. Exceções por data, reservas, contato e demais módulos administrativos ainda dependem da migração de `/api/data`. A área de exceções em Configurações está desabilitada e identificada como pendente do M08.
+Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro, edição e exclusão de mesas, consulta/gravação de horários semanais e consulta de exceções por data. A tela administrativa de mesas (`pages/admin.html`) e a programação semanal em Configurações (`pages/admin-configuracoes.html`) estão integradas às respectivas APIs e carregam seus próprios dados. A consulta de exceções está disponível na API; gravação, exclusão e integração à tela serão feitas nas próximas partes do M08. A área de exceções em Configurações continua identificada como pendente. Reservas, contato e demais módulos administrativos ainda dependem da migração de `/api/data`.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -157,6 +157,7 @@ A carga só preenche a programação se os sete dias ainda estiverem no estado i
 - `DELETE /api/tables/:id`: exclusão de mesa sem reservas vinculadas, exclusiva para administrador.
 - `GET /api/operating-hours`: consulta de configurações e horários semanais para cliente ou administrador autenticado.
 - `PUT /api/operating-hours`: substituição dos sete dias da semana, exclusiva para administrador.
+- `GET /api/operating-hours/exceptions`: listagem de exceções por data para cliente ou administrador autenticado.
 
 O cadastro recebe `{ nome, email, senha }`; o login recebe `{ email, senha }`. Erros retornam JSON com `message` e status HTTP apropriado (400 para dados inválidos, 401 para credenciais/sessão inválidas, 409 para e-mail duplicado).
 
@@ -221,7 +222,7 @@ Após entrar como administrador, a página Mesas permite listar, cadastrar, edit
 
 `GET /api/operating-hours` retorna `minAdvanceMinutes` (180), `slotIntervalMinutes` (30), `weekly` e `updatedAt`. O objeto `weekly` contém os sete dias, de `"0"` (domingo) a `"6"` (sábado). Cada dia contém `open` booleano e `shifts`, com até dois objetos `{ "start": "11:00", "end": "14:00" }`. Horários usam `HH:mm`; dias fechados retornam `open: false` e `shifts: []`.
 
-`updatedAt` é um timestamp numérico em milissegundos, correspondente à alteração mais recente entre a configuração e os sete dias. A consulta lê esses dados em uma única instrução SQL. O campo interno `demo_hours_seeded` não é retornado. Exceções por data serão disponibilizadas em outra etapa.
+`updatedAt` é um timestamp numérico em milissegundos, correspondente à alteração mais recente entre a configuração e os sete dias. A consulta lê esses dados em uma única instrução SQL. O campo interno `demo_hours_seeded` não é retornado. Exceções por data são consultadas no endpoint próprio descrito abaixo.
 
 O sucesso retorna 200; parâmetros de query retornam 400 e sessão ausente ou encerrada retorna 401. Se faltar a configuração ou algum dia no banco, a consulta segue o tratamento de erro 500 da API; não cria uma programação padrão durante a leitura. Execute `npm run db:init` para preparar esses registros.
 
@@ -234,6 +235,12 @@ Cada dia exige `open` booleano e `shifts`: fechado exige lista vazia; aberto exi
 O sucesso retorna 200 com a configuração completa no formato do GET. Dados inválidos retornam 400; sem sessão retorna 401; cliente recebe 403. Retorna 409 se a programação não comportar alguma reserva ativa com término ainda futuro, inclusive em andamento, informando data e número da mesa. Reservas passadas ou com status definitivo não impedem a gravação. Datas com exceção seguem sua programação própria e não são afetadas pela troca da semana.
 
 A trava de `operating_settings.id = 1`, leitura das reservas, gravação dos sete dias e leitura da resposta usam a mesma conexão transacional. Em caso de conflito ou falha, nenhuma alteração parcial é confirmada. A gravação não muda os parâmetros fixos nem as exceções por data.
+
+### Consulta de exceções por data
+
+`GET /api/operating-hours/exceptions` retorna um array ordenado por data crescente, incluindo datas passadas e futuras. Sem registros, retorna `[]`. Cada exceção contém `id` e `date` como a mesma string `YYYY-MM-DD`, `open` booleano, `shifts`, `reason` e `updatedAt` numérico em milissegundos. Dias fechados retornam `shifts: []`; dias abertos retornam um ou dois turnos com `start` e `end` em `HH:mm`. Motivo não preenchido é uma string vazia.
+
+O sucesso retorna 200; parâmetros de query retornam 400; sessão ausente ou encerrada retorna 401. A consulta lê somente as exceções salvas, sem combinar a programação semanal ou gerar registros padrão. A regra de precedência das exceções será aplicada pelos fluxos de funcionamento e reservas; este endpoint apenas lista seus dados.
 
 ### Tela administrativa de horários
 
@@ -268,6 +275,13 @@ Para conferir a gravação semanal, use um cliente HTTP manual em um banco de co
 4. Preparar reservas no MySQL: ativa futura, ativa em andamento, passada e com status definitivo. Fechar o dia, começar após o início reservado ou encerrar antes do término de uma ativa ainda não encerrada deve retornar 409, com data/mesa. Manter toda a reserva dentro de um turno, inclusive nos limites exatos, deve permitir 200. Reservas passadas ou encerradas não devem bloquear.
 5. Preparar uma exceção por data e uma reserva compatível com ela; fechar o dia semanal correspondente deve permitir 200 e preservar a exceção. Retirar a exceção pelo MySQL e tentar salvar novamente deve retornar 409 se a reserva não couber na semana.
 6. Em um banco novo após `db:init`, salvar toda a semana fechada pelo PUT e executar `db:seed`; conferir que o seed preserva o fechamento. Para demonstrar a trava, manter `SELECT id FROM operating_settings WHERE id = 1 FOR UPDATE` em uma transação MySQL aberta; enviar um PUT e liberar com COMMIT. O PUT deve aguardar e então revalidar os dados confirmados antes da gravação.
+
+Para conferir a consulta de exceções, use um cliente HTTP manual em um banco de conferência:
+
+1. Sem sessão, chamar GET `/api/operating-hours/exceptions` e conferir 401. Entrar como cliente e como administrador em sessões separadas; ambos devem consultar com 200.
+2. Sem exceções no banco, conferir `[]`. Preparar no MySQL um fechamento, um dia aberto com um turno e outro com dois turnos, inseridos fora da ordem de data e incluindo uma data passada.
+3. Comparar a resposta com o MySQL: ordenação crescente, inclusão da data passada, `id` igual a `date`, booleanos reais, horários `HH:mm`, motivo vazio quando não preenchido e timestamp em milissegundos.
+4. Acrescentar `?date=2030-11-15` e conferir 400. Sair e repetir a consulta; conferir 401.
 
 Na tela Configurações, conferir manualmente no navegador:
 

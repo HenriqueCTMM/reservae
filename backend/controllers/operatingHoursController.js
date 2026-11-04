@@ -50,18 +50,22 @@ function validateOperatingHours(data) {
     return '';
 }
 
+function publicSchedule(schedule) {
+    const open = Boolean(schedule.aberto);
+    const shifts = [];
+    if (open) {
+        shifts.push({ start: schedule.inicio_turno_1, end: schedule.fim_turno_1 });
+        if (schedule.inicio_turno_2 !== null) {
+            shifts.push({ start: schedule.inicio_turno_2, end: schedule.fim_turno_2 });
+        }
+    }
+    return { open, shifts };
+}
+
 function publicOperatingHours(days) {
     const weekly = {};
     for (const day of days) {
-        const open = Boolean(day.aberto);
-        const shifts = [];
-        if (open) {
-            shifts.push({ start: day.inicio_turno_1, end: day.fim_turno_1 });
-            if (day.inicio_turno_2 !== null) {
-                shifts.push({ start: day.inicio_turno_2, end: day.fim_turno_2 });
-            }
-        }
-        weekly[day.dia_semana] = { open, shifts };
+        weekly[day.dia_semana] = publicSchedule(day);
     }
     return {
         minAdvanceMinutes: days[0].min_advance_minutes,
@@ -81,6 +85,25 @@ module.exports = function createOperatingHoursController(OperatingHours) {
             try {
                 const days = await OperatingHours.findWeekly();
                 res.json(publicOperatingHours(days));
+            } catch (error) {
+                next(error);
+            }
+        },
+
+        async getExceptions(req, res, next) {
+            if (Object.keys(req.query).length > 0) {
+                return res.status(400).json({ message: 'A consulta de exceções de funcionamento não aceita filtros.' });
+            }
+
+            try {
+                const exceptions = await OperatingHours.findExceptions();
+                res.json(exceptions.map((exception) => ({
+                    id: exception.data,
+                    date: exception.data,
+                    ...publicSchedule(exception),
+                    reason: exception.motivo,
+                    updatedAt: Number(exception.updated_at_ms)
+                })));
             } catch (error) {
                 next(error);
             }

@@ -6,6 +6,7 @@ module.exports = function createOperatingHoursRoutes(OperatingHours, requireProf
     const operatingHoursController = createOperatingHoursController(OperatingHours);
 
     router.get('/', operatingHoursController.getOperatingHours);
+    router.get('/exceptions', operatingHoursController.getExceptions);
     router.put('/', requireProfile('admin'), operatingHoursController.putOperatingHours);
 
     return router;

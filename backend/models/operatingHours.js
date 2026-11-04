@@ -20,6 +20,20 @@ async function findWeekly(connection = pool) {
     return rows;
 }
 
+async function findExceptions() {
+    const [rows] = await pool.execute(`
+        SELECT DATE_FORMAT(data, '%Y-%m-%d') AS data, aberto, motivo,
+            TIME_FORMAT(inicio_turno_1, '%H:%i') AS inicio_turno_1,
+            TIME_FORMAT(fim_turno_1, '%H:%i') AS fim_turno_1,
+            TIME_FORMAT(inicio_turno_2, '%H:%i') AS inicio_turno_2,
+            TIME_FORMAT(fim_turno_2, '%H:%i') AS fim_turno_2,
+            UNIX_TIMESTAMP(updated_at) * 1000 AS updated_at_ms
+        FROM operating_exceptions
+        ORDER BY data
+    `);
+    return rows;
+}
+
 async function lockSettings(connection) {
     const [rows] = await connection.execute('SELECT id FROM operating_settings WHERE id = 1 FOR UPDATE');
     if (!rows.length) throw new Error('Execute npm run db:init antes de alterar os horários.');
@@ -102,4 +116,4 @@ async function seedWeeklyDefaults(defaultDays) {
     }
 }
 
-module.exports = { findWeekly, lockSettings, findReservationsWithoutException, updateWeekly, seedWeeklyDefaults };
+module.exports = { findWeekly, findExceptions, lockSettings, findReservationsWithoutException, updateWeekly, seedWeeklyDefaults };
