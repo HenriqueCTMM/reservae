@@ -30,7 +30,7 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Autenticação e listagem de mesas
+  controllers/         # Autenticação, listagem e cadastro de mesas
   models/              # Consultas de usuários, mesas e preparação de horários
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Rotas de autenticação e mesas
@@ -88,7 +88,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados os endpoints de autenticação e a listagem de mesas. As telas de reservas, contato e administração já existem no frontend, mas ainda chamam `/api/data`, que será substituído por endpoints específicos nas próximas partes; elas ainda podem exibir mensagens de erro ao buscar esses dados após o login. A integração das telas com a nova rota de mesas será feita nas próximas partes.
+Nesta etapa, estão implementados os endpoints de autenticação, listagem e cadastro de mesas. As telas de reservas, contato e administração já existem no frontend, mas ainda chamam `/api/data`, que será substituído por endpoints específicos nas próximas partes; elas ainda podem exibir mensagens de erro ao buscar esses dados após o login. A integração das telas com as novas rotas de mesas será feita nas próximas partes.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -152,6 +152,7 @@ A carga só preenche a programação se os sete dias ainda estiverem no estado i
 - `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`.
 - `GET /api/auth/me`: sessão atual.
 - `GET /api/tables`: listagem de mesas para cliente ou administrador autenticado.
+- `POST /api/tables`: cadastro de mesa, exclusivo para administrador.
 
 O cadastro recebe `{ nome, email, senha }`; o login recebe `{ email, senha }`. Erros retornam JSON com `message` e status HTTP apropriado (400 para dados inválidos, 401 para credenciais/sessão inválidas, 409 para e-mail duplicado).
 
@@ -161,13 +162,32 @@ Como no projeto de aula, sessões ficam na memória do servidor e são encerrada
 
 A sessão agora é compartilhada por toda a API. Cadastro e login continuam públicos; a consulta `/api/auth/me` e as demais rotas de dados exigem autenticação. O middleware `requireAuth` consulta o usuário no MySQL e disponibiliza `req.user` sem o hash da senha. Sessão ausente ou usuário removido resulta em 401; nesse último caso, a sessão também é encerrada.
 
-O middleware `requireProfile('admin')` ou `requireProfile('cliente')` será aplicado após `requireAuth` nas rotas específicas dos próximos módulos. Ele retorna 403 para um perfil diferente do exigido. Perfil e identidade enviados no corpo ou guardados no navegador não concedem acesso. As respostas da API recebem `Cache-Control: no-store`.
+O middleware `requireProfile` é aplicado após `requireAuth`: o cadastro de mesas exige `requireProfile('admin')` e retorna 403 para clientes. As próximas rotas poderão exigir perfil de administrador ou cliente da mesma forma. Perfil e identidade enviados no corpo ou guardados no navegador não concedem acesso. As respostas da API recebem `Cache-Control: no-store`.
 
 ### Listagem de mesas
 
 `GET /api/tables` retorna um array ordenado pelo número da mesa, incluindo disponíveis e indisponíveis. Cada mesa contém `id` como string, `numero`, `capacidade`, `status`, `posicaoX`, `posicaoY`, `rotacao`, `createdAt` e `updatedAt`. Os timestamps são números em milissegundos. Sem mesas, retorna `[]`.
 
 A consulta não aceita filtros: parâmetros de query retornam 400. Sem sessão válida, retorna 401. A condição de mesa reservada para determinado período será calculada no módulo de disponibilidade.
+
+### Cadastro de mesas
+
+`POST /api/tables` recebe todos os campos abaixo, sem campos extras ou parâmetros de query:
+
+```json
+{
+  "numero": 6,
+  "capacidade": 4,
+  "status": "disponivel",
+  "posicaoX": 40,
+  "posicaoY": 340,
+  "rotacao": 0
+}
+```
+
+Número e capacidade devem ser inteiros, respectivamente entre 1–65535 e 1–8. O status deve ser `disponivel` ou `indisponivel`; a rotação, 0 ou 90. As posições devem ser inteiras, não negativas e manter a mesa inteira dentro do mapa de 800 × 520 pixels, considerando sua capacidade e rotação.
+
+Retorna 201 com a mesa completa no mesmo formato da listagem. Dados inválidos retornam 400, sessão ausente retorna 401, perfil de cliente retorna 403 e número de mesa já cadastrado retorna 409. ID e timestamps são definidos pelo servidor.
 
 ## Validar
 
