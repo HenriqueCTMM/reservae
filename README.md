@@ -91,7 +91,7 @@ Nesta etapa, somente os endpoints de autenticação estão implementados. As tel
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
-A inicialização pode ser repetida: tabelas existentes não são recriadas e registros/configurações salvos não são apagados nem sobrescritos. Ela não atualiza a estrutura de tabelas antigas que já existam com outro formato. Cliente de demonstração, mesas e horários de abertura serão preparados nas próximas partes.
+A inicialização pode ser repetida: tabelas existentes não são recriadas e registros/configurações salvos não são apagados nem sobrescritos. Ela não atualiza a estrutura de tabelas antigas que já existam com outro formato. Horários de abertura de demonstração serão preparados na próxima parte.
 
 ## Criar o administrador inicial
 
@@ -104,6 +104,34 @@ npm run db:admin
 ```
 
 O comando cria um usuário com perfil `admin` e senha armazenada como hash bcrypt. Use o e-mail e a senha configurados para entrar pela tela de login. Executar novamente mantém a conta existente sem trocar nome ou senha. Se o e-mail pertencer a um cliente, o comando informa o conflito e não altera seu perfil. O cadastro público continua criando apenas clientes.
+
+## Preparar o cliente e as mesas de demonstração
+
+Após executar `npm run db:init`, execute na raiz:
+
+```sh
+npm run db:seed
+```
+
+O comando prepara um cliente fictício para a apresentação:
+
+- Nome: `Cliente Demonstração`.
+- E-mail: `cliente@example.com`.
+- Senha: `cliente123`.
+
+A senha é armazenada como hash bcrypt. Se já existir um cliente com esse e-mail, o comando preserva nome, senha e perfil, sem duplicá-lo; as credenciais acima só são definidas na criação. Se o e-mail pertencer a um administrador, informa o conflito sem alterar a conta. O administrador inicial continua sendo criado separadamente com `npm run db:admin`.
+
+Também prepara as mesas abaixo, com posições do mapa original e rotação inicial horizontal:
+
+| Número | Capacidade | Status | Posição (X, Y) |
+| --- | --- | --- | --- |
+| 1 | 2 | disponivel | 40, 40 |
+| 2 | 4 | disponivel | 220, 40 |
+| 3 | 4 | disponivel | 420, 40 |
+| 4 | 6 | disponivel | 120, 210 |
+| 5 | 8 | indisponivel | 360, 220 |
+
+A identificação é pelo número da mesa: números já cadastrados são preservados com seus dados atuais e somente os que faltam são inseridos. Outras mesas também permanecem intactas. Executar novamente não duplica as mesas nem redefine capacidade, status, posição ou rotação. As mesas são preparadas mesmo quando o cliente de demonstração já existe.
 
 ## API e persistência
 

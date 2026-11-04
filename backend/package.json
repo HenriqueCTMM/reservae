@@ -8,6 +8,7 @@
     "dev": "node --watch server.js",
     "db:init": "node scripts/init-db.js",
     "db:admin": "node scripts/create-admin.js",
+    "db:seed": "node scripts/seed-db.js",
     "test": "node --test"
   },
   "dependencies": {
