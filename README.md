@@ -30,7 +30,7 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Autenticação, listagem, cadastro e edição de mesas
+  controllers/         # Autenticação e operações de mesas
   models/              # Consultas de usuários, mesas e preparação de horários
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Rotas de autenticação e mesas
@@ -88,7 +88,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro e edição de mesas. As telas de reservas, contato e administração já existem no frontend, mas ainda chamam `/api/data`, que será substituído por endpoints específicos nas próximas partes; elas ainda podem exibir mensagens de erro ao buscar esses dados após o login. A integração das telas com as novas rotas de mesas será feita nas próximas partes.
+Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro, edição e exclusão de mesas. As telas de reservas, contato e administração já existem no frontend, mas ainda chamam `/api/data`, que será substituído por endpoints específicos nas próximas partes; elas ainda podem exibir mensagens de erro ao buscar esses dados após o login. A integração das telas com as novas rotas de mesas será feita nas próximas partes.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -154,6 +154,7 @@ A carga só preenche a programação se os sete dias ainda estiverem no estado i
 - `GET /api/tables`: listagem de mesas para cliente ou administrador autenticado.
 - `POST /api/tables`: cadastro de mesa, exclusivo para administrador.
 - `PATCH /api/tables/:id`: edição parcial de mesa, exclusiva para administrador.
+- `DELETE /api/tables/:id`: exclusão de mesa sem reservas vinculadas, exclusiva para administrador.
 
 O cadastro recebe `{ nome, email, senha }`; o login recebe `{ email, senha }`. Erros retornam JSON com `message` e status HTTP apropriado (400 para dados inválidos, 401 para credenciais/sessão inválidas, 409 para e-mail duplicado).
 
@@ -163,7 +164,7 @@ Como no projeto de aula, sessões ficam na memória do servidor e são encerrada
 
 A sessão agora é compartilhada por toda a API. Cadastro e login continuam públicos; a consulta `/api/auth/me` e as demais rotas de dados exigem autenticação. O middleware `requireAuth` consulta o usuário no MySQL e disponibiliza `req.user` sem o hash da senha. Sessão ausente ou usuário removido resulta em 401; nesse último caso, a sessão também é encerrada.
 
-O middleware `requireProfile` é aplicado após `requireAuth`: o cadastro de mesas exige `requireProfile('admin')` e retorna 403 para clientes. As próximas rotas poderão exigir perfil de administrador ou cliente da mesma forma. Perfil e identidade enviados no corpo ou guardados no navegador não concedem acesso. As respostas da API recebem `Cache-Control: no-store`.
+O middleware `requireProfile` é aplicado após `requireAuth`: cadastro, edição e exclusão de mesas exigem `requireProfile('admin')` e retornam 403 para clientes. As próximas rotas poderão exigir perfil de administrador ou cliente da mesma forma. Perfil e identidade enviados no corpo ou guardados no navegador não concedem acesso. As respostas da API recebem `Cache-Control: no-store`.
 
 ### Listagem de mesas
 
@@ -203,6 +204,12 @@ Os campos omitidos são preservados. A mesa completa é validada após combinar 
 Reduzir capacidade abaixo da quantidade de pessoas de uma reserva ativa ou tornar a mesa indisponível com reserva ativa ainda não encerrada retorna 409. A verificação considera o término previsto no fuso `America/Sao_Paulo`, incluindo reservas em andamento; reservas passadas ou com status definitivo não impedem essas alterações. Posição, rotação e número podem ser alterados sem modificar os registros das reservas.
 
 A leitura da mesa, validação, consulta de reservas e gravação usam a mesma transação. Uma trava na configuração do restaurante coordena a edição com as futuras operações de reservas e funcionamento.
+
+### Exclusão de mesas
+
+`DELETE /api/tables/:id` exclui uma mesa sem reservas vinculadas. Envie apenas o ID na URL, sem parâmetros de query ou dados no corpo. O sucesso retorna 200 com `{ "message": "Mesa removida com sucesso." }`.
+
+ID inválido ou dados não permitidos retornam 400; sessão ausente retorna 401; cliente recebe 403; mesa inexistente, inclusive uma já excluída, retorna 404. Qualquer reserva vinculada bloqueia a exclusão com 409, mesmo se for passada, cancelada ou finalizada. A consulta de vínculos e a exclusão usam a mesma transação e a trava de configuração usada na edição; a chave estrangeira também preserva o histórico no banco.
 
 ## Validar
 

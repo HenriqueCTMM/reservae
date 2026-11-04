@@ -156,6 +156,48 @@ module.exports = function createTableController(Table) {
             } finally {
                 if (connection) connection.release();
             }
+        },
+
+        async deleteTable(req, res, next) {
+            const id = req.params.id;
+            if (!/^[1-9]\d*$/.test(id) || Number(id) > 4294967295) {
+                return res.status(400).json({ message: 'Informe um ID de mesa válido.' });
+            }
+            if (Object.keys(req.query).length > 0) {
+                return res.status(400).json({ message: 'A exclusão de mesas não aceita parâmetros de query.' });
+            }
+            if (req.body && (Array.isArray(req.body) || Object.keys(req.body).length > 0)) {
+                return res.status(400).json({ message: 'A exclusão de mesas não aceita dados no corpo da requisição.' });
+            }
+
+            let connection;
+            try {
+                connection = await pool.getConnection();
+                await connection.beginTransaction();
+                await Table.lockSettings(connection);
+                const table = await Table.findById(id, connection);
+                if (!table) {
+                    await connection.rollback();
+                    return res.status(404).json({ message: 'Mesa não encontrada.' });
+                }
+
+                if (await Table.hasReservations(id, connection)) {
+                    await connection.rollback();
+                    return res.status(409).json({ message: 'Esta mesa possui reservas vinculadas e não pode ser excluída.' });
+                }
+
+                await Table.remove(id, connection);
+                await connection.commit();
+                res.json({ message: 'Mesa removida com sucesso.' });
+            } catch (error) {
+                if (connection) await connection.rollback();
+                if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+                    return res.status(409).json({ message: 'Esta mesa possui reservas vinculadas e não pode ser excluída.' });
+                }
+                next(error);
+            } finally {
+                if (connection) connection.release();
+            }
         }
     };
 };

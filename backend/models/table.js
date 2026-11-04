@@ -37,7 +37,7 @@ async function create({ numero, capacidade, status, posicaoX, posicaoY, rotacao 
 
 async function lockSettings(connection) {
     const [rows] = await connection.execute('SELECT id FROM operating_settings WHERE id = 1 FOR UPDATE');
-    if (!rows.length) throw new Error('Execute npm run db:init antes de editar mesas.');
+    if (!rows.length) throw new Error('Execute npm run db:init antes de alterar mesas.');
 }
 
 async function hasReservationConflict(id, { capacidade, indisponivel, now }, connection) {
@@ -58,4 +58,13 @@ async function update(id, { numero, capacidade, status, posicaoX, posicaoY, rota
     );
 }
 
-module.exports = { findAll, findByNumber, findById, create, lockSettings, hasReservationConflict, update };
+async function hasReservations(id, connection) {
+    const [rows] = await connection.execute('SELECT id FROM reservations WHERE mesa_id = ? LIMIT 1', [id]);
+    return rows.length > 0;
+}
+
+async function remove(id, connection) {
+    await connection.execute('DELETE FROM tables WHERE id = ?', [id]);
+}
+
+module.exports = { findAll, findByNumber, findById, create, lockSettings, hasReservationConflict, update, hasReservations, remove };
