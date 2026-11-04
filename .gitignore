@@ -4,3 +4,7 @@ frontend/src/assets/docs/
 src/assets/docs/
 .firebase
 coverage/
+
+# Documentação local de planejamento da migração
+/PLANO-MIGRACAO.md
+/docs/migracao/

@@ -33,8 +33,8 @@ backend/
   controllers/         # Cadastro, login, sessão atual e logout
   models/              # Consultas de usuários
   routes/              # Rotas de autenticação
-  sql/schema.sql       # Tabela users
-  scripts/init-db.js    # Criação da tabela
+  sql/schema.sql       # Tabelas, relacionamentos e configurações básicas
+  scripts/init-db.js    # Inicialização do banco sem apagar dados existentes
   .env.example
   package.json
 compose.yaml           # MySQL local opcional
@@ -77,7 +77,7 @@ package-lock.json
 
 O Express entrega o frontend e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL para que os formulários acessem a API. `npm start` inicia sem o modo watch.
 
-## Etapa atual: cadastro e login
+## Etapa atual: autenticação e estrutura do banco
 
 - Cadastro com nome, e-mail e senha de pelo menos 6 caracteres (máximo de 72 bytes, limite do bcrypt).
 - E-mails são normalizados para minúsculas e não podem se repetir.
@@ -87,7 +87,11 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, o backend implementa somente autenticação. As telas de reservas, contato e administração já existem no frontend, mas seus endpoints de dados (`/api/data`) serão implementados nas próximas partes; elas ainda podem exibir mensagens de erro ao buscar esses dados após o login.
+Nesta etapa, somente os endpoints de autenticação estão implementados. As telas de reservas, contato e administração já existem no frontend, mas ainda chamam `/api/data`, que será substituído por endpoints específicos nas próximas partes; elas ainda podem exibir mensagens de erro ao buscar esses dados após o login.
+
+O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
+
+A inicialização pode ser repetida: tabelas existentes não são recriadas e registros/configurações salvos não são apagados nem sobrescritos. Ela não atualiza a estrutura de tabelas antigas que já existam com outro formato. Usuários de demonstração, mesas e horários de abertura serão preparados na próxima etapa.
 
 ## API e persistência
 
@@ -102,7 +106,9 @@ Como no projeto de aula, sessões ficam na memória do servidor e são encerrada
 
 ## Validar
 
-Validação manual: cadastrar cliente, repetir o e-mail, tentar senha incorreta, entrar, recarregar a página autenticada e sair.
+Validação exclusivamente manual: cadastrar cliente, repetir o e-mail, tentar senha incorreta, entrar, recarregar a página autenticada e sair.
+
+Para conferir o banco, execute `npm run db:init`, consulte as sete tabelas e confirme o registro em `operating_settings` e os sete dias em `weekly_operating_hours`. Execute o comando novamente e confira que registros existentes e configurações alteradas foram preservados. No MySQL, confira também rejeição de número de mesa repetido, capacidade fora de 1 a 8 e exclusão de mesa com reserva vinculada.
 
 O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 
