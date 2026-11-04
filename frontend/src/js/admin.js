@@ -15,7 +15,7 @@ import {
     validateSchedule,
     WEEK_DAYS
 } from './services/operating-hours-service.js';
-import { getReservations, getReservationsByTable, updateReservationStatus } from './services/reservations-service.js';
+import { getReservations, updateReservationStatus } from './services/reservations-service.js';
 import { getTables, removeTable, saveTable, updateTable } from './services/tables-service.js';
 import { clearMessage, escapeHtml, formatDate, setFieldInvalid, showMessage, trapFocus } from './ui.js';
 
@@ -215,11 +215,11 @@ function resetForm({ focusFirstField = false, blurActiveField = false, restorePr
 }
 
 function validateTableFormValues(formValues) {
-    if (!Number.isFinite(formValues.numero) || formValues.numero < 1) {
-        return { valid: false, message: 'Informe um número de mesa válido.', fieldId: 'numero' };
+    if (!Number.isInteger(formValues.numero) || formValues.numero < 1 || formValues.numero > 65535) {
+        return { valid: false, message: 'Informe um número de mesa inteiro entre 1 e 65535.', fieldId: 'numero' };
     }
 
-    if (!Number.isFinite(formValues.capacidade) || formValues.capacidade < 1 || formValues.capacidade > 8) {
+    if (!Number.isInteger(formValues.capacidade) || formValues.capacidade < 1 || formValues.capacidade > 8) {
         return { valid: false, message: 'A capacidade da mesa deve estar entre 1 e 8 lugares.', fieldId: 'capacidade' };
     }
 
@@ -227,8 +227,8 @@ function validateTableFormValues(formValues) {
         return { valid: false, message: 'A orientação da mesa deve ser horizontal ou vertical.' };
     }
 
-    if (!Number.isFinite(formValues.posicaoX) || !Number.isFinite(formValues.posicaoY)) {
-        return { valid: false, message: 'Informe uma posição válida para a mesa.', fieldId: !Number.isFinite(formValues.posicaoX) ? 'posicaoX' : 'posicaoY' };
+    if (!Number.isInteger(formValues.posicaoX) || !Number.isInteger(formValues.posicaoY)) {
+        return { valid: false, message: 'Informe posições inteiras para a mesa.', fieldId: !Number.isInteger(formValues.posicaoX) ? 'posicaoX' : 'posicaoY' };
     }
 
     const dimensions = getTableDimensions(formValues);
@@ -328,7 +328,7 @@ async function saveExistingTable(tableId, changes, successMessage = 'Mesa salva 
 
         return true;
     } catch (error) {
-        showMessage(adminMessage, 'Não foi possível salvar a mesa automaticamente.', 'error');
+        showMessage(adminMessage, error.message || 'Não foi possível salvar a mesa.', 'error');
         await loadData();
         return false;
     }
@@ -374,7 +374,7 @@ async function saveTablePosition(tableId, posicaoX, posicaoY) {
         showMessage(adminMessage, 'Posição da mesa salva automaticamente.');
         return true;
     } catch (error) {
-        showMessage(adminMessage, 'Não foi possível salvar a posição da mesa.', 'error');
+        showMessage(adminMessage, error.message || 'Não foi possível salvar a posição da mesa.', 'error');
         await loadData();
         return false;
     }
@@ -1114,10 +1114,13 @@ async function loadData() {
 
     try {
         tables = await getTables();
-        reservations = await getReservations();
-        messages = await getMessages();
-        operatingConfig = await getOperatingHoursConfig();
-        operatingExceptions = await getOperatingHourExceptions();
+        // A página de mesas não depende dos módulos ainda em migração.
+        if (!tableForm) {
+            reservations = await getReservations();
+            messages = await getMessages();
+            operatingConfig = await getOperatingHoursConfig();
+            operatingExceptions = await getOperatingHourExceptions();
+        }
         renderAll();
 
         if (tableForm && !document.getElementById('tableId').value) {
@@ -1211,19 +1214,12 @@ async function deleteTable(tableId) {
     clearMessage(adminMessage);
 
     try {
-        const linkedReservations = await getReservationsByTable(tableId);
-
-        if (linkedReservations.length) {
-            showMessage(adminMessage, 'Esta mesa possui reservas vinculadas e não pode ser excluída agora.', 'error');
-            return;
-        }
-
         await removeTable(tableId);
         showMessage(adminMessage, 'Mesa removida com sucesso.');
         resetForm();
         await loadData();
     } catch (error) {
-        showMessage(adminMessage, 'Não foi possível remover a mesa.', 'error');
+        showMessage(adminMessage, error.message || 'Não foi possível remover a mesa.', 'error');
     }
 }
 
@@ -1252,7 +1248,7 @@ tableForm?.addEventListener('submit', async (event) => {
         showMessage(adminMessage, 'Mesa cadastrada com sucesso.');
         await loadData();
     } catch (error) {
-        showMessage(adminMessage, 'Não foi possível salvar a mesa.', 'error');
+        showMessage(adminMessage, error.message || 'Não foi possível salvar a mesa.', 'error');
     }
 });
 

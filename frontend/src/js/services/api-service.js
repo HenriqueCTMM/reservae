@@ -28,7 +28,7 @@ export const updateById = (path, id, data) => write(path, 'update', id, data);
 export const removeById = (path, id) => write(path, 'delete', id);
 export const queryByChild = (path, field, value) => read(path, { field, value });
 
-function watch(load, onChange, onError) {
+export function watch(load, onChange, onError) {
     let stopped = false;
     let timer;
     let lastValue;

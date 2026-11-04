@@ -78,7 +78,7 @@ package-lock.json
 
 O Express entrega o frontend e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL para que os formulários acessem a API. `npm start` inicia sem o modo watch.
 
-## Etapa atual: autenticação e estrutura do banco
+## Etapa atual: autenticação e gestão de mesas
 
 - Cadastro com nome, e-mail e senha de pelo menos 6 caracteres (máximo de 72 bytes, limite do bcrypt).
 - E-mails são normalizados para minúsculas e não podem se repetir.
@@ -88,7 +88,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro, edição e exclusão de mesas. As telas de reservas, contato e administração já existem no frontend, mas ainda chamam `/api/data`, que será substituído por endpoints específicos nas próximas partes; elas ainda podem exibir mensagens de erro ao buscar esses dados após o login. A integração das telas com as novas rotas de mesas será feita nas próximas partes.
+Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro, edição e exclusão de mesas. A tela administrativa de mesas (`pages/admin.html`) está integrada a esses endpoints e carrega apenas seus próprios dados. Reservas, contato e demais telas administrativas ainda usam `/api/data` para os módulos pendentes; essas chamadas serão substituídas nas próximas partes.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -211,9 +211,15 @@ A leitura da mesa, validação, consulta de reservas e gravação usam a mesma t
 
 ID inválido ou dados não permitidos retornam 400; sessão ausente retorna 401; cliente recebe 403; mesa inexistente, inclusive uma já excluída, retorna 404. Qualquer reserva vinculada bloqueia a exclusão com 409, mesmo se for passada, cancelada ou finalizada. A consulta de vínculos e a exclusão usam a mesma transação e a trava de configuração usada na edição; a chave estrangeira também preserva o histórico no banco.
 
+### Tela administrativa de mesas
+
+Após entrar como administrador, a página Mesas permite listar, cadastrar, editar e excluir usando os endpoints acima. O arraste salva apenas a posição pelo PATCH; a rotação feita pelo botão é uma prévia até clicar em Salvar mesa. O frontend envia apenas os campos editáveis e usa os IDs numéricos em string retornados pelo MySQL. Conflitos informados pelo servidor são mostrados na tela, incluindo a impossibilidade de excluir mesa com reservas.
+
 ## Validar
 
 Validação exclusivamente manual: cadastrar cliente, repetir o e-mail, tentar senha incorreta, entrar, recarregar a página autenticada e sair.
+
+Na tela administrativa de mesas: conferir lista e mapa; criar uma mesa; editar número, capacidade e status; girar e salvar; arrastar e recarregar para conferir a posição; excluir mesa sem reservas. Conferir também mensagens de número repetido, posição inválida e bloqueio de mesa com reserva vinculada quando houver esse registro no banco. Na aba Rede do navegador, as operações de mesas devem usar `/api/tables`, sem depender de `/api/data`.
 
 Para conferir o banco, execute `npm run db:init`, consulte as sete tabelas e confirme o registro em `operating_settings` e os sete dias em `weekly_operating_hours`. Execute o comando novamente e confira que registros existentes e configurações alteradas foram preservados. No MySQL, confira também rejeição de número de mesa repetido, capacidade fora de 1 a 8 e exclusão de mesa com reserva vinculada.
 
