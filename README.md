@@ -91,7 +91,19 @@ Nesta etapa, somente os endpoints de autenticação estão implementados. As tel
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
-A inicialização pode ser repetida: tabelas existentes não são recriadas e registros/configurações salvos não são apagados nem sobrescritos. Ela não atualiza a estrutura de tabelas antigas que já existam com outro formato. Usuários de demonstração, mesas e horários de abertura serão preparados na próxima etapa.
+A inicialização pode ser repetida: tabelas existentes não são recriadas e registros/configurações salvos não são apagados nem sobrescritos. Ela não atualiza a estrutura de tabelas antigas que já existam com outro formato. Cliente de demonstração, mesas e horários de abertura serão preparados nas próximas partes.
+
+## Criar o administrador inicial
+
+Após executar `npm run db:init`, preencha `ADMIN_NAME`, `ADMIN_EMAIL` e `ADMIN_PASSWORD` em `backend/.env`. O nome pode ser omitido para usar `Administrador`. Use um e-mail que ainda não esteja cadastrado e uma senha com pelo menos 6 caracteres e no máximo 72 bytes.
+
+Execute na raiz:
+
+```sh
+npm run db:admin
+```
+
+O comando cria um usuário com perfil `admin` e senha armazenada como hash bcrypt. Use o e-mail e a senha configurados para entrar pela tela de login. Executar novamente mantém a conta existente sem trocar nome ou senha. Se o e-mail pertencer a um cliente, o comando informa o conflito e não altera seu perfil. O cadastro público continua criando apenas clientes.
 
 ## API e persistência
 

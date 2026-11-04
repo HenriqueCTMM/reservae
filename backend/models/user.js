@@ -18,4 +18,12 @@ async function create(nome, email, hashedPassword) {
     return result.insertId;
 }
 
-module.exports = { findByEmail, findById, create };
+async function createAdmin(nome, email, hashedPassword) {
+    const [result] = await pool.execute(
+        "INSERT INTO users (nome, email, password, perfil) VALUES (?, ?, ?, 'admin')",
+        [nome, email, hashedPassword]
+    );
+    return result.insertId;
+}
+
+module.exports = { findByEmail, findById, create, createAdmin };

@@ -8,6 +8,7 @@
     "dev": "npm run dev --workspace backend",
     "start": "npm start --workspace backend",
     "db:init": "npm run db:init --workspace backend",
+    "db:admin": "npm run db:admin --workspace backend",
     "test": "npm test --workspace backend"
   },
   "keywords": [],
