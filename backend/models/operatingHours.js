@@ -1,5 +1,12 @@
 const pool = require('../config/database');
 
+const EXCEPTION_FIELDS = `DATE_FORMAT(data, '%Y-%m-%d') AS data, aberto, motivo,
+    TIME_FORMAT(inicio_turno_1, '%H:%i') AS inicio_turno_1,
+    TIME_FORMAT(fim_turno_1, '%H:%i') AS fim_turno_1,
+    TIME_FORMAT(inicio_turno_2, '%H:%i') AS inicio_turno_2,
+    TIME_FORMAT(fim_turno_2, '%H:%i') AS fim_turno_2,
+    UNIX_TIMESTAMP(updated_at) * 1000 AS updated_at_ms`;
+
 async function findWeekly(connection = pool) {
     const [rows] = await connection.execute(`
         SELECT settings.min_advance_minutes, settings.slot_interval_minutes,
@@ -22,16 +29,48 @@ async function findWeekly(connection = pool) {
 
 async function findExceptions() {
     const [rows] = await pool.execute(`
-        SELECT DATE_FORMAT(data, '%Y-%m-%d') AS data, aberto, motivo,
-            TIME_FORMAT(inicio_turno_1, '%H:%i') AS inicio_turno_1,
-            TIME_FORMAT(fim_turno_1, '%H:%i') AS fim_turno_1,
-            TIME_FORMAT(inicio_turno_2, '%H:%i') AS inicio_turno_2,
-            TIME_FORMAT(fim_turno_2, '%H:%i') AS fim_turno_2,
-            UNIX_TIMESTAMP(updated_at) * 1000 AS updated_at_ms
+        SELECT ${EXCEPTION_FIELDS}
         FROM operating_exceptions
         ORDER BY data
     `);
     return rows;
+}
+
+async function findException(date, connection) {
+    const [rows] = await connection.execute(`SELECT ${EXCEPTION_FIELDS} FROM operating_exceptions WHERE data = ?`, [date]);
+    return rows[0];
+}
+
+async function findReservationsForDate(date, now, connection) {
+    const [rows] = await connection.execute(`
+        SELECT table_data.numero,
+            TIME_FORMAT(reservation.horario, '%H:%i') AS horario,
+            TIME_FORMAT(reservation.fim_previsto, '%H:%i') AS fim_previsto
+        FROM reservations AS reservation
+        JOIN tables AS table_data ON table_data.id = reservation.mesa_id
+        WHERE reservation.data = ? AND reservation.status = 'ativa'
+            AND TIMESTAMP(reservation.data, reservation.fim_previsto) > ?
+        ORDER BY reservation.horario, reservation.id
+    `, [date, now]);
+    return rows;
+}
+
+async function saveException(date, schedule, connection) {
+    const [first, second] = schedule.shifts;
+    const values = [schedule.open, schedule.reason,
+        first ? first.start : null, first ? first.end : null,
+        second ? second.start : null, second ? second.end : null];
+    await connection.execute(`
+        INSERT INTO operating_exceptions
+            (data, aberto, motivo, inicio_turno_1, fim_turno_1, inicio_turno_2, fim_turno_2)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE aberto = ?, motivo = ?, inicio_turno_1 = ?, fim_turno_1 = ?,
+            inicio_turno_2 = ?, fim_turno_2 = ?, updated_at = CURRENT_TIMESTAMP
+    `, [date, ...values, ...values]);
+}
+
+async function removeException(date, connection) {
+    await connection.execute('DELETE FROM operating_exceptions WHERE data = ?', [date]);
 }
 
 async function lockSettings(connection) {
@@ -116,4 +155,7 @@ async function seedWeeklyDefaults(defaultDays) {
     }
 }
 
-module.exports = { findWeekly, findExceptions, lockSettings, findReservationsWithoutException, updateWeekly, seedWeeklyDefaults };
+module.exports = {
+    findWeekly, findExceptions, findException, findReservationsForDate, saveException, removeException,
+    lockSettings, findReservationsWithoutException, updateWeekly, seedWeeklyDefaults
+};

@@ -1,13 +1,4 @@
-import {
-    createTimestamp,
-    getCollection,
-    request,
-    removeById,
-    setById
-} from './api-service.js';
-
-const OPERATING_HOURS_PATH = 'operatingHours';
-const OPERATING_EXCEPTIONS_PATH = `${OPERATING_HOURS_PATH}/exceptions`;
+import { request } from './api-service.js';
 const MIN_ADVANCE_MINUTES = 180;
 const SLOT_INTERVAL_MINUTES = 30;
 const CLOSED_DATE_MESSAGE = 'O restaurante não estará em funcionamento nesta data. Escolha outra data.';
@@ -167,24 +158,19 @@ export async function saveOperatingHoursConfig(config) {
 }
 
 export async function getOperatingHourExceptions() {
-    const exceptions = await getCollection(OPERATING_EXCEPTIONS_PATH);
-
-    return exceptions.sort((a, b) => a.date.localeCompare(b.date));
+    return request('/operating-hours/exceptions');
 }
 
 export async function saveOperatingHourException(exception) {
-    const normalizedException = {
-        date: exception.date,
-        reason: exception.reason || '',
-        ...normalizeSchedule(exception),
-        updatedAt: createTimestamp()
-    };
-
-    return setById(OPERATING_EXCEPTIONS_PATH, normalizedException.date, normalizedException);
+    const data = { open: exception.open, shifts: exception.shifts };
+    if (Object.hasOwn(exception, 'reason')) data.reason = exception.reason;
+    return request(`/operating-hours/exceptions/${encodeURIComponent(exception.date)}`, {
+        method: 'PUT', body: JSON.stringify(data)
+    });
 }
 
 export async function removeOperatingHourException(date) {
-    return removeById(OPERATING_EXCEPTIONS_PATH, date);
+    return request(`/operating-hours/exceptions/${encodeURIComponent(date)}`, { method: 'DELETE' });
 }
 
 export function getScheduleForDate(date, config, exceptions = []) {
@@ -299,12 +285,4 @@ export function hasReservationConflictForPeriod({ mesaId, data, horario, pessoas
     });
 }
 
-export function hasReservationOutsideSchedule(reservations, config, exceptions = []) {
-    return reservations.find((reservation) => {
-        const durationMinutes = Number(reservation.duracaoMinutos || getReservationDurationMinutes(reservation.pessoas));
-
-        return !isReservationPeriodInsideOperatingSchedule(reservation.data, reservation.horario, durationMinutes, config, exceptions);
-    }) || null;
-}
-
-export { OPERATING_HOURS_PATH, OPERATING_EXCEPTIONS_PATH, CLOSED_DATE_MESSAGE, WEEK_DAYS };
+export { CLOSED_DATE_MESSAGE, WEEK_DAYS };

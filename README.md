@@ -88,7 +88,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados os endpoints de autenticação, listagem, cadastro, edição e exclusão de mesas, consulta/gravação de horários semanais e consulta de exceções por data. A tela administrativa de mesas (`pages/admin.html`) e a programação semanal em Configurações (`pages/admin-configuracoes.html`) estão integradas às respectivas APIs e carregam seus próprios dados. A consulta de exceções está disponível na API; gravação, exclusão e integração à tela serão feitas nas próximas partes do M08. A área de exceções em Configurações continua identificada como pendente. Reservas, contato e demais módulos administrativos ainda dependem da migração de `/api/data`.
+Nesta etapa, estão implementados os endpoints de autenticação, listagem/cadastro/edição/exclusão de mesas, consulta/gravação de horários semanais e consulta/gravação/exclusão de exceções por data. A tela administrativa de mesas (`pages/admin.html`) e Configurações (`pages/admin-configuracoes.html`) estão integradas às respectivas APIs. Configurações carrega somente a semana e as exceções, sem depender de reservas ou mensagens. Reservas, contato e demais módulos administrativos ainda dependem da migração de `/api/data`.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -158,6 +158,8 @@ A carga só preenche a programação se os sete dias ainda estiverem no estado i
 - `GET /api/operating-hours`: consulta de configurações e horários semanais para cliente ou administrador autenticado.
 - `PUT /api/operating-hours`: substituição dos sete dias da semana, exclusiva para administrador.
 - `GET /api/operating-hours/exceptions`: listagem de exceções por data para cliente ou administrador autenticado.
+- `PUT /api/operating-hours/exceptions/:date`: criação ou substituição de exceção por data, exclusiva para administrador.
+- `DELETE /api/operating-hours/exceptions/:date`: remoção de exceção por data, exclusiva para administrador.
 
 O cadastro recebe `{ nome, email, senha }`; o login recebe `{ email, senha }`. Erros retornam JSON com `message` e status HTTP apropriado (400 para dados inválidos, 401 para credenciais/sessão inválidas, 409 para e-mail duplicado).
 
@@ -167,7 +169,7 @@ Como no projeto de aula, sessões ficam na memória do servidor e são encerrada
 
 A sessão agora é compartilhada por toda a API. Cadastro e login continuam públicos; a consulta `/api/auth/me` e as demais rotas de dados exigem autenticação. O middleware `requireAuth` consulta o usuário no MySQL e disponibiliza `req.user` sem o hash da senha. Sessão ausente ou usuário removido resulta em 401; nesse último caso, a sessão também é encerrada.
 
-O middleware `requireProfile` é aplicado após `requireAuth`: cadastro, edição e exclusão de mesas e gravação de horários exigem `requireProfile('admin')` e retornam 403 para clientes. As próximas rotas poderão exigir perfil de administrador ou cliente da mesma forma. Perfil e identidade enviados no corpo ou guardados no navegador não concedem acesso. As respostas da API recebem `Cache-Control: no-store`.
+O middleware `requireProfile` é aplicado após `requireAuth`: cadastro, edição e exclusão de mesas, gravação de horários e gravação/exclusão de exceções exigem `requireProfile('admin')` e retornam 403 para clientes. As próximas rotas poderão exigir perfil de administrador ou cliente da mesma forma. Perfil e identidade enviados no corpo ou guardados no navegador não concedem acesso. As respostas da API recebem `Cache-Control: no-store`.
 
 ### Listagem de mesas
 
@@ -240,15 +242,31 @@ A trava de `operating_settings.id = 1`, leitura das reservas, gravação dos set
 
 `GET /api/operating-hours/exceptions` retorna um array ordenado por data crescente, incluindo datas passadas e futuras. Sem registros, retorna `[]`. Cada exceção contém `id` e `date` como a mesma string `YYYY-MM-DD`, `open` booleano, `shifts`, `reason` e `updatedAt` numérico em milissegundos. Dias fechados retornam `shifts: []`; dias abertos retornam um ou dois turnos com `start` e `end` em `HH:mm`. Motivo não preenchido é uma string vazia.
 
-O sucesso retorna 200; parâmetros de query retornam 400; sessão ausente ou encerrada retorna 401. A consulta lê somente as exceções salvas, sem combinar a programação semanal ou gerar registros padrão. A regra de precedência das exceções será aplicada pelos fluxos de funcionamento e reservas; este endpoint apenas lista seus dados.
+O sucesso retorna 200; parâmetros de query retornam 400; sessão ausente ou encerrada retorna 401. A consulta lê somente as exceções salvas, sem combinar a programação semanal ou gerar registros padrão. A precedência da exceção é aplicada nas alterações administrativas e no cálculo de horários da tela do cliente; este endpoint apenas lista seus dados.
+
+### Gravação e exclusão de exceções
+
+`PUT /api/operating-hours/exceptions/:date` cria ou substitui a exceção da data da URL. Aceita datas reais em `YYYY-MM-DD`, entre os anos 1000 e 9999, inclusive passadas. Recebe somente `open` booleano, `shifts` e `reason` opcional, texto de até 120 caracteres (padrão `""`). As regras de turnos são as mesmas da semana. Exemplo:
+
+```json
+{ "open": true, "shifts": [{ "start": "11:15", "end": "16:00" }], "reason": "Horário especial" }
+```
+
+Retorna 200 tanto ao criar quanto ao substituir, com a exceção completa no formato do GET. A data identifica o registro: salvar novamente não duplica; campos omitidos não são preservados numa substituição, então omitir `reason` limpa o motivo. `id`, `date` e `updatedAt` não são aceitos no corpo. Query, data ou corpo inválidos retornam 400; sem sessão, 401; cliente, 403. A exceção substitui a semana nessa data, inclusive para abrir um dia semanalmente fechado.
+
+`DELETE /api/operating-hours/exceptions/:date` recebe somente a data na URL, sem query ou dados no corpo. Retorna 200 com `{ "message": "Exceção removida com sucesso." }`; se a exceção não existe ou já foi excluída, retorna 404. Datas/dados inválidos retornam 400; sem sessão, 401; cliente, 403. Após a remoção, volta a valer a programação semanal.
+
+As duas operações usam a trava de `operating_settings.id = 1` como primeira leitura da transação. Consultas, validação das reservas e gravação/exclusão usam a mesma conexão. Reservas ativas com término ainda futuro, inclusive em andamento no fuso `America/Sao_Paulo`, devem caber por inteiro em um único turno. O PUT verifica a exceção proposta; o DELETE verifica a programação semanal que voltará a valer. Incompatibilidade retorna 409 com data e mesa, preservando os dados. Reservas passadas ou com status definitivo não bloqueiam. A operação não altera a semana nem o histórico das reservas.
 
 ### Tela administrativa de horários
 
-Em Configurações, a programação semanal usa somente GET e PUT em `/api/operating-hours`. A página carrega os sete dias salvos, sem consultar mesas, reservas, mensagens ou exceções. O formulário fica desabilitado até o carregamento terminar com sucesso; em caso de falha, é possível tentar novamente pelo botão Recarregar horários. Não são exibidos horários de demonstração como substituição de uma falha da API.
+Em Configurações, a programação semanal usa GET e PUT em `/api/operating-hours`; as exceções usam GET, PUT e DELETE em `/api/operating-hours/exceptions`. Semana e exceções carregam independentemente, com mensagens e botões Recarregar próprios. Cada formulário fica desabilitado até seu carregamento terminar com sucesso. Uma falha não é apresentada como programação padrão ou lista vazia, nem impede o outro formulário de carregar.
 
 Ao salvar, o frontend envia `weekly` com os campos do formulário e usa a configuração retornada pelo servidor. Os controles ficam desabilitados durante a gravação. A validação local auxilia o preenchimento; a decisão sobre reservas é do backend. Mensagens de erro da API, incluindo conflitos com data e mesa, aparecem na tela e preservam os valores digitados para correção. Os turnos aceitam precisão de um minuto; o intervalo de 30 minutos se refere aos horários ofertados para reserva.
 
-O serviço de consulta compartilhado com a tela do cliente também usa o novo GET. O fluxo completo de reservas ainda depende dos próximos módulos, incluindo as exceções por data.
+As exceções podem ser criadas, editadas, fechadas e excluídas pela tela. O formulário é limpo somente após salvar com sucesso; falhas preservam os valores digitados. A lista é atualizada pela resposta do servidor e os controles ficam desabilitados durante cada operação. A data identifica o registro: mudar a data no formulário salva outra exceção, sem mover a anterior. A exclusão não depende de carregar reservas pelo navegador: sua proteção é aplicada no servidor.
+
+Os serviços compartilhados com a tela do cliente consultam semana e exceções pela nova API. A exceção tem prioridade na exibição dos horários; ao removê-la, a semana volta a valer. O fluxo completo de disponibilidade e criação de reservas ainda depende dos próximos módulos.
 
 ## Validar
 
@@ -285,11 +303,20 @@ Para conferir a consulta de exceções, use um cliente HTTP manual em um banco d
 
 Na tela Configurações, conferir manualmente no navegador:
 
-1. Entrar como administrador e abrir a página. Na aba Rede, confirmar que o carregamento usa `/api/auth/me` e GET `/api/operating-hours`, sem requisições a `/api/data` ou a outros módulos. Conferir os sete dias e os valores salvos.
+1. Entrar como administrador e abrir a página. Na aba Rede, confirmar que o carregamento usa `/api/auth/me`, GET `/api/operating-hours` e GET `/api/operating-hours/exceptions`, sem requisições a `/api/data` ou a outros módulos. Conferir os sete dias, a lista de exceções e os valores salvos.
 2. Alterar um dia para fechado, outro para um turno e outro para dois turnos. Salvar e conferir o PUT, a mensagem de sucesso e a persistência após recarregar. Experimentar um turno iniciado às 11:15.
 3. Preencher um turno incompleto, horários invertidos ou sobrepostos; conferir a mensagem local. Com uma reserva ativa futura preparada no banco, tentar fechar seu dia e conferir a mensagem 409 do backend com data/mesa. Os valores digitados devem permanecer para correção.
 4. Durante o carregamento e a gravação, conferir os controles desabilitados. Em uma falha inicial, nenhum horário padrão deve aparecer e Salvar deve continuar desabilitado. Restabelecer a API e clicar em Recarregar horários para recuperar o formulário.
-5. Encerrar a sessão em outra aba e tentar salvar; conferir a mensagem de sessão inválida. Conferir também que a área de exceções está desabilitada e informa a etapa pendente.
+5. Criar um fechamento, editar para um ou dois turnos e recarregar a página. Conferir o botão Editar, o preenchimento do formulário, motivo, persistência e exclusão. Conferir na tela do cliente os horários calculados com a exceção e, após excluí-la, com a semana.
+6. Tentar alterar ou excluir uma exceção que protege uma reserva futura; conferir 409 com data/mesa, valores digitados e registro preservados. Encerrar a sessão em outra aba e tentar salvar/excluir; conferir a mensagem de sessão inválida. Simular falha em apenas uma das consultas e conferir que o outro formulário carrega e que Recarregar recupera a área afetada.
+
+Para conferir PUT e DELETE de exceções em um cliente HTTP manual:
+
+1. Sem sessão, conferir 401 em ambos; como cliente, 403. Como administrador, criar e substituir a mesma data, conferir 200 e ausência de duplicação pelo GET/SQL. Salvar com motivo omitido e conferir `reason: ""` e limpeza do segundo turno quando ele não for enviado.
+2. Conferir 400 para datas inexistentes, formato incompleto, anos fora do intervalo, corpo vazio/lista, booleano inválido, turnos incompletos/invertidos/sobrepostos, mais de dois turnos, `24:00`, motivo não textual ou acima de 120 caracteres, campos extras e query. No DELETE, rejeitar corpo não vazio e lista. Datas bissextas válidas devem funcionar; repetição de DELETE retorna 404.
+3. Preparar no MySQL reservas ativas futuras e em andamento. Tentar fechamento ou turno insuficiente pelo PUT e conferir 409 sem mudança. Reservas nos limites exatos de um único turno devem permitir salvar; uma permanência dividida entre dois turnos não deve permitir. Reservas passadas, canceladas, finalizadas ou de outra data não devem bloquear.
+4. Abrir uma exceção em domingo fechado e preparar uma reserva nessa data. DELETE deve retornar 409; uma exceção cuja reserva cabe na semana deve permitir 200. Após exclusão, conferir retorno à programação semanal e preservação do histórico no MySQL.
+5. Em outra conexão, manter a trava de configuração numa transação aberta; enviar PUT/DELETE e inserir uma reserva antes do COMMIT. A requisição deve aguardar a liberação e considerar a reserva confirmada. Em erro SQL provocado em banco de conferência, a exceção anterior deve permanecer intacta.
 
 O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 

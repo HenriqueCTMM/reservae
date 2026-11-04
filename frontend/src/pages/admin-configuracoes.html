@@ -67,18 +67,21 @@
                 </form>
 
                 <div class="space-y-4">
-                    <p class="text-sm text-slate-500">Exceções por data: integração disponível na próxima etapa (M08).</p>
+                    <p class="text-sm text-slate-500">Uma exceção substitui o funcionamento semanal na data escolhida. Ao excluí-la, volta a valer a programação semanal.</p>
+                    <div id="exceptionsMessage" class="hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true"></div>
+                    <button id="reloadExceptionsButton" type="button"
+                        class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 disabled:opacity-50">Recarregar exceções</button>
                     <form id="exceptionForm" class="space-y-4 rounded-2xl border border-slate-200 p-3"
                         aria-label="Exceção de funcionamento">
-                        <fieldset class="space-y-4" disabled>
-                        <legend class="sr-only">Exceção de funcionamento — integração pendente</legend>
+                        <fieldset id="exceptionControls" class="space-y-4" disabled>
+                        <legend class="sr-only">Exceção de funcionamento</legend>
                         <div>
                             <label for="exceptionDate" class="mb-1 block text-sm font-medium">Data da exceção</label>
-                            <input id="exceptionDate" type="date" aria-describedby="exceptionDateHelp"
+                            <input id="exceptionDate" type="date" min="1000-01-01" max="9999-12-31" aria-describedby="exceptionDateHelp"
                                 class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                                 required />
                             <p id="exceptionDateHelp" class="app-help-text mt-1">Escolha a data que terá funcionamento
-                                diferente do padrão semanal.</p>
+                                diferente do padrão semanal. A data identifica a exceção; salvar outra data cria ou substitui outro registro.</p>
                         </div>
                         <div>
                             <label for="exceptionOpen" class="mb-1 block text-sm font-medium">Funcionamento</label>
@@ -94,25 +97,25 @@
                             <div>
                                 <label for="exceptionShift1Start" class="mb-1 block text-sm font-medium">Turno 1
                                     início</label>
-                                <input id="exceptionShift1Start" type="time" step="1800"
+                                <input id="exceptionShift1Start" type="time" step="60"
                                     class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
                             </div>
                             <div>
                                 <label for="exceptionShift1End" class="mb-1 block text-sm font-medium">Turno 1
                                     fim</label>
-                                <input id="exceptionShift1End" type="time" step="1800"
+                                <input id="exceptionShift1End" type="time" step="60"
                                     class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
                             </div>
                             <div>
                                 <label for="exceptionShift2Start" class="mb-1 block text-sm font-medium">Turno 2
                                     início</label>
-                                <input id="exceptionShift2Start" type="time" step="1800"
+                                <input id="exceptionShift2Start" type="time" step="60"
                                     class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
                             </div>
                             <div>
                                 <label for="exceptionShift2End" class="mb-1 block text-sm font-medium">Turno 2
                                     fim</label>
-                                <input id="exceptionShift2End" type="time" step="1800"
+                                <input id="exceptionShift2End" type="time" step="60"
                                     class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
                             </div>
                         </div>
@@ -137,7 +140,7 @@
 
                     <div>
                         <h3 class="mb-3 font-bold">Exceções cadastradas</h3>
-                        <div id="exceptionsList" class="space-y-3 text-sm text-slate-500" aria-live="polite">Consulta de exceções disponível na próxima etapa.</div>
+                        <div id="exceptionsList" class="space-y-3" aria-live="polite">Carregando exceções...</div>
                     </div>
                 </div>
             </div>

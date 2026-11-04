@@ -5,7 +5,6 @@ import {
     getOperatingHourExceptions,
     getOperatingHoursConfig,
     getReservationPeriod,
-    hasReservationOutsideSchedule,
     normalizeSchedule,
     removeOperatingHourException,
     saveOperatingHourException,
@@ -58,6 +57,9 @@ const weeklyHoursFields = document.getElementById('weeklyHoursFields');
 const weeklyHoursControls = document.getElementById('weeklyHoursControls');
 const reloadOperatingHoursButton = document.getElementById('reloadOperatingHoursButton');
 const exceptionForm = document.getElementById('exceptionForm');
+const exceptionControls = document.getElementById('exceptionControls');
+const exceptionsMessage = document.getElementById('exceptionsMessage');
+const reloadExceptionsButton = document.getElementById('reloadExceptionsButton');
 const exceptionDate = document.getElementById('exceptionDate');
 const exceptionOpen = document.getElementById('exceptionOpen');
 const exceptionShift1Start = document.getElementById('exceptionShift1Start');
@@ -76,6 +78,8 @@ let reservations = [];
 let messages = [];
 let operatingConfig = null;
 let operatingExceptions = [];
+let exceptionsReady = false;
+let exceptionsBusy = false;
 let ignoreMapClickAfterDrag = false;
 let editingTableSnapshot = null;
 const MAP_WIDTH = 800;
@@ -891,10 +895,6 @@ function renderMessages() {
     });
 }
 
-function getActiveReservations() {
-    return reservations.filter((reservation) => reservation.status === 'ativa');
-}
-
 function getShiftValue(day, shiftIndex, field) {
     return document.getElementById(`weekly-${day}-${shiftIndex}-${field}`).value;
 }
@@ -1019,12 +1019,14 @@ function validateOperatingConfig(config) {
 function collectException() {
     return {
         date: exceptionDate.value,
-        open: exceptionOpen.value === 'true',
         reason: exceptionReason.value.trim(),
-        shifts: [
-            { start: exceptionShift1Start.value, end: exceptionShift1End.value },
-            { start: exceptionShift2Start.value, end: exceptionShift2End.value }
-        ]
+        ...normalizeSchedule({
+            open: exceptionOpen.value === 'true',
+            shifts: [
+                { start: exceptionShift1Start.value, end: exceptionShift1End.value },
+                { start: exceptionShift2Start.value, end: exceptionShift2End.value }
+            ]
+        })
     };
 }
 
@@ -1051,19 +1053,6 @@ function fillExceptionForm(date) {
     exceptionShift2End.value = secondShift.end;
     exceptionReason.value = exception.reason || '';
     exceptionDate.focus();
-}
-
-function findReservationAffectedBySchedule(config, exceptions) {
-    return hasReservationOutsideSchedule(getActiveReservations(), config, exceptions);
-}
-
-async function refreshReservationsForOperatingHours() {
-    reservations = await getReservations();
-    renderReservations();
-}
-
-function showAffectedReservationMessage(prefix, reservation) {
-    showMessage(adminMessage, `${prefix} Existe reserva ativa em ${formatDate(reservation.data)} às ${reservation.horario} para a Mesa ${reservation.mesaNumero || '-'}.`, 'error');
 }
 
 function fillForm(tableId, { focusForm = true } = {}) {
@@ -1118,9 +1107,35 @@ async function loadOperatingHours() {
     }
 }
 
+function setExceptionsBusy(busy) {
+    exceptionsBusy = busy;
+    exceptionControls.disabled = busy || !exceptionsReady;
+    reloadExceptionsButton.disabled = busy;
+    exceptionsList.querySelectorAll('button').forEach((button) => {
+        button.disabled = busy || !exceptionsReady;
+    });
+}
+
+async function loadExceptions() {
+    clearMessage(exceptionsMessage);
+    exceptionsReady = false;
+    setExceptionsBusy(true);
+    exceptionsList.textContent = 'Carregando exceções...';
+    try {
+        operatingExceptions = await getOperatingHourExceptions();
+        exceptionsReady = true;
+        renderExceptions();
+    } catch (error) {
+        exceptionsList.textContent = 'Exceções não carregadas. Clique em Recarregar exceções para tentar novamente.';
+        showMessage(exceptionsMessage, error.message || 'Não foi possível carregar as exceções.', 'error');
+    } finally {
+        setExceptionsBusy(false);
+    }
+}
+
 async function loadData() {
     if (weeklyHoursForm) {
-        await loadOperatingHours();
+        await Promise.all([loadOperatingHours(), loadExceptions()]);
         return;
     }
     if (restaurantMap) {
@@ -1416,17 +1431,19 @@ weeklyHoursForm?.addEventListener('submit', async (event) => {
 });
 
 reloadOperatingHoursButton?.addEventListener('click', loadOperatingHours);
+reloadExceptionsButton?.addEventListener('click', loadExceptions);
 
 exceptionForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
-    clearMessage(adminMessage);
+    if (!exceptionsReady || exceptionsBusy) return;
+    clearMessage(exceptionsMessage);
     exceptionForm.querySelectorAll('input, select').forEach((field) => setFieldInvalid(field, false));
 
     const nextException = collectException();
 
     if (!nextException.date) {
         setFieldInvalid(exceptionDate);
-        showMessage(adminMessage, 'Informe a data da exceção.', 'error');
+        showMessage(exceptionsMessage, 'Informe a data da exceção.', 'error');
         return;
     }
 
@@ -1434,47 +1451,32 @@ exceptionForm?.addEventListener('submit', async (event) => {
 
     if (!validation.valid) {
         setFieldInvalid(exceptionForm.querySelector('input[type="time"]'));
-        showMessage(adminMessage, validation.message, 'error');
+        showMessage(exceptionsMessage, validation.message, 'error');
         return;
     }
 
-    const nextExceptions = [
-        ...operatingExceptions.filter((exception) => exception.date !== nextException.date),
-        normalizeSchedule(nextException).open
-            ? { ...nextException, ...normalizeSchedule(nextException) }
-            : { ...nextException, open: false, shifts: [] }
-    ];
-
+    setExceptionsBusy(true);
     try {
-        await refreshReservationsForOperatingHours();
-    } catch (error) {
-        showMessage(adminMessage, 'Não foi possível conferir reservas ativas antes de salvar.', 'error');
-        return;
-    }
-
-    const affectedReservation = findReservationAffectedBySchedule(operatingConfig, nextExceptions);
-
-    if (affectedReservation) {
-        showAffectedReservationMessage(`Não foi possível alterar ${formatDate(nextException.date)}.`, affectedReservation);
-        return;
-    }
-
-    try {
-        await saveOperatingHourException(nextException);
-        operatingExceptions = await getOperatingHourExceptions();
+        const saved = await saveOperatingHourException(nextException);
+        operatingExceptions = [...operatingExceptions.filter((exception) => exception.date !== saved.date), saved]
+            .sort((a, b) => a.date.localeCompare(b.date));
         resetExceptionForm();
         renderExceptions();
-        showMessage(adminMessage, 'Exceção salva com sucesso.');
+        showMessage(exceptionsMessage, 'Exceção salva com sucesso.');
     } catch (error) {
-        showMessage(adminMessage, 'Não foi possível salvar a exceção.', 'error');
+        showMessage(exceptionsMessage, error.message || 'Não foi possível salvar a exceção.', 'error');
+    } finally {
+        setExceptionsBusy(false);
     }
 });
 
 clearExceptionFormButton?.addEventListener('click', () => {
     resetExceptionForm();
+    clearMessage(exceptionsMessage);
 });
 
 exceptionsList?.addEventListener('click', async (event) => {
+    if (!exceptionsReady || exceptionsBusy) return;
     const editButton = event.target.closest('[data-edit-exception]');
     const deleteButton = event.target.closest('[data-delete-exception]');
 
@@ -1488,29 +1490,18 @@ exceptionsList?.addEventListener('click', async (event) => {
     }
 
     const date = deleteButton.dataset.deleteException;
-    const nextExceptions = operatingExceptions.filter((exception) => exception.date !== date);
-
-    try {
-        await refreshReservationsForOperatingHours();
-    } catch (error) {
-        showMessage(adminMessage, 'Não foi possível conferir reservas ativas antes de excluir.', 'error');
-        return;
-    }
-
-    const affectedReservation = findReservationAffectedBySchedule(operatingConfig, nextExceptions);
-
-    if (affectedReservation) {
-        showAffectedReservationMessage(`Não foi possível excluir a exceção de ${formatDate(date)}.`, affectedReservation);
-        return;
-    }
-
+    clearMessage(exceptionsMessage);
+    setExceptionsBusy(true);
     try {
         await removeOperatingHourException(date);
-        operatingExceptions = await getOperatingHourExceptions();
+        operatingExceptions = operatingExceptions.filter((exception) => exception.date !== date);
+        if (exceptionDate.value === date) resetExceptionForm();
         renderExceptions();
-        showMessage(adminMessage, 'Exceção removida com sucesso.');
+        showMessage(exceptionsMessage, 'Exceção removida com sucesso.');
     } catch (error) {
-        showMessage(adminMessage, 'Não foi possível remover a exceção.', 'error');
+        showMessage(exceptionsMessage, error.message || 'Não foi possível remover a exceção.', 'error');
+    } finally {
+        setExceptionsBusy(false);
     }
 });
 

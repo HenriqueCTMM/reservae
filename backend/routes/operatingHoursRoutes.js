@@ -8,6 +8,8 @@ module.exports = function createOperatingHoursRoutes(OperatingHours, requireProf
     router.get('/', operatingHoursController.getOperatingHours);
     router.get('/exceptions', operatingHoursController.getExceptions);
     router.put('/', requireProfile('admin'), operatingHoursController.putOperatingHours);
+    router.put('/exceptions/:date', requireProfile('admin'), operatingHoursController.putException);
+    router.delete('/exceptions/:date', requireProfile('admin'), operatingHoursController.deleteException);
 
     return router;
 };
