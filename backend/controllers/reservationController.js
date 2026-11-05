@@ -36,6 +36,19 @@ function publicReservation(reservation) {
 
 module.exports = function createReservationController(Reservation) {
     return {
+        async getMyReservations(req, res, next) {
+            // Conferir o transporte também rejeita {} e corpos que não sejam JSON.
+            if (Object.keys(req.query).length
+                || req.get('Transfer-Encoding') !== undefined || Number(req.get('Content-Length') || 0) > 0) {
+                return res.status(400).json({ message: 'A consulta de suas reservas não aceita filtros ou dados no corpo.' });
+            }
+            try {
+                const reservations = await Reservation.findByUser(req.user.id);
+                res.json(reservations.map(publicReservation));
+            } catch (error) {
+                next(error);
+            }
+        },
         async createReservation(req, res, next) {
             if (Object.keys(req.query).length) {
                 return res.status(400).json({ message: 'A criação de reserva não aceita parâmetros de consulta.' });

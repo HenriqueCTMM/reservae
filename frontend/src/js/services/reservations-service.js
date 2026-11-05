@@ -28,9 +28,8 @@ export async function getReservationById(reservationId) {
     return getById(RESERVATIONS_PATH, reservationId);
 }
 
-export async function getReservationsByUser(usuarioId) {
-    const reservations = await queryByChild(RESERVATIONS_PATH, 'usuarioId', usuarioId);
-    return reservations.sort((a, b) => `${a.data} ${a.horario}`.localeCompare(`${b.data} ${b.horario}`));
+export async function getMyReservations() {
+    return request('/reservations/mine');
 }
 
 export async function getReservationsByDate(data) {

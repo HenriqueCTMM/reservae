@@ -30,7 +30,7 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Autenticação, mesas, funcionamento, disponibilidade e criação de reservas
+  controllers/         # Autenticação, mesas, funcionamento, disponibilidade e reservas do cliente
   models/              # Consultas SQL por recurso
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Endpoints e permissões por recurso
@@ -79,7 +79,7 @@ package-lock.json
 
 O Express entrega o frontend e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL para que os formulários acessem a API. `npm start` inicia sem o modo watch.
 
-## Etapa atual: autenticação, mesas, funcionamento, disponibilidade e criação de reservas
+## Etapa atual: autenticação, mesas, funcionamento e reservas do cliente
 
 - Cadastro com nome, e-mail e senha de pelo menos 6 caracteres (máximo de 72 bytes, limite do bcrypt).
 - E-mails são normalizados para minúsculas e não podem se repetir.
@@ -89,7 +89,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, consulta de disponibilidade e criação transacional de reservas. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`) e a seleção/confirmação em Reservas (`pages/reservas.html`) estão integradas às respectivas APIs. API e serviços foram conferidos manualmente; a validação visual dessas telas ainda está pendente. Histórico de reservas, contato e demais módulos administrativos ainda dependem da migração de `/api/data`.
+Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, consulta de disponibilidade, criação transacional de reservas e histórico do próprio cliente. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`), seleção/confirmação em Reservas (`pages/reservas.html`) e Minhas reservas (`pages/minhas-reservas.html`) estão integradas às respectivas APIs. API e serviços foram conferidos manualmente; a validação visual dessas telas ainda está pendente. Contato e demais módulos administrativos ainda dependem da migração de `/api/data`.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -309,7 +309,15 @@ Todos os campos são obrigatórios. `mesaId` é uma string decimal positiva até
 
 O controller inicia uma transação e sua primeira leitura é `SELECT id FROM operating_settings WHERE id = 1 FOR UPDATE`, a trava comum às alterações de disponibilidade. Depois bloqueia a mesa, consulta o funcionamento e revalida os slots com o relógio de São Paulo atualizado após a espera. Consulta conflitos, insere e lê a resposta pela mesma conexão antes do commit. Falhas desfazem a operação e a conexão é sempre liberada. Duas criações conflitantes são serializadas: apenas uma confirma. Períodos encostados continuam permitidos.
 
-Na tela, Confirmar reserva só fica habilitado com filtros completos e uma mesa disponível selecionada. Durante o envio, filtros, seleção e recarga ficam bloqueados, o botão mostra “Confirmando reserva...” e o acompanhamento de disponibilidade é cancelado. Novos envios são ignorados enquanto o primeiro aguarda resposta. Sucesso exibe mesa/data/período/pessoas retornados pela API; rejeição exibe a mensagem do servidor. Nos dois casos a seleção é limpa e a disponibilidade é consultada novamente, sem repetir automaticamente o POST. Histórico e gestão de reservas seguem pendentes do M11/M12.
+Na tela, Confirmar reserva só fica habilitado com filtros completos e uma mesa disponível selecionada. Durante o envio, filtros, seleção e recarga ficam bloqueados, o botão mostra “Confirmando reserva...” e o acompanhamento de disponibilidade é cancelado. Novos envios são ignorados enquanto o primeiro aguarda resposta. Sucesso exibe mesa/data/período/pessoas retornados pela API; rejeição exibe a mensagem do servidor. Nos dois casos a seleção é limpa e a disponibilidade é consultada novamente, sem repetir automaticamente o POST. A gestão administrativa de reservas segue pendente do M12.
+
+### Minhas reservas — M11
+
+`GET /api/reservations/mine` é exclusivo de cliente autenticado. Não recebe corpo nem filtros; qualquer parâmetro de query, inclusive `usuarioId`, retorna 400. Corpos enviados como JSON (inclusive `{}`/`[]`) ou outro tipo de conteúdo também são rejeitados. Sem sessão retorna 401; administrador recebe 403.
+
+A resposta 200 é um array com os mesmos objetos completos de Reserva retornados na criação, limitado por `usuario_id` ao usuário da sessão no próprio SQL. Inclui reservas passadas e futuras, ativas, finalizadas, canceladas e com não comparecimento, ordenadas por data, horário e ID crescentes. Sem reservas retorna `[]`. IDs são strings e timestamps numéricos em milissegundos; campos de auditoria preservam valores nulos ou os dados de encerramento existentes. Nome/e-mail são do próprio cliente; dados de mesa e nome do administrador responsável pelo status vêm dos relacionamentos, sem hashes de senha.
+
+A página Minhas reservas usa somente `/api/auth/*` e `/api/reservations/mine`. Mostra número/capacidade da mesa, data, início/término, duração e pessoas conforme a resposta do servidor, além do status. Não consulta mesas separadamente nem recalcula o período. O botão Recarregar reservas fica desabilitado enquanto carrega e permite nova tentativa após falha. Erros mostram a mensagem da API, sem apresentar um histórico vazio como se a consulta tivesse sido bem-sucedida.
 
 ## Validar
 
@@ -378,6 +386,14 @@ Para conferir a criação de reservas manualmente, use um banco de conferência 
 4. Em duas sessões de clientes diferentes, enviar solicitações conflitantes quase ao mesmo tempo. Conferir um 201, um 409 e apenas um registro ativo para o período. Manter a trava comum em outra conexão, enviar o POST e confirmar uma reserva conflitante ou fechar a data antes do COMMIT; o POST deve aguardar e considerar o novo estado. O relógio da antecedência é recalculado após essa espera.
 5. Provocar uma falha SQL em banco de conferência, por exemplo com trigger temporária AFTER INSERT que gera SIGNAL. Conferir 500 sem detalhes de SQL e ausência da reserva no banco; remover a trigger e confirmar que uma nova solicitação válida funciona. Após criar uma reserva, alterações incompatíveis de mesa/funcionamento continuam retornando 409.
 6. No navegador, selecionar mesa pelo mapa/lista e confirmar; conferir corpo com apenas os quatro campos, mensagem com dados reais e atualização do mapa. Durante o envio, tentar clique duplo/Enter e troca de filtros; deve haver apenas um POST e controles bloqueados. Simular disputa em outra sessão e conferir erro, limpeza da seleção e possibilidade de escolher outra mesa. Conferir também recuperação de falha, sessão encerrada, modal móvel e recarga/persistência. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
+
+Para conferir Minhas reservas manualmente:
+
+1. Sem sessão e após logout, chamar GET `/api/reservations/mine` e conferir 401; como administrador, conferir 403. Como cliente sem reservas, conferir 200 com `[]` e `Cache-Control: no-store`.
+2. Criar reservas com dois clientes em sessões distintas. Preparar também registros passados e com os quatro status em um banco de conferência. Cada cliente deve receber exclusivamente seus registros, com o objeto completo, mesa e formatos de IDs/datas/horários/timestamps corretos. Comparar a ordenação por data, horário e ID com SQL, incluindo empate de data/horário e auditoria de encerramento.
+3. Como cliente A, tentar `?usuarioId=ID_DO_CLIENTE_B`, `?status=ativa` e corpo com `usuarioId`; todos devem retornar 400. Conferir também rejeição de `{}`, `[]` e corpo não JSON por um cliente HTTP manual que permita corpo em GET. Uma chamada sem filtros/corpo continua retornando apenas o histórico da sessão.
+4. No navegador, abrir Minhas reservas após confirmar uma reserva. Conferir cards com dados reais, quatro rótulos de status, lista vazia para cliente novo e apenas chamadas de autenticação e `/api/reservations/mine`, sem `/api/tables` ou `/api/data`. Clicar Recarregar reservas e conferir carregamento, botão bloqueado e atualização dos dados. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
+5. Simular indisponibilidade da API ou falha SQL em banco de conferência: deve haver erro, sem histórico antigo/vazio apresentado como resultado válido. Restabelecer e recarregar; os mesmos registros devem voltar. Encerrar a sessão em outra aba e recarregar para conferir a mensagem de sessão inválida.
 
 O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 

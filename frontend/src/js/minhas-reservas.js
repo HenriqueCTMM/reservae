@@ -1,13 +1,13 @@
 import { logout, protectRoute } from './auth.js';
-import { formatDuration, getReservationPeriod } from './services/operating-hours-service.js';
-import { getReservationsByUser } from './services/reservations-service.js';
-import { getTables } from './services/tables-service.js';
-import { formatDate } from './ui.js';
+import { formatDuration } from './services/operating-hours-service.js';
+import { getMyReservations } from './services/reservations-service.js';
+import { escapeHtml, formatDate } from './ui.js';
 
 const currentUser = await protectRoute(['cliente']);
 const clientReservationsUserName = document.getElementById('clientReservationsUserName');
 const logoutButton = document.getElementById('logoutButton');
 const myReservationsList = document.getElementById('myReservationsList');
+const reloadMyReservationsButton = document.getElementById('reloadMyReservationsButton');
 
 clientReservationsUserName.textContent = currentUser.nome;
 logoutButton.addEventListener('click', logout);
@@ -17,8 +17,7 @@ function getReservationStatusLabel(status) {
         ativa: 'Ativa',
         finalizada: 'Finalizada',
         cancelada: 'Cancelada',
-        nao_compareceu: 'Não compareceu',
-        expirada: 'Expirada'
+        nao_compareceu: 'Não compareceu'
     };
 
     return labels[status] || status;
@@ -37,19 +36,17 @@ function getReservationStatusClasses(status) {
         return 'bg-amber-100 text-amber-700';
     }
 
-    if (status === 'expirada') {
-        return 'bg-slate-200 text-slate-700';
-    }
-
     return 'bg-emerald-100 text-emerald-700';
 }
 
 async function renderMyReservations() {
+    if (reloadMyReservationsButton.disabled) return;
+    reloadMyReservationsButton.disabled = true;
+    myReservationsList.setAttribute('aria-busy', 'true');
     myReservationsList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-6 text-sm text-slate-500">Carregando reservas...</div>';
 
     try {
-        const reservations = await getReservationsByUser(currentUser.id);
-        const tables = await getTables();
+        const reservations = await getMyReservations();
         myReservationsList.innerHTML = '';
 
         if (!reservations.length) {
@@ -58,33 +55,34 @@ async function renderMyReservations() {
         }
 
         reservations.forEach((reservation) => {
-            const table = tables.find((item) => item.id === reservation.mesaId);
             const card = document.createElement('article');
             const statusClasses = getReservationStatusClasses(reservation.status);
-            const period = getReservationPeriod(reservation);
-            const periodText = period.endTime ? `${reservation.horario} às ${period.endTime}` : reservation.horario;
 
             card.className = 'rounded-2xl border border-slate-200 bg-slate-50 p-5';
             card.innerHTML = `
       <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 class="text-lg font-bold">Mesa ${table?.numero || reservation.mesaNumero || '-'}</h3>
-          <p class="text-sm text-slate-500">${table?.capacidade || reservation.mesaCapacidade || '-'} lugares</p>
+          <h3 class="text-lg font-bold">Mesa ${escapeHtml(reservation.mesaNumero)}</h3>
+          <p class="text-sm text-slate-500">${escapeHtml(reservation.mesaCapacidade)} lugares</p>
         </div>
-        <span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${getReservationStatusLabel(reservation.status)}</span>
+        <span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${escapeHtml(getReservationStatusLabel(reservation.status))}</span>
       </div>
       <div class="space-y-2 text-sm text-slate-700">
-        <p><strong>Data:</strong> ${formatDate(reservation.data)}</p>
-        <p><strong>Horário:</strong> ${periodText}</p>
-        <p><strong>Permanência prevista:</strong> ${formatDuration(period.durationMinutes)}</p>
-        <p><strong>Pessoas:</strong> ${reservation.pessoas}</p>
+        <p><strong>Data:</strong> ${escapeHtml(formatDate(reservation.data))}</p>
+        <p><strong>Horário:</strong> ${escapeHtml(reservation.horario)} às ${escapeHtml(reservation.fimPrevisto)}</p>
+        <p><strong>Permanência prevista:</strong> ${escapeHtml(formatDuration(reservation.duracaoMinutos))}</p>
+        <p><strong>Pessoas:</strong> ${escapeHtml(reservation.pessoas)}</p>
       </div>
     `;
             myReservationsList.appendChild(card);
         });
     } catch (error) {
-        myReservationsList.innerHTML = '<div class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">Não foi possível carregar suas reservas.</div>';
+        myReservationsList.innerHTML = `<div role="alert" class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">${escapeHtml(error.message || 'Não foi possível carregar suas reservas. Tente recarregar.')}</div>`;
+    } finally {
+        myReservationsList.setAttribute('aria-busy', 'false');
+        reloadMyReservationsButton.disabled = false;
     }
 }
 
+reloadMyReservationsButton.addEventListener('click', renderMyReservations);
 await renderMyReservations();
