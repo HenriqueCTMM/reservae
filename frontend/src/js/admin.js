@@ -75,6 +75,7 @@ logoutButton.addEventListener('click', logout);
 
 let tables = [];
 let reservations = [];
+let reservationsBusy = false;
 let messages = [];
 let operatingConfig = null;
 let operatingExceptions = [];
@@ -631,24 +632,6 @@ function getReservationTableNumber(reservation) {
     return table?.numero || reservation.mesaNumero || '-';
 }
 
-function getFilteredReservations() {
-    const date = reservationDateFilter.value;
-    const status = reservationStatusFilter.value;
-    const search = reservationSearchFilter.value.trim().toLowerCase();
-
-    return reservations.filter((reservation) => {
-        const tableNumber = getReservationTableNumber(reservation);
-        const clientName = (reservation.usuarioNome || '').toLowerCase();
-        const tableText = `mesa ${tableNumber} ${tableNumber}`.toLowerCase();
-
-        const matchesDate = !date || reservation.data === date;
-        const matchesStatus = !status || reservation.status === status;
-        const matchesSearch = !search || clientName.includes(search) || tableText.includes(search);
-
-        return matchesDate && matchesStatus && matchesSearch;
-    });
-}
-
 function updateReservationResultsCount(total) {
     reservationResultsCount.textContent = `${total} ${total === 1 ? 'reserva encontrada' : 'reservas encontradas'}`;
 }
@@ -658,8 +641,7 @@ function getReservationStatusLabel(status) {
         ativa: 'Ativa',
         finalizada: 'Finalizada',
         cancelada: 'Cancelada',
-        nao_compareceu: 'Não compareceu',
-        expirada: 'Expirada'
+        nao_compareceu: 'Não compareceu'
     };
 
     return labels[status] || status;
@@ -676,10 +658,6 @@ function getReservationStatusClasses(status) {
 
     if (status === 'nao_compareceu') {
         return 'bg-amber-100 text-amber-700';
-    }
-
-    if (status === 'expirada') {
-        return 'bg-slate-200 text-slate-700';
     }
 
     return 'bg-emerald-100 text-emerald-700';
@@ -700,43 +678,40 @@ function renderReservations() {
         return;
     }
 
-    const filteredReservations = getFilteredReservations();
-
     adminReservationsTable.innerHTML = '';
-    updateReservationResultsCount(filteredReservations.length);
+    updateReservationResultsCount(reservations.length);
 
-    if (!filteredReservations.length) {
-        const emptyMessage = reservations.length ? 'Nenhuma reserva encontrada para os filtros.' : 'Nenhuma reserva cadastrada.';
+    if (!reservations.length) {
+        const emptyMessage = 'Nenhuma reserva encontrada para os filtros atuais.';
         adminReservationsTable.innerHTML = `<tr><td colspan="7" class="rounded-2xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">${emptyMessage}</td></tr>`;
         return;
     }
 
-    filteredReservations.forEach((reservation) => {
-        const tableNumber = getReservationTableNumber(reservation);
+    reservations.forEach((reservation) => {
+        const tableNumber = reservation.mesaNumero;
         const statusClasses = getReservationStatusClasses(reservation.status);
         const isActive = reservation.status === 'ativa';
-        const period = getReservationPeriod(reservation);
         const row = document.createElement('tr');
         row.className = 'bg-slate-50 text-sm';
         row.innerHTML = `
-        <td class="rounded-l-2xl px-3 py-3">${escapeHtml(reservation.usuarioNome || 'Usuário')}</td>
-        <td class="px-3 py-3">Mesa ${tableNumber}</td>
+        <td class="rounded-l-2xl px-3 py-3"><p>${escapeHtml(reservation.usuarioNome)}</p><p class="text-xs text-slate-500">${escapeHtml(reservation.usuarioEmail)}</p></td>
+        <td class="px-3 py-3">Mesa ${escapeHtml(tableNumber)}</td>
         <td class="px-3 py-3">${formatDate(reservation.data)}</td>
         <td class="px-3 py-3">
-          <p>${getReservationPeriodText(reservation)}</p>
-          <p class="text-xs text-slate-500">${formatDuration(period.durationMinutes)}</p>
+          <p>${escapeHtml(reservation.horario)} às ${escapeHtml(reservation.fimPrevisto)}</p>
+          <p class="text-xs text-slate-500">${escapeHtml(formatDuration(reservation.duracaoMinutos))}</p>
         </td>
         <td class="px-3 py-3">${reservation.pessoas}</td>
         <td class="px-3 py-3"><span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${getReservationStatusLabel(reservation.status)}</span></td>
         <td class="rounded-r-2xl px-3 py-3">
           ${isActive ? `
             <div class="grid min-w-56 gap-2 sm:min-w-64">
-              <select data-reservation-status="${reservation.id}" class="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
+              <select data-reservation-status="${reservation.id}" aria-label="Novo status da reserva ${reservation.id}" class="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
                 <option value="finalizada">Finalizada</option>
                 <option value="cancelada">Cancelada</option>
                 <option value="nao_compareceu">Não compareceu</option>
               </select>
-              <input data-reservation-reason="${reservation.id}" type="text" maxlength="160" placeholder="Motivo/observação opcional"
+              <input data-reservation-reason="${reservation.id}" aria-label="Motivo da alteração da reserva ${reservation.id}" type="text" maxlength="160" placeholder="Motivo/observação opcional"
                 class="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
               <button type="button" data-update-reservation-status="${reservation.id}" class="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Salvar status</button>
             </div>
@@ -1134,6 +1109,10 @@ async function loadExceptions() {
 }
 
 async function loadData() {
+    if (adminReservationsTable) {
+        await refreshReservations();
+        return;
+    }
     if (weeklyHoursForm) {
         await Promise.all([loadOperatingHours(), loadExceptions()]);
         return;
@@ -1205,19 +1184,40 @@ async function saveMessageReply(messageId) {
     }
 }
 
-async function refreshReservations() {
+function setReservationsBusy(busy) {
+    reservationsBusy = busy;
+    refreshReservationsButton.disabled = busy;
+    clearReservationFiltersButton.disabled = busy;
+    reservationFiltersForm.querySelectorAll('input, select, button').forEach((control) => { control.disabled = busy; });
+    adminReservationsTable.querySelectorAll('input, select, button').forEach((control) => { control.disabled = busy; });
+    adminReservationsTable.setAttribute('aria-busy', String(busy));
+}
+
+async function refreshReservations({ preserveMessage = false } = {}) {
+    if (reservationsBusy) return;
+    if (!preserveMessage) clearMessage(adminMessage);
+    setReservationsBusy(true);
+    reservationResultsCount.textContent = 'Consultando reservas...';
     adminReservationsTable.innerHTML = '<tr><td colspan="7" class="rounded-2xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">Carregando reservas...</td></tr>';
 
     try {
-        reservations = await getReservations();
+        reservations = await getReservations({
+            data: reservationDateFilter.value, status: reservationStatusFilter.value, search: reservationSearchFilter.value.trim()
+        });
         renderReservations();
-        renderReservationReport();
     } catch (error) {
-        showMessage(adminMessage, 'Não foi possível atualizar as reservas.', 'error');
+        reservations = [];
+        reservationResultsCount.textContent = 'Reservas não carregadas.';
+        adminReservationsTable.innerHTML = '<tr><td colspan="7" class="rounded-2xl bg-rose-50 px-3 py-4 text-center text-sm text-rose-700">Não foi possível carregar as reservas. Clique em Atualizar para tentar novamente.</td></tr>';
+        const previousMessage = preserveMessage ? `${adminMessage.textContent} ` : '';
+        showMessage(adminMessage, previousMessage + (error.message || 'Não foi possível atualizar as reservas.'), 'error');
+    } finally {
+        setReservationsBusy(false);
     }
 }
 
 async function finishReservation(reservationId) {
+    if (reservationsBusy) return;
     clearMessage(adminMessage);
 
     const statusField = adminReservationsTable.querySelector(`[data-reservation-status="${reservationId}"]`);
@@ -1227,21 +1227,23 @@ async function finishReservation(reservationId) {
         return;
     }
 
+    let reload = false;
+    setReservationsBusy(true);
     try {
-        const updatedReservation = await updateReservationStatus(reservationId, {
+        await updateReservationStatus(reservationId, {
             status: statusField.value,
-            reason: reasonField?.value.trim() || '',
-            admin: user
+            reason: reasonField?.value.trim() || ''
         });
 
-        reservations = reservations.map((reservation) => reservation.id === reservationId ? updatedReservation : reservation);
-        renderReservations();
-        renderReservationReport();
+        reload = true;
         showMessage(adminMessage, 'Status da reserva atualizado. Esta alteração é definitiva.');
     } catch (error) {
+        reload = error.status === 409 || error.status === 404;
         showMessage(adminMessage, error.message || 'Não foi possível atualizar o status da reserva.', 'error');
-        await refreshReservations();
+    } finally {
+        setReservationsBusy(false);
     }
+    if (reload) await refreshReservations({ preserveMessage: true });
 }
 
 async function deleteTable(tableId) {
@@ -1361,11 +1363,8 @@ document.addEventListener('keydown', (event) => {
 
 reservationFiltersForm?.addEventListener('submit', (event) => {
     event.preventDefault();
+    refreshReservations();
 });
-
-reservationDateFilter?.addEventListener('change', renderReservations);
-reservationStatusFilter?.addEventListener('change', renderReservations);
-reservationSearchFilter?.addEventListener('input', renderReservations);
 
 reservationReportForm?.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -1388,7 +1387,7 @@ clearReservationFiltersButton?.addEventListener('click', () => {
     reservationDateFilter.value = '';
     reservationStatusFilter.value = '';
     reservationSearchFilter.value = '';
-    renderReservations();
+    refreshReservations();
 });
 
 adminReservationsTable?.addEventListener('click', (event) => {

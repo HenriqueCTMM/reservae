@@ -20,7 +20,7 @@ const RESERVATION_SELECT = `
 
 async function lockSettings(connection) {
     const [rows] = await connection.execute('SELECT id FROM operating_settings WHERE id = 1 FOR UPDATE');
-    if (!rows.length) throw new Error('Execute npm run db:init antes de criar reservas.');
+    if (!rows.length) throw new Error('Execute npm run db:init antes de alterar reservas.');
 }
 
 async function findTableForUpdate(id, connection) {
@@ -63,4 +63,43 @@ async function findByUser(usuarioId) {
     return rows;
 }
 
-module.exports = { lockSettings, findTableForUpdate, hasConflict, create, findById, findByUser };
+async function findAll({ data, status, search }) {
+    const conditions = [];
+    const values = [];
+    if (data) {
+        conditions.push('reservation.data = ?');
+        values.push(data);
+    }
+    if (status) {
+        conditions.push('reservation.status = ?');
+        values.push(status);
+    }
+    if (search) {
+        // LOCATE faz busca literal: % e _ não se tornam curingas SQL.
+        conditions.push(`(LOCATE(LOWER(?), LOWER(client.nome)) > 0
+            OR LOCATE(LOWER(?), LOWER(client.email)) > 0
+            OR LOCATE(LOWER(?), CONCAT('mesa ', table_data.numero)) > 0)`);
+        values.push(search, search, search);
+    }
+    const [rows] = await pool.execute(`
+        ${RESERVATION_SELECT}
+        ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
+        ORDER BY reservation.data, reservation.horario, reservation.id
+    `, values);
+    return rows;
+}
+
+async function findStatusForUpdate(id, connection) {
+    const [rows] = await connection.execute('SELECT id, status FROM reservations WHERE id = ? FOR UPDATE', [id]);
+    return rows[0];
+}
+
+async function updateStatus(id, { status, reason, adminId }, connection) {
+    const [result] = await connection.execute(`
+        UPDATE reservations SET status = ?, status_reason = ?, status_updated_by = ?, status_updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND status = 'ativa'
+    `, [status, reason, adminId, id]);
+    return result.affectedRows;
+}
+
+module.exports = { lockSettings, findTableForUpdate, hasConflict, create, findById, findByUser, findAll, findStatusForUpdate, updateStatus };

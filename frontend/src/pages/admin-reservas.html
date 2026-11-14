@@ -76,15 +76,16 @@
                         <option value="finalizada">Finalizada</option>
                         <option value="cancelada">Cancelada</option>
                         <option value="nao_compareceu">Não compareceu</option>
-                        <option value="expirada">Expirada</option>
                     </select>
                 </div>
                 <div>
-                    <label for="reservationSearchFilter" class="mb-1 block text-sm font-medium">Cliente ou mesa</label>
-                    <input id="reservationSearchFilter" type="search"
+                    <label for="reservationSearchFilter" class="mb-1 block text-sm font-medium">Nome, e-mail ou mesa</label>
+                    <input id="reservationSearchFilter" type="search" maxlength="120"
                         class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         placeholder="Ex.: Maria ou Mesa 2" />
                 </div>
+                <div class="md:col-span-3"><button type="submit"
+                    class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50">Aplicar filtros</button></div>
             </form>
             <p id="reservationResultsCount" class="mb-3 text-sm text-slate-500" aria-live="polite">0 reservas
                 encontradas</p>
@@ -109,10 +110,11 @@
         <article class="app-card rounded-2xl bg-white p-3 shadow-sm" aria-labelledby="reservation-report-title">
             <div class="mb-4">
                 <h2 id="reservation-report-title" class="text-xl font-bold">Relatório de reservas</h2>
-                <p class="text-sm text-slate-500">Resumo simples por período, status, cliente ou mesa</p>
+                <p class="text-sm text-slate-500">Pendente do M16: o relatório será calculado pelo servidor. Os controles abaixo ainda não estão disponíveis.</p>
             </div>
             <form id="reservationReportForm" class="mb-4 grid gap-3 md:grid-cols-4"
                 aria-label="Filtros do relatório de reservas">
+                <fieldset disabled class="contents">
                 <div><label for="reportStartDate" class="mb-1 block text-sm font-medium">Data inicial</label><input
                         id="reportStartDate" type="date"
                         class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
@@ -130,7 +132,6 @@
                         <option value="finalizada">Finalizada</option>
                         <option value="cancelada">Cancelada</option>
                         <option value="nao_compareceu">Não compareceu</option>
-                        <option value="expirada">Expirada</option>
                     </select>
                 </div>
                 <div><label for="reportSearchFilter" class="mb-1 block text-sm font-medium">Cliente ou
@@ -139,7 +140,8 @@
                         placeholder="Ex.: Maria ou Mesa 2" /></div>
                 <div class="md:col-span-4"><button id="clearReportFiltersButton" type="button"
                         class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Limpar
-                        relatório</button></div>
+                         relatório</button></div>
+                </fieldset>
             </form>
             <div id="reservationReportTotals" class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3" aria-live="polite">
             </div>

@@ -2,6 +2,7 @@ const pool = require('../config/database');
 const Availability = require('../models/availability');
 const { getRestaurantDateTime, isDate, isTime, timeToMinutes, minutesToTime } = require('../utils/dateTime');
 const { getReservationDurationMinutes, getAllowedSlots } = require('../utils/reservationRules');
+const RESERVATION_STATUSES = ['ativa', 'finalizada', 'cancelada', 'nao_compareceu'];
 
 function validateReservation(data) {
     if (!data || typeof data !== 'object' || Array.isArray(data)
@@ -36,6 +37,78 @@ function publicReservation(reservation) {
 
 module.exports = function createReservationController(Reservation) {
     return {
+        async getReservations(req, res, next) {
+            if (Object.keys(req.query).some((field) => !['data', 'status', 'search'].includes(field))
+                || Object.values(req.query).some((value) => typeof value !== 'string')
+                || req.get('Transfer-Encoding') !== undefined || Number(req.get('Content-Length') || 0) > 0) {
+                return res.status(400).json({ message: 'Envie apenas os filtros data, status e search, sem corpo na consulta.' });
+            }
+            const filters = {
+                data: req.query.data?.trim() || '', status: req.query.status?.trim() || '', search: req.query.search?.trim() || ''
+            };
+            if (filters.data && !isDate(filters.data)) {
+                return res.status(400).json({ message: 'Informe uma data real em YYYY-MM-DD.' });
+            }
+            if (filters.status && !RESERVATION_STATUSES.includes(filters.status)) {
+                return res.status(400).json({ message: 'Informe um status de reserva válido.' });
+            }
+            if (filters.search.length > 120) {
+                return res.status(400).json({ message: 'A busca deve ter até 120 caracteres.' });
+            }
+            try {
+                const reservations = await Reservation.findAll(filters);
+                res.json(reservations.map(publicReservation));
+            } catch (error) {
+                next(error);
+            }
+        },
+        async updateReservationStatus(req, res, next) {
+            const id = req.params.id;
+            if (!/^[1-9]\d{0,9}$/.test(id) || Number(id) > 4294967295 || Object.keys(req.query).length) {
+                return res.status(400).json({ message: 'Informe um ID de reserva válido, sem parâmetros de consulta.' });
+            }
+            const body = req.body;
+            if (!body || typeof body !== 'object' || Array.isArray(body)
+                || Object.keys(body).some((field) => !['status', 'reason'].includes(field))) {
+                return res.status(400).json({ message: 'Envie apenas status e reason em um objeto JSON.' });
+            }
+            const status = typeof body.status === 'string' ? body.status.trim() : '';
+            if (!RESERVATION_STATUSES.slice(1).includes(status)) {
+                return res.status(400).json({ message: 'Escolha finalizada, cancelada ou nao_compareceu.' });
+            }
+            if (body.reason !== undefined && (typeof body.reason !== 'string' || body.reason.trim().length > 160)) {
+                return res.status(400).json({ message: 'O motivo deve ser um texto com até 160 caracteres.' });
+            }
+            const reason = body.reason?.trim() || '';
+            let connection;
+            try {
+                connection = await pool.getConnection();
+                await connection.beginTransaction();
+                await Reservation.lockSettings(connection);
+                const current = await Reservation.findStatusForUpdate(id, connection);
+                if (!current) {
+                    await connection.rollback();
+                    return res.status(404).json({ message: 'Reserva não encontrada.' });
+                }
+                if (current.status !== 'ativa') {
+                    await connection.rollback();
+                    return res.status(409).json({ message: 'Esta reserva já possui status definitivo e não pode ser alterada.' });
+                }
+                const affected = await Reservation.updateStatus(id, { status, reason, adminId: req.user.id }, connection);
+                if (affected !== 1) {
+                    await connection.rollback();
+                    return res.status(409).json({ message: 'Esta reserva já foi encerrada. Atualize a listagem.' });
+                }
+                const reservation = await Reservation.findById(id, connection);
+                await connection.commit();
+                res.json(publicReservation(reservation));
+            } catch (error) {
+                if (connection) await connection.rollback();
+                next(error);
+            } finally {
+                if (connection) connection.release();
+            }
+        },
         async getMyReservations(req, res, next) {
             // Conferir o transporte também rejeita {} e corpos que não sejam JSON.
             if (Object.keys(req.query).length
