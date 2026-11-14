@@ -1,23 +1,8 @@
 import { request } from './services/api-service.js';
-import { STORAGE_KEYS, getStorageData, setStorageData } from './services/session-storage-service.js';
 
-function saveCurrentUser(profile) {
-    const storedUser = getCurrentUser();
-    const sessionUser = {
-        id: profile.uid,
-        nome: profile.nome,
-        email: profile.email,
-        perfil: profile.perfil,
-        authProvider: profile.authProvider || (storedUser?.id === profile.uid ? storedUser.authProvider : null) || 'password'
-    };
-
-    setStorageData(STORAGE_KEYS.currentUser, sessionUser);
-    return sessionUser;
-}
-
-function clearCurrentUser() {
-    localStorage.removeItem(STORAGE_KEYS.currentUser);
-}
+window.addEventListener('reservae:session-expired', () => {
+    window.location.replace(getLoginUrl());
+}, { once: true });
 
 function stopAfterRedirect(url) {
     window.location.replace(url);
@@ -38,13 +23,8 @@ function getRoleUrl(user) {
     return isPagesRoute ? './reservas.html' : './pages/reservas.html';
 }
 
-export function getCurrentUser() {
-    return getStorageData(STORAGE_KEYS.currentUser, null);
-}
-
 export async function logout() {
     await request('/auth/logout', { method: 'POST', body: '{}' });
-    clearCurrentUser();
     window.location.href = getLoginUrl();
 }
 
@@ -57,16 +37,28 @@ export async function protectRoute(allowedProfiles = []) {
     try {
         profile = await request('/auth/me');
     } catch (error) {
-        if (error.status !== 401) throw error;
-        clearCurrentUser();
+        if (error.status !== 401) {
+            const notice = document.createElement('section');
+            notice.className = 'rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700';
+            notice.setAttribute('role', 'alert');
+            const text = document.createElement('p');
+            text.textContent = error.message || 'Não foi possível verificar sua sessão. Tente novamente.';
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.className = 'mt-4 rounded-xl border border-rose-300 px-4 py-2 font-semibold';
+            retry.textContent = 'Recarregar página';
+            retry.addEventListener('click', () => window.location.reload());
+            notice.append(text, retry);
+            document.querySelector('main').replaceChildren(notice);
+            retry.focus();
+            return new Promise(() => {});
+        }
         return stopAfterRedirect(getLoginUrl());
     }
 
-    const user = saveCurrentUser(profile);
-
-    if (allowedProfiles.length && !allowedProfiles.includes(user.perfil)) {
-        return stopAfterRedirect(getRoleUrl(user));
+    if (allowedProfiles.length && !allowedProfiles.includes(profile.perfil)) {
+        return stopAfterRedirect(getRoleUrl(profile));
     }
 
-    return user;
+    return profile;
 }

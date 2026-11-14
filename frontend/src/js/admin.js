@@ -23,6 +23,7 @@ const logoutButton = document.getElementById('logoutButton');
 const tableForm = document.getElementById('tableForm');
 const tableFormTitle = document.getElementById('table-form-title');
 const tableSubmitButton = document.getElementById('tableSubmitButton');
+const reloadTablesButton = document.getElementById('reloadTablesButton');
 const resetFormButton = document.getElementById('resetFormButton');
 const rotateTableButton = document.getElementById('rotateTableButton');
 const rotationValue = document.getElementById('rotationValue');
@@ -77,6 +78,8 @@ adminUserName.textContent = user.nome;
 logoutButton.addEventListener('click', logout);
 
 let tables = [];
+let tablesLoading = false;
+let tablesLoadError = '';
 let reservations = [];
 let reservationsBusy = false;
 let reservationReport = null;
@@ -495,7 +498,12 @@ function openAdminMap() {
 
 function renderMapContainer(container, { closeOnSelect = false } = {}) {
     container.innerHTML = '';
-    tableCount.textContent = String(tables.length);
+    tableCount.textContent = tablesLoading ? '…' : String(tables.length);
+
+    if (tablesLoading || tablesLoadError) {
+        container.innerHTML = getMapMessageHtml(tablesLoading ? 'Carregando mesas...' : tablesLoadError, tablesLoadError ? 'error' : 'muted');
+        return;
+    }
 
     if (!tables.length) {
         container.innerHTML = getMapMessageHtml('Nenhuma mesa cadastrada.');
@@ -596,6 +604,11 @@ function renderTablesList() {
     }
 
     tablesList.innerHTML = '';
+
+    if (tablesLoading || tablesLoadError) {
+        tablesList.textContent = tablesLoading ? 'Carregando mesas...' : tablesLoadError;
+        return;
+    }
 
     if (!tables.length) {
         tablesList.innerHTML = '<div class="col-span-2 rounded-2xl border border-slate-200 p-4 text-sm text-slate-500 sm:col-span-3">Nenhuma mesa cadastrada.</div>';
@@ -1018,15 +1031,6 @@ function fillForm(tableId, { focusForm = true } = {}) {
     }
 }
 
-function renderAll() {
-    renderMap();
-    renderTablesList();
-    renderReservations();
-    renderReservationReport();
-    renderMessages();
-    renderOperatingHours();
-}
-
 async function loadOperatingHours() {
     clearMessage(adminMessage);
     operatingConfig = null;
@@ -1085,30 +1089,31 @@ async function loadData() {
         await Promise.all([loadOperatingHours(), loadExceptions()]);
         return;
     }
-    if (restaurantMap) {
-        restaurantMap.innerHTML = '<div class="flex h-full items-center justify-center text-slate-400">Carregando mesas...</div>';
-    }
-
-    if (tablesList) {
-        tablesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Carregando mesas...</div>';
-    }
+    if (!tableForm) return;
+    if (tablesLoading) return;
+    tablesLoading = true;
+    tablesLoadError = '';
+    reloadTablesButton.disabled = true;
+    renderMap();
+    renderTablesList();
 
     try {
         tables = await getTables();
-        // A página de mesas não depende dos módulos ainda em migração.
-        if (!tableForm) {
-            reservations = await getReservations();
-            messages = await getMessages();
-            operatingConfig = await getOperatingHoursConfig();
-            operatingExceptions = await getOperatingHourExceptions();
-        }
-        renderAll();
-
-        if (tableForm && !document.getElementById('tableId').value) {
-            resetForm();
+        const editingId = document.getElementById('tableId').value;
+        if (tables.some((table) => table.id === editingId)) {
+            fillForm(editingId, { focusForm: false });
+        } else {
+            resetForm({ restorePreview: false });
         }
     } catch (error) {
-        showMessage(adminMessage, 'Não foi possível carregar os dados do restaurante.', 'error');
+        tables = [];
+        tablesLoadError = 'Mesas não carregadas. Clique em Recarregar mesas para tentar novamente.';
+        showMessage(adminMessage, error.message || 'Não foi possível carregar as mesas.', 'error');
+    } finally {
+        tablesLoading = false;
+        reloadTablesButton.disabled = false;
+        renderMap();
+        renderTablesList();
     }
 }
 
@@ -1363,6 +1368,10 @@ tableForm?.addEventListener('change', (event) => {
 });
 
 refreshReservationsButton?.addEventListener('click', refreshReservations);
+reloadTablesButton?.addEventListener('click', () => {
+    clearMessage(adminMessage);
+    loadData();
+});
 refreshMessagesButton?.addEventListener('click', refreshMessages);
 
 openAdminMapButton?.addEventListener('click', openAdminMap);

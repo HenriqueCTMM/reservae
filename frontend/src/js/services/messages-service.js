@@ -1,10 +1,4 @@
-import {
-    request,
-    removeById
-} from './api-service.js';
-
-const MESSAGES_PATH = 'messages';
-const DEFAULT_MESSAGE_STATUS = 'aberta';
+import { request } from './api-service.js';
 
 export async function getMessages() {
     return request('/messages');
@@ -25,9 +19,3 @@ export async function updateMessageReply(messageId, { reply }) {
         method: 'PATCH', body: JSON.stringify({ reply })
     });
 }
-
-export async function removeMessage(messageId) {
-    return removeById(MESSAGES_PATH, messageId);
-}
-
-export { DEFAULT_MESSAGE_STATUS, MESSAGES_PATH };

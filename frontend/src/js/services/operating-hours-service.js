@@ -1,7 +1,4 @@
 import { request } from './api-service.js';
-const MIN_ADVANCE_MINUTES = 180;
-const SLOT_INTERVAL_MINUTES = 30;
-const CLOSED_DATE_MESSAGE = 'O restaurante não estará em funcionamento nesta data. Escolha outra data.';
 
 const WEEK_DAYS = [
     { value: 0, label: 'Domingo' },
@@ -17,7 +14,7 @@ function isTime(value) {
     return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
-export function timeToMinutes(time) {
+function timeToMinutes(time) {
     if (!isTime(time)) {
         return null;
     }
@@ -25,37 +22,6 @@ export function timeToMinutes(time) {
     const [hours, minutes] = time.split(':').map(Number);
 
     return (hours * 60) + minutes;
-}
-
-export function minutesToTime(totalMinutes) {
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-}
-
-export function getReservationDurationMinutes(people) {
-    const totalPeople = Number(people);
-
-    if (totalPeople >= 5) {
-        return 150;
-    }
-
-    if (totalPeople >= 3) {
-        return 120;
-    }
-
-    return 90;
-}
-
-export function getReservationEndTime(startTime, durationMinutes) {
-    const startMinutes = timeToMinutes(startTime);
-
-    if (startMinutes === null) {
-        return null;
-    }
-
-    return minutesToTime(startMinutes + Number(durationMinutes));
 }
 
 export function formatDuration(minutes) {
@@ -69,23 +35,7 @@ export function formatDuration(minutes) {
     return `${hours}h${String(remainingMinutes).padStart(2, '0')}`;
 }
 
-function getLocalDateKey(date = new Date()) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-}
-
-function getWeekDay(date) {
-    return new Date(`${date}T00:00:00`).getDay();
-}
-
-function roundUpToInterval(minutes, interval) {
-    return Math.ceil(minutes / interval) * interval;
-}
-
-export function normalizeShifts(shifts = []) {
+function normalizeShifts(shifts = []) {
     const shiftList = Array.isArray(shifts) ? shifts : Object.values(shifts || {});
 
     return shiftList
@@ -173,116 +123,4 @@ export async function removeOperatingHourException(date) {
     return request(`/operating-hours/exceptions/${encodeURIComponent(date)}`, { method: 'DELETE' });
 }
 
-export function getScheduleForDate(date, config, exceptions = []) {
-    const exception = exceptions.find((item) => item.date === date);
-
-    if (exception) {
-        return normalizeSchedule(exception);
-    }
-
-    return normalizeSchedule(config.weekly[getWeekDay(date)] || { open: false, shifts: [] });
-}
-
-export function getReservationSlotsForDate(date, config, exceptions = [], now = new Date(), people = 1) {
-    const schedule = getScheduleForDate(date, config, exceptions);
-
-    if (!schedule.open) {
-        return { slots: [], reason: CLOSED_DATE_MESSAGE, closed: true };
-    }
-
-    const interval = Number(config.slotIntervalMinutes || SLOT_INTERVAL_MINUTES);
-    const today = getLocalDateKey(now);
-    const minimumTodayMinutes = (now.getHours() * 60) + now.getMinutes() + Number(config.minAdvanceMinutes || MIN_ADVANCE_MINUTES);
-    const minimumSlotMinutes = date === today ? roundUpToInterval(minimumTodayMinutes, interval) : 0;
-    const durationMinutes = getReservationDurationMinutes(people);
-    const slots = [];
-
-    schedule.shifts.forEach((shift) => {
-        const start = timeToMinutes(shift.start);
-        const end = timeToMinutes(shift.end);
-
-        if (start === null || end === null) {
-            return;
-        }
-
-        for (let minutes = start; minutes + durationMinutes <= end; minutes += interval) {
-            if (minutes >= minimumSlotMinutes) {
-                slots.push(minutesToTime(minutes));
-            }
-        }
-    });
-
-    return {
-        slots,
-        reason: slots.length ? '' : 'Não há horários disponíveis para esta data. Escolha outro dia.',
-        closed: false
-    };
-}
-
-export function isTimeAllowedForPeople(date, time, people, config, exceptions = [], now = new Date()) {
-    return getReservationSlotsForDate(date, config, exceptions, now, people).slots.includes(time);
-}
-
-export function isReservationPeriodInsideOperatingSchedule(date, time, durationMinutes, config, exceptions = []) {
-    const schedule = getScheduleForDate(date, config, exceptions);
-    const startMinutes = timeToMinutes(time);
-
-    if (!schedule.open || startMinutes === null) {
-        return false;
-    }
-
-    const endMinutes = startMinutes + Number(durationMinutes);
-
-    return schedule.shifts.some((shift) => {
-        const shiftStart = timeToMinutes(shift.start);
-        const shiftEnd = timeToMinutes(shift.end);
-
-        return shiftStart !== null
-            && shiftEnd !== null
-            && startMinutes >= shiftStart
-            && endMinutes <= shiftEnd;
-    });
-}
-
-export function getReservationPeriod(reservation) {
-    const startMinutes = timeToMinutes(reservation.horario);
-    const durationMinutes = Number(reservation.duracaoMinutos || getReservationDurationMinutes(reservation.pessoas));
-    const endMinutes = startMinutes === null ? null : (timeToMinutes(reservation.fimPrevisto) ?? (startMinutes + durationMinutes));
-
-    return {
-        startMinutes,
-        endMinutes,
-        durationMinutes,
-        endTime: endMinutes === null ? null : (reservation.fimPrevisto || minutesToTime(endMinutes))
-    };
-}
-
-export function hasTimeOverlap(firstStart, firstEnd, secondStart, secondEnd) {
-    return firstStart < secondEnd && secondStart < firstEnd;
-}
-
-export function hasReservationConflictForPeriod({ mesaId, data, horario, pessoas }, reservations) {
-    const startMinutes = timeToMinutes(horario);
-
-    if (startMinutes === null) {
-        return false;
-    }
-
-    const endMinutes = startMinutes + getReservationDurationMinutes(pessoas);
-
-    return reservations.some((reservation) => {
-        if (reservation.mesaId !== mesaId || reservation.data !== data || reservation.status !== 'ativa') {
-            return false;
-        }
-
-        const period = getReservationPeriod(reservation);
-
-        if (period.startMinutes === null || period.endMinutes === null) {
-            return false;
-        }
-
-        return hasTimeOverlap(startMinutes, endMinutes, period.startMinutes, period.endMinutes);
-    });
-}
-
-export { CLOSED_DATE_MESSAGE, WEEK_DAYS };
+export { WEEK_DAYS };

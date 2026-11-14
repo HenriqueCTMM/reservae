@@ -89,7 +89,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, disponibilidade, criação/histórico/gestão de reservas, mensagens (envio/histórico do cliente e listagem/resposta administrativa) e relatório de reservas. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`), Reservas (`pages/reservas.html`), Minhas reservas (`pages/minhas-reservas.html`), listagem/encerramento e relatório em Reservas administrativas (`pages/admin-reservas.html`), Contato (`pages/contato.html`) e Mensagens administrativas (`pages/admin-mensagens.html`) estão integrados às respectivas APIs. API e serviços foram conferidos manualmente; a validação visual dessas telas ainda está pendente. A limpeza dos serviços genéricos legados permanece para M17.
+Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, disponibilidade, criação/histórico/gestão de reservas, mensagens (envio/histórico do cliente e listagem/resposta administrativa) e relatório de reservas. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`), Reservas (`pages/reservas.html`), Minhas reservas (`pages/minhas-reservas.html`), listagem/encerramento e relatório em Reservas administrativas (`pages/admin-reservas.html`), Contato (`pages/contato.html`) e Mensagens administrativas (`pages/admin-mensagens.html`) estão integrados às respectivas APIs. A integração foi consolidada no M17, com remoção dos serviços genéricos e seed pelo navegador. API e serviços foram conferidos manualmente; a validação visual dessas telas e o roteiro completo de apresentação permanecem para M18.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -167,7 +167,7 @@ O cadastro recebe `{ nome, email, senha }`; o login recebe `{ email, senha }`. E
 
 Usuários ficam na tabela `users` do MySQL. Login e sessão atual retornam `{ id, uid, nome, email, perfil, authProvider }`, sem o hash da senha, compatível com os serviços existentes do frontend.
 
-Como no projeto de aula, sessões ficam na memória do servidor e são encerradas ao reiniciá-lo. O cookie tem duração de 8 horas, é HttpOnly e SameSite=Strict; com `NODE_ENV=production`, também é Secure e requer HTTPS. O localStorage usado pelo frontend guarda somente informações de exibição; a autenticação é validada no servidor pelo cookie.
+Como no projeto de aula, sessões ficam na memória do servidor e são encerradas ao reiniciá-lo. O cookie tem duração de 8 horas, é HttpOnly e SameSite=Strict; com `NODE_ENV=production`, também é Secure e requer HTTPS. O frontend consulta o perfil em `/api/auth/me`; não mantém identidade, perfil ou dados de negócio no localStorage.
 
 A sessão agora é compartilhada por toda a API. Cadastro e login continuam públicos; a consulta `/api/auth/me` e as demais rotas de dados exigem autenticação. O middleware `requireAuth` consulta o usuário no MySQL e disponibiliza `req.user` sem o hash da senha. Sessão ausente ou usuário removido resulta em 401; nesse último caso, a sessão também é encerrada.
 
@@ -418,6 +418,26 @@ Sem filtros retorna todo o conjunto; sem correspondências, array vazio e todos 
 
 O relatório na página administrativa carrega inicialmente sem filtros. Gerar / atualizar relatório aplica os quatro campos; Limpar filtros do relatório consulta novamente todo o conjunto. Seus filtros, totais, mensagens e linhas são independentes da listagem administrativa acima. O resumo mostra os filtros efetivamente aplicados na última consulta; editar campos só altera o resultado após gerar novamente. Após alterar reservas, gere novamente para obter um novo retrato. Durante consulta, os controles ficam bloqueados e o resultado anterior é removido. Em erro, não mantém totais/linhas antigos, preserva os campos e permite nova tentativa. Textos são escapados e datas de auditoria seguem `America/Sao_Paulo`. O navegador apenas apresenta os totais enviados pelo servidor.
 
+### Integração consolidada — M17
+
+O frontend usa somente os endpoints explícitos dos módulos. Foram removidos o adaptador genérico de `/api/data`, operações de coleção/ID arbitrários, serviços de usuários sem tela, seed/dados padrão do navegador, cache local de perfil e funções sem uso que calculavam regras de reserva no cliente. A preparação dos dados permanece em `npm run db:init`, `npm run db:admin` e `npm run db:seed`. O acompanhamento de disponibilidade a cada 3 segundos e os helpers de exibição/validação dos formulários de funcionamento permanecem.
+
+Além de autenticação, cada página consulta somente seus próprios módulos:
+
+| Página | Endpoints de dados |
+| --- | --- |
+| Mesas administrativas | `/api/tables` |
+| Configurações | `/api/operating-hours` e `/api/operating-hours/exceptions` |
+| Reservas administrativas | `/api/reservations` e `/api/reports/reservations` |
+| Mensagens administrativas | `/api/messages` |
+| Reservar | `/api/availability` e criação em `/api/reservations` |
+| Minhas reservas | `/api/reservations/mine` |
+| Contato | criação em `/api/messages` e histórico em `/api/messages/mine` |
+
+Semana e exceções têm carregamento/erros independentes, assim como listagem administrativa e relatório. Uma falha não cancela a consulta do outro módulo. Mesas têm estado explícito de carregamento/erro e botão Recarregar mesas. O erro permanece ao abrir o mapa ou limpar o formulário, sem ser confundido com restaurante vazio. Após recarga bem-sucedida, uma mesa em edição é preenchida novamente com os dados atuais do servidor; se ela não existir mais, a edição é encerrada.
+
+Em uma tela protegida, um 401 de endpoint de dados emite o evento `reservae:session-expired`, e a camada de autenticação redireciona uma única vez para o login. Login incorreto continua mostrando seu próprio erro; 403 não é tratado como sessão encerrada. Na abertura da página, 401 em `/api/auth/me` também retorna ao login. Outras falhas nessa consulta inicial mostram aviso e Recarregar página, sem iniciar a tela protegida. O redirecionamento não substitui a autorização no backend.
+
 ## Validar
 
 Validação exclusivamente manual: cadastrar cliente, repetir o e-mail, tentar senha incorreta, entrar, recarregar a página autenticada e sair.
@@ -543,6 +563,15 @@ Para conferir o relatório de reservas manualmente:
 5. Executar o serviço real do frontend e conferir GET sem corpo, somente os quatro filtros permitidos e sem `/api/data`. Criar uma reserva pela API, comparar o objeto do relatório à listagem administrativa e conferir nova consulta após encerrá-la, incluindo totais e auditoria; conferir também histórico do cliente para preservar a compatibilidade dos endpoints existentes.
 6. Em banco de conferência, alterar um status em outra transação sem confirmar e manter a trava de configuração ocupada: o relatório deve continuar lendo o estado confirmado, com linhas e totais coerentes. Após commit, nova consulta deve refletir a alteração. Simular falha SQL da leitura, conferir 500 sem detalhes internos e recuperar pelo serviço após restaurar o banco.
 7. No navegador, conferir carregamento, vazio, totais por status, filtros efetivos, período, busca, limpeza, recarga e independência dos filtros da listagem principal. Conferir texto escapado, auditoria, bloqueio dos controles/clique duplo/Enter, erro sem totais/linhas antigas, preservação dos campos, recuperação e sessão encerrada. Após alterar reservas, gerar novamente o relatório. Na aba Rede, a consulta do relatório deve usar `/api/reports/reservations`. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
+
+Para conferir a consolidação da integração manualmente:
+
+1. Conferir nos arquivos do frontend a ausência de `/api/data`, operações genéricas, seed do navegador, serviços removidos, referências a Firebase/status expirada e localStorage. Conferir importação dos serviços restantes e sintaxe dos módulos. O endpoint antigo, quando tentado diretamente com sessão válida, deve retornar 404.
+2. Em banco temporário novo, inicializar e preparar dados pelos comandos do backend. Usar os serviços reais para listar/criar/editar/excluir mesa, ler/gravar funcionamento, incluir/remover exceção, consultar/acompanhar disponibilidade, criar/consultar/encerrar reserva, enviar/listar/responder mensagem e consultar relatório. Conferir resultados persistidos e nenhuma chamada a `/api/data` nesses fluxos.
+3. Provocar falhas isoladas em banco de conferência: mensagens indisponíveis não devem impedir mesas/relatório; exceções indisponíveis não devem impedir semana. Restaurar e conferir recuperação. Provocar erro de mesas e recuperar a consulta. Não manter as alterações temporárias no banco.
+4. Conferir pelo serviço que 401 após logout emite o evento de sessão encerrada e mantém o erro HTTP; login incorreto (401) e perfil sem permissão (403) não devem emitir esse evento.
+5. No navegador, conferir a aba Rede de cada página conforme a tabela acima e a ausência de gravações de dados/perfil no localStorage ou seed ao abrir telas. Conferir carregamentos independentes, erros/recarga, erro persistente do mapa, formulário de mesa reconciliado após recarga e ausência de dados antigos após falhas.
+6. Encerrar a sessão em outra aba ou reiniciar o servidor e tentar consultar/gravar em uma tela já aberta: conferir retorno ao login, sem repetir a gravação. Conferir login incorreto e 403 sem redirecionamento de sessão. Simular falha inicial de `/api/auth/me`, conferir aviso/recarga e recuperação. Esses redirecionamentos e interações visuais ainda precisam de execução manual e evidências da equipe no M18.
 
 O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 
