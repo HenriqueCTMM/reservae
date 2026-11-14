@@ -63,12 +63,20 @@ async function findByUser(usuarioId) {
     return rows;
 }
 
-async function findAll({ data, status, search }) {
+async function findAll({ data, startDate, endDate, status, search }) {
     const conditions = [];
     const values = [];
     if (data) {
         conditions.push('reservation.data = ?');
         values.push(data);
+    }
+    if (startDate) {
+        conditions.push('reservation.data >= ?');
+        values.push(startDate);
+    }
+    if (endDate) {
+        conditions.push('reservation.data <= ?');
+        values.push(endDate);
     }
     if (status) {
         conditions.push('reservation.status = ?');

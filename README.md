@@ -30,7 +30,7 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Autenticação, mesas, funcionamento, reservas e mensagens
+  controllers/         # Autenticação, mesas, funcionamento, reservas, mensagens e relatório
   models/              # Consultas SQL por recurso
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Endpoints e permissões por recurso
@@ -79,7 +79,7 @@ package-lock.json
 
 O Express entrega o frontend e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL para que os formulários acessem a API. `npm start` inicia sem o modo watch.
 
-## Etapa atual: autenticação, mesas, funcionamento, reservas e contato
+## Etapa atual: autenticação, mesas, funcionamento, reservas, contato e relatório
 
 - Cadastro com nome, e-mail e senha de pelo menos 6 caracteres (máximo de 72 bytes, limite do bcrypt).
 - E-mails são normalizados para minúsculas e não podem se repetir.
@@ -89,7 +89,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, disponibilidade, criação/histórico/gestão de reservas e mensagens (envio/histórico do cliente e listagem/resposta administrativa). Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`), Reservas (`pages/reservas.html`), Minhas reservas (`pages/minhas-reservas.html`), listagem/encerramento em Reservas administrativas (`pages/admin-reservas.html`), Contato (`pages/contato.html`) e Mensagens administrativas (`pages/admin-mensagens.html`) estão integrados às respectivas APIs. API e serviços foram conferidos manualmente; a validação visual dessas telas ainda está pendente. O relatório permanece desabilitado e identificado como pendente do M16.
+Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, disponibilidade, criação/histórico/gestão de reservas, mensagens (envio/histórico do cliente e listagem/resposta administrativa) e relatório de reservas. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`), Reservas (`pages/reservas.html`), Minhas reservas (`pages/minhas-reservas.html`), listagem/encerramento e relatório em Reservas administrativas (`pages/admin-reservas.html`), Contato (`pages/contato.html`) e Mensagens administrativas (`pages/admin-mensagens.html`) estão integrados às respectivas APIs. API e serviços foram conferidos manualmente; a validação visual dessas telas ainda está pendente. A limpeza dos serviços genéricos legados permanece para M17.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -341,7 +341,7 @@ Aceita `finalizada`, `cancelada` ou `nao_compareceu`; motivo opcional de até 16
 
 O encerramento usa a mesma conexão e protocolo de disponibilidade: transação → trava comum em `operating_settings` como primeira leitura → reserva com `FOR UPDATE` → `UPDATE` condicionado a `status = 'ativa'` → leitura da resposta → commit. Verifica a quantidade de linhas alteradas; falhas executam rollback e a conexão é sempre liberada. Duas alterações simultâneas não sobrescrevem a auditoria: uma confirma e a outra recebe 409. Qualquer status definitivo libera a disponibilidade; o histórico permanece consultável.
 
-Na página administrativa, preencher os filtros e clicar em Aplicar filtros consulta a API; Atualizar reaplica os campos atuais e Limpar filtros consulta sem filtros. A tabela usa os dados relacionados e o período persistido, sem consultar mesas/mensagens/funcionamento ou filtrar os resultados no navegador. Reservas ativas têm ação de encerramento; definitivas mostram data, administrador e motivo. Durante consulta/gravação os controles ficam bloqueados. Sucesso ou conflito recarrega a listagem com os filtros atuais; outros erros de gravação preservam os campos digitados para nova tentativa. Falha de consulta remove as linhas antigas e permite Atualizar. O relatório está identificado como pendente do M16 e seus controles permanecem desabilitados.
+Na página administrativa, preencher os filtros e clicar em Aplicar filtros consulta a API; Atualizar reaplica os campos atuais e Limpar filtros consulta sem filtros. A tabela usa os dados relacionados e o período persistido, sem consultar mesas/mensagens/funcionamento ou filtrar os resultados no navegador. Reservas ativas têm ação de encerramento; definitivas mostram data, administrador e motivo. Durante consulta/gravação os controles ficam bloqueados. Sucesso ou conflito recarrega a listagem com os filtros atuais; outros erros de gravação preservam os campos digitados para nova tentativa. Falha de consulta remove as linhas antigas e permite Atualizar. O relatório abaixo usa seu próprio endpoint, filtros e resultado da última consulta, conforme M16.
 
 ### Proteções integradas — M13
 
@@ -390,6 +390,33 @@ A página Contato usa somente autenticação e os novos endpoints, sem `/api/dat
 A resposta é definitiva: o backend usa a identidade da sessão e o relógio do banco, preenche `resposta`, `respostaEm`, `respostaPor`, `respostaPorNome` e muda o status para `respondida`. Retorna 200 com a Mensagem completa, mantendo remetente, assunto, mensagem e criação originais. A transação trava somente a mensagem com `SELECT ... FOR UPDATE`, atualiza apenas se ainda estiver aberta e sem resposta e lê o resultado pela mesma conexão antes de confirmar. Duas respostas simultâneas produzem um sucesso e um conflito; falhas fazem rollback. Não usa a trava de disponibilidade.
 
 A página Mensagens administrativas carrega somente autenticação e mensagens, sem buscar mesas, reservas ou funcionamento e sem `/api/data`. Consulta/envio bloqueiam os controles, impedindo operações simultâneas; o botão mostra “Enviando resposta...”. Após sucesso, a mensagem atualizada fica sem campo de edição. Erros mostram a mensagem da API e preservam o rascunho. Em 404/409, a listagem é consultada novamente; rascunhos de outras mensagens ainda abertas são preservados, e entradas removidas/respondidas são descartadas. Falha de listagem mostra erro e permite nova tentativa em Atualizar mensagens. Textos são escapados, quebras de linha preservadas e datas exibidas no fuso `America/Sao_Paulo`. O cliente recebe a resposta ao consultar seu próprio histórico.
+
+### Relatório de reservas — M16
+
+`GET /api/reports/reservations` é exclusivo de administrador e aceita filtros opcionais:
+
+| Filtro | Regra |
+| --- | --- |
+| `startDate` | Data inicial inclusiva, real, em `YYYY-MM-DD` |
+| `endDate` | Data final inclusiva, real, em `YYYY-MM-DD` |
+| `status` | `ativa`, `finalizada`, `cancelada` ou `nao_compareceu` |
+| `search` | Busca literal de até 120 caracteres por nome, e-mail ou mesa |
+
+Datas passadas são permitidas; quando ambas existem, a inicial não pode ser posterior à final. É possível usar só uma das datas. Filtros são combinados com AND. Busca usa a mesma consulta administrativa, sem diferenciar maiúsculas/minúsculas e sem transformar `%`/`_` em curingas. Campos desconhecidos, valores repetidos/estruturados, corpo no GET, datas/status/busca inválidos e intervalo invertido retornam 400. Sem sessão retorna 401; cliente recebe 403.
+
+Retorna 200 com os filtros efetivos, totais e objetos Reserva completos:
+
+```json
+{
+  "filters": { "startDate": null, "endDate": null, "status": null, "search": "" },
+  "totals": { "total": 0, "ativa": 0, "finalizada": 0, "cancelada": 0, "nao_compareceu": 0 },
+  "reservations": []
+}
+```
+
+Sem filtros retorna todo o conjunto; sem correspondências, array vazio e todos os totais zero. Datas/status ausentes são nulos e busca ausente é texto vazio. As reservas têm IDs string, timestamps numéricos em milissegundos, dados relacionados e auditoria, sem hashes; ordenação por data, horário e ID crescentes. O model de relatório reaproveita a consulta de reservas com limites de data e calcula os totais a partir do mesmo array. Assim há uma única leitura consistente, sem consultas separadas para contagem e listagem e sem travas de disponibilidade. A serialização é compartilhada com os demais endpoints de reservas.
+
+O relatório na página administrativa carrega inicialmente sem filtros. Gerar / atualizar relatório aplica os quatro campos; Limpar filtros do relatório consulta novamente todo o conjunto. Seus filtros, totais, mensagens e linhas são independentes da listagem administrativa acima. O resumo mostra os filtros efetivamente aplicados na última consulta; editar campos só altera o resultado após gerar novamente. Após alterar reservas, gere novamente para obter um novo retrato. Durante consulta, os controles ficam bloqueados e o resultado anterior é removido. Em erro, não mantém totais/linhas antigos, preserva os campos e permite nova tentativa. Textos são escapados e datas de auditoria seguem `America/Sao_Paulo`. O navegador apenas apresenta os totais enviados pelo servidor.
 
 ## Validar
 
@@ -475,7 +502,7 @@ Para conferir a gestão administrativa de reservas manualmente:
 4. Conferir 400 para ID inválido, query no PATCH, corpo vazio/lista, status `ativa`/`expirada`/inválido, motivo não textual/acima de 160 e campos extras de identidade/timestamps. Motivo com 160 deve ser aceito; ID válido inexistente retorna 404.
 5. Em duas sessões de administradores distintos, enviar status/motivos diferentes para a mesma ativa quase ao mesmo tempo: um 200 e um 409, preservando a auditoria do vencedor. Manter a trava comum em outra conexão, enviar PATCH e confirmar um encerramento antes do COMMIT: o PATCH deve aguardar e rejeitar o status já definitivo.
 6. Provocar falha SQL por trigger temporária AFTER UPDATE que gera SIGNAL em banco de conferência. Conferir 500 sem detalhes SQL e manutenção do status/auditoria anteriores; remover a trigger e repetir com sucesso. Simular erro de listagem e conferir recuperação pelo serviço após restabelecer o banco.
-7. No navegador, aplicar/limpar filtros, atualizar, encerrar nos três status, conferir auditoria e ausência de ações em definitivas. Durante consulta/gravação, conferir bloqueio de filtros/ações e apenas um PATCH no clique duplo. Conferir mensagem de conflito em outra sessão, preservação dos campos em outros erros, sessão encerrada e recuperação de falha. Na aba Rede, a página deve usar apenas autenticação e `/api/reservations`, sem mesas/mensagens/funcionamento/`/api/data`; relatório deve permanecer identificado como pendente e desabilitado. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
+7. No navegador, aplicar/limpar filtros, atualizar, encerrar nos três status, conferir auditoria e ausência de ações em definitivas. Durante consulta/gravação, conferir bloqueio de filtros/ações e apenas um PATCH no clique duplo. Conferir mensagem de conflito em outra sessão, preservação dos campos em outros erros, sessão encerrada e recuperação de falha. Na aba Rede, a página deve usar apenas autenticação, `/api/reservations` e `/api/reports/reservations`, sem mesas/mensagens/funcionamento/`/api/data`. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
 
 Para conferir as proteções integradas do M13 manualmente:
 
@@ -506,6 +533,16 @@ Para conferir mensagens administrativas manualmente:
 6. Em banco de conferência, provocar falha com trigger temporária AFTER UPDATE que gera SIGNAL. Conferir 500 sem detalhes SQL e mensagem ainda aberta, com resposta/autor/data nulos. Remover a trigger e conferir recuperação pelo serviço. Simular falha da listagem, restaurar e conferir recuperação sem dados parciais.
 7. Consultar histórico com cada cliente e confirmar que recebe apenas suas mensagens e respectivas respostas. Encerrar sessão administrativa e conferir 401 em listagem/resposta pelos serviços reais.
 8. No navegador, conferir carregamento/vazio/erro/recarga, estados Aberta/Respondida, resposta escapada e datas no fuso do restaurante. Digitar rascunhos em duas mensagens: enviar uma deve preservar a outra; falha deve preservar o texto; sucesso deve remover a edição. Conferir clique duplo/Enter, controles bloqueados, conflito entre duas abas, recuperação de erro e sessão encerrada. Na aba Rede, somente autenticação e GET/PATCH de mensagens; sem consultas a `/api/data`, mesas, reservas ou horários. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
+
+Para conferir o relatório de reservas manualmente:
+
+1. Sem sessão e após logout, conferir 401; como cliente, 403. Como administrador em banco sem reservas, conferir 200 com filtros nulos/busca vazia, totais zero e array vazio, com `Cache-Control: no-store`.
+2. Preparar reservas dos quatro status, clientes/mesas distintos, datas passadas/futuras e empate de data/horário. Conferir ordenação crescente por data/horário/ID, dados relacionados/auditoria e formatos. Comparar contagens e linhas com SQL.
+3. Consultar início/fim isolados, ambos, mesmo dia e limites exatos; conferir inclusão das duas bordas. Combinar período, status e busca com AND. Conferir cada status e busca por nome, e-mail, número e `Mesa N`, inclusive caixa diferente. `%` e `_` devem buscar texto literal; busca sem correspondência retorna array vazio e todos os totais zero.
+4. Conferir trim/filtros vazios normalizados na resposta. Busca com 120 caracteres deve ser aceita; 121, rejeitada. Conferir 400 para data impossível/formato inválido, intervalo invertido, status desconhecido, query extra/repetida/estruturada e corpo no GET. Texto de SQL na busca não deve executar comandos ou liberar registros.
+5. Executar o serviço real do frontend e conferir GET sem corpo, somente os quatro filtros permitidos e sem `/api/data`. Criar uma reserva pela API, comparar o objeto do relatório à listagem administrativa e conferir nova consulta após encerrá-la, incluindo totais e auditoria; conferir também histórico do cliente para preservar a compatibilidade dos endpoints existentes.
+6. Em banco de conferência, alterar um status em outra transação sem confirmar e manter a trava de configuração ocupada: o relatório deve continuar lendo o estado confirmado, com linhas e totais coerentes. Após commit, nova consulta deve refletir a alteração. Simular falha SQL da leitura, conferir 500 sem detalhes internos e recuperar pelo serviço após restaurar o banco.
+7. No navegador, conferir carregamento, vazio, totais por status, filtros efetivos, período, busca, limpeza, recarga e independência dos filtros da listagem principal. Conferir texto escapado, auditoria, bloqueio dos controles/clique duplo/Enter, erro sem totais/linhas antigas, preservação dos campos, recuperação e sessão encerrada. Após alterar reservas, gerar novamente o relatório. Na aba Rede, a consulta do relatório deve usar `/api/reports/reservations`. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
 
 O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 

@@ -110,11 +110,12 @@
         <article class="app-card rounded-2xl bg-white p-3 shadow-sm" aria-labelledby="reservation-report-title">
             <div class="mb-4">
                 <h2 id="reservation-report-title" class="text-xl font-bold">Relatório de reservas</h2>
-                <p class="text-sm text-slate-500">Pendente do M16: o relatório será calculado pelo servidor. Os controles abaixo ainda não estão disponíveis.</p>
+                <p class="text-sm text-slate-500">Totais e reservas calculados pelo servidor. Gere novamente após alterar reservas; os filtros do relatório são independentes da listagem acima.</p>
             </div>
+            <div id="reportMessage" class="mb-4 hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true"></div>
             <form id="reservationReportForm" class="mb-4 grid gap-3 md:grid-cols-4"
                 aria-label="Filtros do relatório de reservas">
-                <fieldset disabled class="contents">
+                <fieldset id="reportControls" disabled class="contents">
                 <div><label for="reportStartDate" class="mb-1 block text-sm font-medium">Data inicial</label><input
                         id="reportStartDate" type="date"
                         class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
@@ -134,15 +135,18 @@
                         <option value="nao_compareceu">Não compareceu</option>
                     </select>
                 </div>
-                <div><label for="reportSearchFilter" class="mb-1 block text-sm font-medium">Cliente ou
-                        mesa</label><input id="reportSearchFilter" type="search"
+                <div><label for="reportSearchFilter" class="mb-1 block text-sm font-medium">Nome, e-mail ou
+                        mesa</label><input id="reportSearchFilter" type="search" maxlength="120"
                         class="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         placeholder="Ex.: Maria ou Mesa 2" /></div>
-                <div class="md:col-span-4"><button id="clearReportFiltersButton" type="button"
+                <div class="flex flex-wrap gap-3 md:col-span-4"><button type="submit"
+                        class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50">Gerar / atualizar relatório</button>
+                    <button id="clearReportFiltersButton" type="button"
                         class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Limpar
-                         relatório</button></div>
+                         filtros do relatório</button></div>
                 </fieldset>
             </form>
+            <p id="reportFiltersSummary" class="mb-3 text-sm text-slate-500" aria-live="polite"></p>
             <div id="reservationReportTotals" class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3" aria-live="polite">
             </div>
             <div class="app-scroll overflow-x-auto">

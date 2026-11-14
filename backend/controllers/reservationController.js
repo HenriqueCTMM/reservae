@@ -2,6 +2,7 @@ const pool = require('../config/database');
 const Availability = require('../models/availability');
 const { getRestaurantDateTime, isDate, isTime, timeToMinutes, minutesToTime } = require('../utils/dateTime');
 const { getReservationDurationMinutes, getAllowedSlots } = require('../utils/reservationRules');
+const { publicReservation } = require('../utils/reservationResponse');
 const RESERVATION_STATUSES = ['ativa', 'finalizada', 'cancelada', 'nao_compareceu'];
 
 function validateReservation(data) {
@@ -23,16 +24,6 @@ function validateReservation(data) {
         return 'Informe uma quantidade inteira de 1 a 8 pessoas.';
     }
     return '';
-}
-
-function publicReservation(reservation) {
-    return {
-        ...reservation,
-        id: String(reservation.id), usuarioId: String(reservation.usuarioId), mesaId: String(reservation.mesaId),
-        createdAt: Number(reservation.createdAt),
-        statusUpdatedAt: reservation.statusUpdatedAt === null ? null : Number(reservation.statusUpdatedAt),
-        statusUpdatedBy: reservation.statusUpdatedBy === null ? null : String(reservation.statusUpdatedBy)
-    };
 }
 
 module.exports = function createReservationController(Reservation) {

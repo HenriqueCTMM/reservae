@@ -4,7 +4,6 @@ import {
     formatDuration,
     getOperatingHourExceptions,
     getOperatingHoursConfig,
-    getReservationPeriod,
     normalizeSchedule,
     removeOperatingHourException,
     saveOperatingHourException,
@@ -13,6 +12,7 @@ import {
     WEEK_DAYS
 } from './services/operating-hours-service.js';
 import { getReservations, updateReservationStatus } from './services/reservations-service.js';
+import { getReservationsReport } from './services/reports-service.js';
 import { getTables, removeTable, saveTable, updateTable } from './services/tables-service.js';
 import { clearMessage, escapeHtml, formatDate, setFieldInvalid, showMessage, trapFocus } from './ui.js';
 
@@ -43,6 +43,9 @@ const reservationStatusFilter = document.getElementById('reservationStatusFilter
 const reservationSearchFilter = document.getElementById('reservationSearchFilter');
 const reservationResultsCount = document.getElementById('reservationResultsCount');
 const reservationReportForm = document.getElementById('reservationReportForm');
+const reportControls = document.getElementById('reportControls');
+const reportMessage = document.getElementById('reportMessage');
+const reportFiltersSummary = document.getElementById('reportFiltersSummary');
 const reportStartDate = document.getElementById('reportStartDate');
 const reportEndDate = document.getElementById('reportEndDate');
 const reportStatusFilter = document.getElementById('reportStatusFilter');
@@ -76,6 +79,8 @@ logoutButton.addEventListener('click', logout);
 let tables = [];
 let reservations = [];
 let reservationsBusy = false;
+let reservationReport = null;
+let reportBusy = false;
 let messages = [];
 let messagesBusy = false;
 const messageReplyDrafts = new Map();
@@ -628,12 +633,6 @@ function renderTablesList() {
     });
 }
 
-function getReservationTableNumber(reservation) {
-    const table = tables.find((item) => item.id === reservation.mesaId);
-
-    return table?.numero || reservation.mesaNumero || '-';
-}
-
 function updateReservationResultsCount(total) {
     reservationResultsCount.textContent = `${total} ${total === 1 ? 'reserva encontrada' : 'reservas encontradas'}`;
 }
@@ -663,16 +662,6 @@ function getReservationStatusClasses(status) {
     }
 
     return 'bg-emerald-100 text-emerald-700';
-}
-
-function getReservationPeriodText(reservation) {
-    const period = getReservationPeriod(reservation);
-
-    if (!period.endTime) {
-        return reservation.horario;
-    }
-
-    return `${reservation.horario} às ${period.endTime}`;
 }
 
 function renderReservations() {
@@ -730,36 +719,7 @@ function renderReservations() {
     });
 }
 
-function getSearchableReservationText(reservation) {
-    const tableNumber = getReservationTableNumber(reservation);
-
-    return `${reservation.usuarioNome || ''} ${reservation.usuarioEmail || ''} mesa ${tableNumber} ${tableNumber}`.toLowerCase();
-}
-
-function getReportReservations() {
-    const startDate = reportStartDate.value;
-    const endDate = reportEndDate.value;
-    const status = reportStatusFilter.value;
-    const search = reportSearchFilter.value.trim().toLowerCase();
-
-    return reservations.filter((reservation) => {
-        const matchesStart = !startDate || reservation.data >= startDate;
-        const matchesEnd = !endDate || reservation.data <= endDate;
-        const matchesStatus = !status || reservation.status === status;
-        const matchesSearch = !search || getSearchableReservationText(reservation).includes(search);
-
-        return matchesStart && matchesEnd && matchesStatus && matchesSearch;
-    });
-}
-
-function renderReportTotals(reportReservations) {
-    const totals = {
-        total: reportReservations.length,
-        ativa: reportReservations.filter((reservation) => reservation.status === 'ativa').length,
-        finalizada: reportReservations.filter((reservation) => reservation.status === 'finalizada').length,
-        cancelada: reportReservations.filter((reservation) => reservation.status === 'cancelada').length,
-        nao_compareceu: reportReservations.filter((reservation) => reservation.status === 'nao_compareceu').length
-    };
+function renderReportTotals(totals) {
     const cards = [
         ['Ativas', totals.ativa],
         ['Finalizadas', totals.finalizada],
@@ -777,14 +737,16 @@ function renderReportTotals(reportReservations) {
 }
 
 function renderReservationReport() {
-    if (!reservationReportTable || !reservationReportTotals) {
+    if (!reservationReportTable || !reservationReportTotals || !reservationReport) {
         return;
     }
 
-    const reportReservations = getReportReservations();
+    const reportReservations = reservationReport.reservations;
+    const filters = reservationReport.filters;
+    reportFiltersSummary.textContent = `Última consulta: de ${filters.startDate ? formatDate(filters.startDate) : 'qualquer data'} até ${filters.endDate ? formatDate(filters.endDate) : 'qualquer data'}; status: ${filters.status ? getReservationStatusLabel(filters.status) : 'Todos'}; busca: ${filters.search || 'sem busca'}.`;
 
     reservationReportTable.innerHTML = '';
-    renderReportTotals(reportReservations);
+    renderReportTotals(reservationReport.totals);
 
     if (!reportReservations.length) {
         reservationReportTable.innerHTML = '<tr><td colspan="6" class="rounded-2xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">Nenhuma reserva encontrada para o relatório.</td></tr>';
@@ -792,21 +754,19 @@ function renderReservationReport() {
     }
 
     reportReservations.forEach((reservation) => {
-        const tableNumber = getReservationTableNumber(reservation);
         const statusClasses = getReservationStatusClasses(reservation.status);
-        const period = getReservationPeriod(reservation);
         const row = document.createElement('tr');
 
         row.className = 'bg-slate-50 text-sm';
         row.innerHTML = `
-          <td class="rounded-l-2xl px-3 py-3">${escapeHtml(reservation.usuarioNome || 'Usuário')}</td>
-          <td class="px-3 py-3">Mesa ${tableNumber}</td>
+          <td class="rounded-l-2xl px-3 py-3"><p>${escapeHtml(reservation.usuarioNome)}</p><p class="text-xs text-slate-500">${escapeHtml(reservation.usuarioEmail)}</p></td>
+          <td class="px-3 py-3">Mesa ${escapeHtml(reservation.mesaNumero)}</td>
           <td class="px-3 py-3">
-            <p>${formatDate(reservation.data)} das ${getReservationPeriodText(reservation)}</p>
-            <p class="text-xs text-slate-500">${formatDuration(period.durationMinutes)}</p>
+            <p>${formatDate(reservation.data)} das ${escapeHtml(reservation.horario)} às ${escapeHtml(reservation.fimPrevisto)}</p>
+            <p class="text-xs text-slate-500">${escapeHtml(formatDuration(reservation.duracaoMinutos))} • ${reservation.pessoas} pessoas</p>
           </td>
           <td class="px-3 py-3"><span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${getReservationStatusLabel(reservation.status)}</span></td>
-          <td class="px-3 py-3">${reservation.statusUpdatedAt ? formatDateTime(reservation.statusUpdatedAt) : '-'}</td>
+          <td class="px-3 py-3"><p>${reservation.statusUpdatedAt ? formatDateTime(reservation.statusUpdatedAt) : '-'}</p><p class="text-xs text-slate-500">${escapeHtml(reservation.statusUpdatedByName || '-')}</p></td>
           <td class="rounded-r-2xl px-3 py-3">${escapeHtml(reservation.statusReason || '-')}</td>
         `;
         reservationReportTable.appendChild(row);
@@ -1118,7 +1078,7 @@ async function loadData() {
         return;
     }
     if (adminReservationsTable) {
-        await refreshReservations();
+        await Promise.all([refreshReservations(), refreshReservationReport()]);
         return;
     }
     if (weeklyHoursForm) {
@@ -1149,6 +1109,33 @@ async function loadData() {
         }
     } catch (error) {
         showMessage(adminMessage, 'Não foi possível carregar os dados do restaurante.', 'error');
+    }
+}
+
+async function refreshReservationReport() {
+    if (reportBusy) return;
+    reportBusy = true;
+    reportControls.disabled = true;
+    clearMessage(reportMessage);
+    reservationReport = null;
+    reservationReportTable.setAttribute('aria-busy', 'true');
+    reservationReportTotals.innerHTML = '';
+    reportFiltersSummary.textContent = 'Consultando relatório...';
+    reservationReportTable.innerHTML = '<tr><td colspan="6" class="rounded-2xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">Carregando relatório...</td></tr>';
+    try {
+        reservationReport = await getReservationsReport({
+            startDate: reportStartDate.value, endDate: reportEndDate.value,
+            status: reportStatusFilter.value, search: reportSearchFilter.value.trim()
+        });
+        renderReservationReport();
+    } catch (error) {
+        reportFiltersSummary.textContent = 'Relatório não carregado.';
+        reservationReportTable.innerHTML = '<tr><td colspan="6" class="rounded-2xl bg-rose-50 px-3 py-4 text-center text-sm text-rose-700">Não foi possível carregar o relatório. Clique em Gerar / atualizar relatório para tentar novamente.</td></tr>';
+        showMessage(reportMessage, error.message || 'Não foi possível carregar o relatório.', 'error');
+    } finally {
+        reportBusy = false;
+        reportControls.disabled = false;
+        reservationReportTable.setAttribute('aria-busy', 'false');
     }
 }
 
@@ -1406,19 +1393,16 @@ reservationFiltersForm?.addEventListener('submit', (event) => {
 
 reservationReportForm?.addEventListener('submit', (event) => {
     event.preventDefault();
+    refreshReservationReport();
 });
 
-reportStartDate?.addEventListener('change', renderReservationReport);
-reportEndDate?.addEventListener('change', renderReservationReport);
-reportStatusFilter?.addEventListener('change', renderReservationReport);
-reportSearchFilter?.addEventListener('input', renderReservationReport);
-
 clearReportFiltersButton?.addEventListener('click', () => {
+    if (reportBusy) return;
     reportStartDate.value = '';
     reportEndDate.value = '';
     reportStatusFilter.value = '';
     reportSearchFilter.value = '';
-    renderReservationReport();
+    refreshReservationReport();
 });
 
 clearReservationFiltersButton?.addEventListener('click', () => {
