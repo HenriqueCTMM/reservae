@@ -34,4 +34,26 @@ async function findByUser(usuarioId) {
     return rows;
 }
 
-module.exports = { create, findById, findByUser };
+async function findAll() {
+    const [rows] = await pool.execute(`
+        ${MESSAGE_SELECT}
+        ORDER BY message.created_at DESC, message.id DESC
+    `);
+    return rows;
+}
+
+async function findReplyForUpdate(id, connection) {
+    const [rows] = await connection.execute('SELECT status, resposta FROM messages WHERE id = ? FOR UPDATE', [id]);
+    return rows[0];
+}
+
+async function updateReply(id, { reply, adminId }, connection) {
+    const [result] = await connection.execute(`
+        UPDATE messages
+        SET resposta = ?, resposta_em = CURRENT_TIMESTAMP, resposta_por = ?, status = 'respondida'
+        WHERE id = ? AND status = 'aberta' AND resposta IS NULL
+    `, [reply, adminId, id]);
+    return result.affectedRows;
+}
+
+module.exports = { create, findById, findByUser, findAll, findReplyForUpdate, updateReply };

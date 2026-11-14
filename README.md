@@ -30,7 +30,7 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Autenticação, mesas, funcionamento, reservas e mensagens do cliente
+  controllers/         # Autenticação, mesas, funcionamento, reservas e mensagens
   models/              # Consultas SQL por recurso
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Endpoints e permissões por recurso
@@ -89,7 +89,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, disponibilidade, criação/histórico/gestão de reservas e envio/histórico de mensagens do cliente. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`), Reservas (`pages/reservas.html`), Minhas reservas (`pages/minhas-reservas.html`), listagem/encerramento em Reservas administrativas (`pages/admin-reservas.html`) e Contato (`pages/contato.html`) estão integrados às respectivas APIs. API e serviços foram conferidos manualmente; a validação visual dessas telas ainda está pendente. Mensagens administrativas ainda dependem da migração de `/api/data` no M15; o relatório permanece desabilitado e identificado como pendente do M16.
+Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, disponibilidade, criação/histórico/gestão de reservas e mensagens (envio/histórico do cliente e listagem/resposta administrativa). Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`), Reservas (`pages/reservas.html`), Minhas reservas (`pages/minhas-reservas.html`), listagem/encerramento em Reservas administrativas (`pages/admin-reservas.html`), Contato (`pages/contato.html`) e Mensagens administrativas (`pages/admin-mensagens.html`) estão integrados às respectivas APIs. API e serviços foram conferidos manualmente; a validação visual dessas telas ainda está pendente. O relatório permanece desabilitado e identificado como pendente do M16.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -373,7 +373,23 @@ Retorna 201 com `id`, `usuarioId`, `usuarioNome`, `usuarioEmail`, `assunto`, `me
 
 `GET /api/messages/mine` é exclusivo de cliente e não aceita filtros ou corpo. Retorna 200 com array limitado no SQL ao usuário da sessão, ordenado por criação e ID decrescentes, incluindo mensagens abertas e respondidas. Sem mensagens retorna `[]`; `usuarioId` na query retorna 400. Dados do remetente e do administrador que respondeu vêm dos relacionamentos, sem hashes. Os dois endpoints retornam 401 sem sessão e 403 para administrador.
 
-A página Contato usa somente autenticação e os novos endpoints, sem `/api/data`. Durante consulta/envio os controles ficam bloqueados; envio mostra “Enviando mensagem...”. Falhas preservam o texto digitado e mostram a mensagem da API. Sucesso limpa o formulário e consulta novamente o histórico completo, sem repetir o POST. Se essa consulta falhar, o envio continua identificado como bem-sucedido e o histórico exibe seu próprio erro; Recarregar mensagens permite tentar novamente. Datas são exibidas no fuso `America/Sao_Paulo`, e conteúdos de texto são escapados na renderização. Listagem/resposta administrativas seguem pendentes do M15.
+A página Contato usa somente autenticação e os novos endpoints, sem `/api/data`. Durante consulta/envio os controles ficam bloqueados; envio mostra “Enviando mensagem...”. Falhas preservam o texto digitado e mostram a mensagem da API. Sucesso limpa o formulário e consulta novamente o histórico completo, sem repetir o POST. Se essa consulta falhar, o envio continua identificado como bem-sucedido e o histórico exibe seu próprio erro; Recarregar mensagens permite tentar novamente. Datas são exibidas no fuso `America/Sao_Paulo`, e conteúdos de texto são escapados na renderização.
+
+### Mensagens administrativas — M15
+
+`GET /api/messages` é exclusivo de administrador e não aceita query ou corpo. Retorna 200 com todas as mensagens, abertas e respondidas, no mesmo formato do histórico do cliente e em ordem de criação e ID decrescentes. Sem registros retorna `[]`; não há pesquisa ou filtros nesta entrega.
+
+`PATCH /api/messages/:id/reply` é exclusivo de administrador. Corpo:
+
+```json
+{ "reply": "Sim, temos entrada acessível." }
+```
+
+`reply` deve ser texto não vazio após trim, com até 500 caracteres (contados por code points, inclusive Unicode). Aceita somente esse campo: query, objetos de administrador, status, autoria e timestamps enviados pelo navegador retornam 400. ID deve ser inteiro positivo em texto, até 4294967295, sem zero inicial. Texto/corpo/ID inválido retorna 400; mensagem inexistente, 404; mensagem já respondida, 409. Ambos os endpoints retornam 401 sem sessão e 403 para cliente.
+
+A resposta é definitiva: o backend usa a identidade da sessão e o relógio do banco, preenche `resposta`, `respostaEm`, `respostaPor`, `respostaPorNome` e muda o status para `respondida`. Retorna 200 com a Mensagem completa, mantendo remetente, assunto, mensagem e criação originais. A transação trava somente a mensagem com `SELECT ... FOR UPDATE`, atualiza apenas se ainda estiver aberta e sem resposta e lê o resultado pela mesma conexão antes de confirmar. Duas respostas simultâneas produzem um sucesso e um conflito; falhas fazem rollback. Não usa a trava de disponibilidade.
+
+A página Mensagens administrativas carrega somente autenticação e mensagens, sem buscar mesas, reservas ou funcionamento e sem `/api/data`. Consulta/envio bloqueiam os controles, impedindo operações simultâneas; o botão mostra “Enviando resposta...”. Após sucesso, a mensagem atualizada fica sem campo de edição. Erros mostram a mensagem da API e preservam o rascunho. Em 404/409, a listagem é consultada novamente; rascunhos de outras mensagens ainda abertas são preservados, e entradas removidas/respondidas são descartadas. Falha de listagem mostra erro e permite nova tentativa em Atualizar mensagens. Textos são escapados, quebras de linha preservadas e datas exibidas no fuso `America/Sao_Paulo`. O cliente recebe a resposta ao consultar seu próprio histórico.
 
 ## Validar
 
@@ -476,9 +492,20 @@ Para conferir envio e histórico de mensagens do cliente manualmente:
 1. Sem sessão e após logout, conferir 401 em POST `/api/messages` e GET `/api/messages/mine`; como administrador, 403. Cliente novo deve receber 200 com `[]` e `Cache-Control: no-store`.
 2. Enviar assunto/mensagem válidos com espaços nas extremidades e conferir 201, trim, remetente da sessão, status aberta, timestamp do banco e campos de resposta nulos. Confirmar persistência no SQL e após nova consulta.
 3. Conferir 400 para corpo vazio/lista, texto vazio ou só espaços, tipos não textuais, campos acima de 80/500, query e campos extras como `usuarioId`, `status`, `createdAt` e `resposta`. Limites exatos devem ser aceitos. Textos com acentos, Unicode e HTML devem ser persistidos como texto e exibidos sem executar marcação.
-4. Usar dois clientes em sessões distintas: cada histórico deve conter somente suas mensagens. Tentar `?usuarioId=ID_DO_OUTRO_CLIENTE` e corpo no GET; conferir 400. Preparar mensagens com empate de timestamp no banco de conferência e verificar desempate por ID decrescente. Preparar uma respondida por SQL enquanto M15 está pendente e conferir resposta/autor/data pelos relacionamentos, sem alterar o envio inicial.
+4. Usar dois clientes em sessões distintas: cada histórico deve conter somente suas mensagens. Tentar `?usuarioId=ID_DO_OUTRO_CLIENTE` e corpo no GET; conferir 400. Preparar mensagens com empate de timestamp no banco de conferência e verificar desempate por ID decrescente. Responder pela API administrativa e conferir resposta/autor/data pelos relacionamentos, sem alterar o envio inicial.
 5. Provocar falha SQL em banco de conferência com trigger temporária AFTER INSERT que gera SIGNAL: conferir 500 sem detalhes SQL e ausência de registro parcial; remover a trigger e enviar com sucesso. Simular falha de histórico, restaurar a conexão e conferir recuperação pelo serviço.
 6. No navegador, enviar, recarregar e conferir lista vazia/aberta/respondida, caracteres escapados e datas no fuso do restaurante. Conferir controles bloqueados e apenas um POST em clique duplo/Enter, formulário preservado em erro e limpo em sucesso, falha de histórico após envio sem duplicar a mensagem, sessão encerrada e recarga após recuperação. Na aba Rede, somente autenticação, `/api/messages` e `/api/messages/mine`. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
+
+Para conferir mensagens administrativas manualmente:
+
+1. Sem sessão e após logout, conferir 401 em GET `/api/messages` e PATCH `/api/messages/:id/reply`; como cliente, 403. Administrador deve receber 200 com `[]` em banco sem mensagens e `Cache-Control: no-store`. Query e corpo no GET retornam 400.
+2. Criar mensagens com dois clientes e conferir a listagem administrativa completa, incluindo abertas/respondidas, com ordenação por criação e ID decrescentes e sem hashes. Preparar um empate de criação no banco de conferência e conferir o desempate.
+3. Responder como administrador com espaços nas extremidades e quebras de linha. Conferir 200, trim, status respondida, autor da sessão e timestamp comparado ao SQL, preservando dados originais. Conferir texto com HTML como dado literal e limites exatos de 500 caracteres ASCII e Unicode. Responder com outro administrador e conferir seu nome/ID; extras locais no serviço não devem ir ao endpoint.
+4. Conferir 400 para ID inválido/zero/acima do limite, corpo vazio/lista, reply vazio/só espaços/não textual/501 caracteres, query e campos extras de status/autoria/timestamp. ID válido inexistente retorna 404; repetir resposta retorna 409 sem alterar a primeira.
+5. Em duas sessões administrativas, enviar respostas simultâneas à mesma mensagem aberta: somente uma deve retornar 200; a outra, 409. Conferir texto/autor/data persistidos. Ocupar a trava de `operating_settings` em outra conexão e conferir que responder mensagem continua funcionando.
+6. Em banco de conferência, provocar falha com trigger temporária AFTER UPDATE que gera SIGNAL. Conferir 500 sem detalhes SQL e mensagem ainda aberta, com resposta/autor/data nulos. Remover a trigger e conferir recuperação pelo serviço. Simular falha da listagem, restaurar e conferir recuperação sem dados parciais.
+7. Consultar histórico com cada cliente e confirmar que recebe apenas suas mensagens e respectivas respostas. Encerrar sessão administrativa e conferir 401 em listagem/resposta pelos serviços reais.
+8. No navegador, conferir carregamento/vazio/erro/recarga, estados Aberta/Respondida, resposta escapada e datas no fuso do restaurante. Digitar rascunhos em duas mensagens: enviar uma deve preservar a outra; falha deve preservar o texto; sucesso deve remover a edição. Conferir clique duplo/Enter, controles bloqueados, conflito entre duas abas, recuperação de erro e sessão encerrada. Na aba Rede, somente autenticação e GET/PATCH de mensagens; sem consultas a `/api/data`, mesas, reservas ou horários. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
 
 O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 

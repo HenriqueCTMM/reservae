@@ -77,6 +77,8 @@ let tables = [];
 let reservations = [];
 let reservationsBusy = false;
 let messages = [];
+let messagesBusy = false;
+const messageReplyDrafts = new Map();
 let operatingConfig = null;
 let operatingExceptions = [];
 let exceptionsReady = false;
@@ -818,7 +820,8 @@ function formatDateTime(timestamp) {
 
     return new Intl.DateTimeFormat('pt-BR', {
         dateStyle: 'short',
-        timeStyle: 'short'
+        timeStyle: 'short',
+        timeZone: 'America/Sao_Paulo'
     }).format(new Date(timestamp));
 }
 
@@ -843,23 +846,24 @@ function renderMessages() {
         <div>
           <div class="mb-2 flex flex-wrap items-center gap-2">
             <h3 class="font-bold">${escapeHtml(message.assunto)}</h3>
+            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">${message.status === 'respondida' ? 'Respondida' : 'Aberta'}</span>
           </div>
-          <p class="text-sm text-slate-600">${escapeHtml(message.mensagem)}</p>
+          <p class="whitespace-pre-wrap text-sm text-slate-600">${escapeHtml(message.mensagem)}</p>
           <p class="mt-3 text-xs text-slate-500">${escapeHtml(message.usuarioNome || 'Usuário')} • ${escapeHtml(message.usuarioEmail || 'Sem e-mail')} • ${formatDateTime(message.createdAt)}</p>
           ${message.resposta ? `
             <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
               <p class="font-semibold">Resposta enviada</p>
-              <p class="mt-1">${escapeHtml(message.resposta)}</p>
+              <p class="mt-1 whitespace-pre-wrap">${escapeHtml(message.resposta)}</p>
               <p class="mt-2 text-xs text-emerald-700">${escapeHtml(message.respostaPorNome || 'Admin')} • ${formatDateTime(message.respostaEm)}</p>
             </div>
           ` : ''}
         </div>
-        ${message.resposta ? '' : `
+        ${message.status !== 'aberta' || message.resposta !== null ? '' : `
           <div class="grid w-full gap-3">
-            <label for="messageReply-${message.id}" class="block text-sm font-medium">Resposta</label>
-            <textarea id="messageReply-${message.id}" data-message-reply="${message.id}" rows="4" maxlength="500"
+            <label for="messageReply-${message.id}" class="block text-sm font-medium">Resposta (até 500 caracteres)</label>
+            <textarea id="messageReply-${message.id}" data-message-reply="${message.id}" rows="4"
               class="w-full resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-              placeholder="Digite a resposta ao cliente"></textarea>
+              placeholder="Digite a resposta ao cliente">${escapeHtml(messageReplyDrafts.get(message.id) || '')}</textarea>
             <button type="button" data-save-message-reply="${message.id}"
               class="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Salvar resposta</button>
           </div>
@@ -1109,6 +1113,10 @@ async function loadExceptions() {
 }
 
 async function loadData() {
+    if (adminMessagesList) {
+        await refreshMessages();
+        return;
+    }
     if (adminReservationsTable) {
         await refreshReservations();
         return;
@@ -1144,23 +1152,44 @@ async function loadData() {
     }
 }
 
-async function refreshMessages() {
+function setMessagesBusy(busy) {
+    messagesBusy = busy;
+    refreshMessagesButton.disabled = busy;
+    adminMessagesList.setAttribute('aria-busy', String(busy));
+    adminMessagesList.querySelectorAll('textarea, button').forEach((control) => { control.disabled = busy; });
+}
+
+async function refreshMessages({ preserveMessage = false } = {}) {
+    if (messagesBusy) return;
+    if (!preserveMessage) clearMessage(adminMessage);
+    setMessagesBusy(true);
     adminMessagesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Carregando mensagens...</div>';
 
     try {
         messages = await getMessages();
+        for (const id of messageReplyDrafts.keys()) {
+            if (!messages.some((message) => message.id === id && message.status === 'aberta' && message.resposta === null)) {
+                messageReplyDrafts.delete(id);
+            }
+        }
         renderMessages();
     } catch (error) {
-        showMessage(adminMessage, 'Não foi possível atualizar as mensagens.', 'error');
+        messages = [];
+        adminMessagesList.textContent = 'Mensagens não carregadas. Clique em Atualizar mensagens para tentar novamente.';
+        const previousMessage = preserveMessage ? `${adminMessage.textContent} ` : '';
+        showMessage(adminMessage, previousMessage + (error.message || 'Não foi possível atualizar as mensagens.'), 'error');
+    } finally {
+        setMessagesBusy(false);
     }
 }
 
 async function saveMessageReply(messageId) {
+    if (messagesBusy) return;
     clearMessage(adminMessage);
 
     const message = messages.find((item) => item.id === messageId);
 
-    if (message?.resposta) {
+    if (!message || message.status !== 'aberta' || message.resposta !== null) {
         showMessage(adminMessage, 'Esta mensagem já possui resposta e não pode ser editada.', 'error');
         return;
     }
@@ -1168,20 +1197,29 @@ async function saveMessageReply(messageId) {
     const replyField = adminMessagesList.querySelector(`[data-message-reply="${messageId}"]`);
     const reply = replyField?.value.trim() || '';
 
-    if (!reply) {
-        showMessage(adminMessage, 'Digite uma resposta antes de salvar.', 'error');
+    if (!reply || [...reply].length > 500) {
+        showMessage(adminMessage, 'Digite uma resposta com até 500 caracteres antes de salvar.', 'error');
         return;
     }
 
+    let reload = false;
+    setMessagesBusy(true);
+    const saveButton = adminMessagesList.querySelector(`[data-save-message-reply="${messageId}"]`);
+    saveButton.textContent = 'Enviando resposta...';
     try {
-        const updatedMessage = await updateMessageReply(messageId, { reply, admin: user });
+        const updatedMessage = await updateMessageReply(messageId, { reply });
+        messageReplyDrafts.delete(messageId);
         messages = messages.map((message) => message.id === messageId ? updatedMessage : message);
         renderMessages();
         showMessage(adminMessage, 'Resposta enviada ao cliente.');
     } catch (error) {
-        showMessage(adminMessage, 'Não foi possível salvar a resposta.', 'error');
-        await refreshMessages();
+        showMessage(adminMessage, error.message || 'Não foi possível salvar a resposta.', 'error');
+        reload = error.status === 409 || error.status === 404;
+    } finally {
+        saveButton.textContent = 'Salvar resposta';
+        setMessagesBusy(false);
     }
+    if (reload) await refreshMessages({ preserveMessage: true });
 }
 
 function setReservationsBusy(busy) {
@@ -1501,6 +1539,12 @@ exceptionsList?.addEventListener('click', async (event) => {
         showMessage(exceptionsMessage, error.message || 'Não foi possível remover a exceção.', 'error');
     } finally {
         setExceptionsBusy(false);
+    }
+});
+
+adminMessagesList?.addEventListener('input', (event) => {
+    if (event.target.matches('[data-message-reply]')) {
+        messageReplyDrafts.set(event.target.dataset.messageReply, event.target.value);
     }
 });
 

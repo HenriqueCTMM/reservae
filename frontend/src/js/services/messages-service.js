@@ -1,18 +1,13 @@
 import {
-    createTimestamp,
     request,
-    getById,
-    getCollection,
-    removeById,
-    updateById
+    removeById
 } from './api-service.js';
 
 const MESSAGES_PATH = 'messages';
 const DEFAULT_MESSAGE_STATUS = 'aberta';
 
 export async function getMessages() {
-    const messages = await getCollection(MESSAGES_PATH);
-    return messages.sort((a, b) => b.createdAt - a.createdAt);
+    return request('/messages');
 }
 
 export async function getMyMessages() {
@@ -25,19 +20,9 @@ export async function createMessage(message) {
     });
 }
 
-export async function updateMessageReply(messageId, { reply, admin }) {
-    const message = await getById(MESSAGES_PATH, messageId);
-
-    if (message?.resposta) {
-        throw new Error('Esta mensagem já possui resposta e não pode ser editada.');
-    }
-
-    return updateById(MESSAGES_PATH, messageId, {
-        resposta: reply,
-        respostaEm: createTimestamp(),
-        respostaPor: admin.id,
-        respostaPorNome: admin.nome,
-        status: 'respondida'
+export async function updateMessageReply(messageId, { reply }) {
+    return request(`/messages/${encodeURIComponent(messageId)}/reply`, {
+        method: 'PATCH', body: JSON.stringify({ reply })
     });
 }
 
