@@ -1,9 +1,8 @@
 import {
     createTimestamp,
-    createWithPush,
+    request,
     getById,
     getCollection,
-    queryByChild,
     removeById,
     updateById
 } from './api-service.js';
@@ -16,16 +15,13 @@ export async function getMessages() {
     return messages.sort((a, b) => b.createdAt - a.createdAt);
 }
 
-export async function getMessagesByUser(usuarioId) {
-    const messages = await queryByChild(MESSAGES_PATH, 'usuarioId', usuarioId);
-    return messages.sort((a, b) => b.createdAt - a.createdAt);
+export async function getMyMessages() {
+    return request('/messages/mine');
 }
 
 export async function createMessage(message) {
-    return createWithPush(MESSAGES_PATH, {
-        ...message,
-        status: message.status || DEFAULT_MESSAGE_STATUS,
-        createdAt: message.createdAt || createTimestamp()
+    return request('/messages', {
+        method: 'POST', body: JSON.stringify({ assunto: message.assunto, mensagem: message.mensagem })
     });
 }
 

@@ -1,5 +1,5 @@
 import { logout, protectRoute } from './auth.js';
-import { createMessage, getMessagesByUser } from './services/messages-service.js';
+import { createMessage, getMyMessages } from './services/messages-service.js';
 import { clearMessage, escapeHtml, setFieldInvalid, showMessage } from './ui.js';
 
 const currentUser = await protectRoute(['cliente']);
@@ -11,8 +11,11 @@ const contactSubject = document.getElementById('contactSubject');
 const contactMessageText = document.getElementById('contactMessageText');
 const contactMessage = document.getElementById('contactMessage');
 const clientMessagesList = document.getElementById('clientMessagesList');
+const sendMessageButton = document.getElementById('sendMessageButton');
+const reloadMyMessagesButton = document.getElementById('reloadMyMessagesButton');
 
 let messages = [];
+let contactBusy = false;
 
 clientUserName.textContent = currentUser.nome;
 logoutButton.addEventListener('click', logout);
@@ -24,7 +27,8 @@ function formatDateTime(timestamp) {
 
     return new Intl.DateTimeFormat('pt-BR', {
         dateStyle: 'short',
-        timeStyle: 'short'
+        timeStyle: 'short',
+        timeZone: 'America/Sao_Paulo'
     }).format(new Date(timestamp));
 }
 
@@ -53,14 +57,14 @@ function renderClientMessages() {
           <h4 class="font-bold">${escapeHtml(message.assunto)}</h4>
           <p class="text-xs text-slate-500">Enviada em ${formatDateTime(message.createdAt)}</p>
         </div>
-        <span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${message.status}</span>
+        <span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${message.status === 'respondida' ? 'Respondida' : 'Aberta'}</span>
       </div>
       <p class="text-sm text-slate-600">${escapeHtml(message.mensagem)}</p>
       ${message.resposta ? `
         <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
           <p class="font-semibold">Resposta do restaurante</p>
           <p class="mt-1">${escapeHtml(message.resposta)}</p>
-          <p class="mt-2 text-xs text-emerald-700">${formatDateTime(message.respostaEm)}</p>
+          <p class="mt-2 text-xs text-emerald-700">${formatDateTime(message.respostaEm)} • ${escapeHtml(message.respostaPorNome || 'Restaurante')}</p>
         </div>
       ` : ''}
     `;
@@ -68,19 +72,37 @@ function renderClientMessages() {
     });
 }
 
+function setContactBusy(busy, saving = false) {
+    contactBusy = busy;
+    contactSubject.disabled = busy;
+    contactMessageText.disabled = busy;
+    sendMessageButton.disabled = busy;
+    reloadMyMessagesButton.disabled = busy;
+    sendMessageButton.textContent = saving ? 'Enviando mensagem...' : 'Enviar mensagem';
+    contactForm.setAttribute('aria-busy', String(busy));
+}
+
 async function loadMessages() {
+    if (contactBusy) return;
+    setContactBusy(true);
+    clientMessagesList.setAttribute('aria-busy', 'true');
     clientMessagesList.innerHTML = '<div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Carregando mensagens...</div>';
 
     try {
-        messages = await getMessagesByUser(currentUser.id);
+        messages = await getMyMessages();
         renderClientMessages();
     } catch (error) {
-        clientMessagesList.innerHTML = '<div class="rounded-2xl border border-rose-200 p-4 text-sm text-rose-600">Não foi possível carregar as mensagens.</div>';
+        messages = [];
+        clientMessagesList.innerHTML = `<div role="alert" class="rounded-2xl border border-rose-200 p-4 text-sm text-rose-600">${escapeHtml(error.message || 'Não foi possível carregar as mensagens. Tente recarregar.')}</div>`;
+    } finally {
+        clientMessagesList.setAttribute('aria-busy', 'false');
+        setContactBusy(false);
     }
 }
 
 contactForm.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (contactBusy) return;
     clearMessage(contactMessage);
     setFieldInvalid(contactSubject, false);
     setFieldInvalid(contactMessageText, false);
@@ -88,29 +110,31 @@ contactForm.addEventListener('submit', async (event) => {
     const subject = contactSubject.value.trim();
     const text = contactMessageText.value.trim();
 
-    if (!subject || !text) {
-        setFieldInvalid(contactSubject, !subject);
-        setFieldInvalid(contactMessageText, !text);
-        showMessage(contactMessage, 'Preencha assunto e mensagem.', 'error');
+    if (!subject || [...subject].length > 80 || !text || [...text].length > 500) {
+        setFieldInvalid(contactSubject, !subject || [...subject].length > 80);
+        setFieldInvalid(contactMessageText, !text || [...text].length > 500);
+        showMessage(contactMessage, 'Preencha assunto com até 80 caracteres e mensagem com até 500 caracteres.', 'error');
         return;
     }
 
+    let sent = false;
+    setContactBusy(true, true);
     try {
-        const newMessage = await createMessage({
-            usuarioId: currentUser.id,
-            usuarioNome: currentUser.nome,
-            usuarioEmail: currentUser.email,
+        await createMessage({
             assunto: subject,
             mensagem: text
         });
 
-        messages.unshift(newMessage);
+        sent = true;
         contactForm.reset();
-        renderClientMessages();
         showMessage(contactMessage, 'Mensagem enviada com sucesso.');
     } catch (error) {
-        showMessage(contactMessage, 'Não foi possível enviar a mensagem. Tente novamente.', 'error');
+        showMessage(contactMessage, error.message || 'Não foi possível enviar a mensagem. Tente novamente.', 'error');
+    } finally {
+        setContactBusy(false);
     }
+    if (sent) await loadMessages();
 });
 
+reloadMyMessagesButton.addEventListener('click', loadMessages);
 await loadMessages();

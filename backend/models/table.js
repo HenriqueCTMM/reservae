@@ -40,15 +40,16 @@ async function lockSettings(connection) {
     if (!rows.length) throw new Error('Execute npm run db:init antes de alterar mesas.');
 }
 
-async function hasReservationConflict(id, { capacidade, indisponivel, now }, connection) {
+async function findReservationConflict(id, { capacidade, indisponivel, now }, connection) {
     const [rows] = await connection.execute(`
-        SELECT id FROM reservations
+        SELECT DATE_FORMAT(data, '%Y-%m-%d') AS data FROM reservations
         WHERE mesa_id = ? AND status = 'ativa'
             AND TIMESTAMP(data, fim_previsto) > ?
             AND (? = TRUE OR pessoas > ?)
+        ORDER BY data, horario, id
         LIMIT 1
     `, [id, now, indisponivel, capacidade]);
-    return rows.length > 0;
+    return rows[0];
 }
 
 async function update(id, { numero, capacidade, status, posicaoX, posicaoY, rotacao }, connection) {
@@ -67,4 +68,4 @@ async function remove(id, connection) {
     await connection.execute('DELETE FROM tables WHERE id = ?', [id]);
 }
 
-module.exports = { findAll, findByNumber, findById, create, lockSettings, hasReservationConflict, update, hasReservations, remove };
+module.exports = { findAll, findByNumber, findById, create, lockSettings, findReservationConflict, update, hasReservations, remove };

@@ -111,7 +111,7 @@ module.exports = function createTableController(Table) {
             try {
                 connection = await pool.getConnection();
                 await connection.beginTransaction();
-                // A mesma trava será usada pelas operações de reserva e funcionamento.
+                // Trava compartilhada com as operações de reserva e funcionamento.
                 await Table.lockSettings(connection);
                 const current = await Table.findById(id, connection);
                 if (!current) {
@@ -132,14 +132,14 @@ module.exports = function createTableController(Table) {
 
                 const makesUnavailable = data.status === 'indisponivel' && current.status !== data.status;
                 if (makesUnavailable || data.capacidade < current.capacidade) {
-                    const conflict = await Table.hasReservationConflict(id, {
+                    const conflict = await Table.findReservationConflict(id, {
                         capacidade: data.capacidade,
                         indisponivel: makesUnavailable,
                         now: getRestaurantDateTime()
                     }, connection);
                     if (conflict) {
                         await connection.rollback();
-                        return res.status(409).json({ message: 'Esta alteração inviabiliza uma reserva ativa da mesa.' });
+                        return res.status(409).json({ message: `Esta alteração inviabiliza a reserva ativa de ${conflict.data} na mesa ${current.numero}.` });
                     }
                 }
 

@@ -30,7 +30,7 @@ backend/
   app.js               # Configuração do Express, sessão e frontend estático
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
-  controllers/         # Autenticação, mesas, funcionamento, disponibilidade e reservas
+  controllers/         # Autenticação, mesas, funcionamento, reservas e mensagens do cliente
   models/              # Consultas SQL por recurso
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Endpoints e permissões por recurso
@@ -79,7 +79,7 @@ package-lock.json
 
 O Express entrega o frontend e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL para que os formulários acessem a API. `npm start` inicia sem o modo watch.
 
-## Etapa atual: autenticação, mesas, funcionamento e reservas
+## Etapa atual: autenticação, mesas, funcionamento, reservas e contato
 
 - Cadastro com nome, e-mail e senha de pelo menos 6 caracteres (máximo de 72 bytes, limite do bcrypt).
 - E-mails são normalizados para minúsculas e não podem se repetir.
@@ -89,7 +89,7 @@ O Express entrega o frontend e a API na mesma origem. Não há compilação do f
 - O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
 - Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
 
-Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, consulta de disponibilidade, criação transacional de reservas, histórico do próprio cliente e gestão administrativa de reservas. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`), seleção/confirmação em Reservas (`pages/reservas.html`), Minhas reservas (`pages/minhas-reservas.html`) e a listagem/encerramento em Reservas administrativas (`pages/admin-reservas.html`) estão integradas às respectivas APIs. API e serviços foram conferidos manualmente; a validação visual dessas telas ainda está pendente. Contato e mensagens administrativas ainda dependem da migração de `/api/data`; o relatório permanece desabilitado e identificado como pendente do M16.
+Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, disponibilidade, criação/histórico/gestão de reservas e envio/histórico de mensagens do cliente. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`), Reservas (`pages/reservas.html`), Minhas reservas (`pages/minhas-reservas.html`), listagem/encerramento em Reservas administrativas (`pages/admin-reservas.html`) e Contato (`pages/contato.html`) estão integrados às respectivas APIs. API e serviços foram conferidos manualmente; a validação visual dessas telas ainda está pendente. Mensagens administrativas ainda dependem da migração de `/api/data` no M15; o relatório permanece desabilitado e identificado como pendente do M16.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -208,9 +208,9 @@ Retorna 201 com a mesa completa no mesmo formato da listagem. Dados inválidos r
 
 Os campos omitidos são preservados. A mesa completa é validada após combinar os dados atuais com os campos enviados; alterar apenas a rotação ou a capacidade também considera os limites do mapa. Corpo vazio, campos extras, parâmetros de query e valores inválidos retornam 400. ID inválido retorna 400; mesa inexistente retorna 404; número já usado por outra mesa retorna 409. O sucesso retorna 200 com a mesa completa. Sem login retorna 401; cliente recebe 403.
 
-Reduzir capacidade abaixo da quantidade de pessoas de uma reserva ativa ou tornar a mesa indisponível com reserva ativa ainda não encerrada retorna 409. A verificação considera o término previsto no fuso `America/Sao_Paulo`, incluindo reservas em andamento; reservas passadas ou com status definitivo não impedem essas alterações. Posição, rotação e número podem ser alterados sem modificar os registros das reservas.
+Reduzir capacidade abaixo da quantidade de pessoas de uma reserva ativa ou tornar a mesa indisponível com reserva ativa ainda não encerrada retorna 409. A mensagem identifica a data da reserva conflitante e o número atual da mesa. A verificação considera o término previsto no fuso `America/Sao_Paulo`, incluindo reservas em andamento; reservas passadas ou com status definitivo não impedem essas alterações. Posição, rotação e número podem ser alterados sem modificar os registros das reservas.
 
-A leitura da mesa, validação, consulta de reservas e gravação usam a mesma transação. Uma trava na configuração do restaurante coordena a edição com as futuras operações de reservas e funcionamento.
+A leitura da mesa, validação, consulta de reservas e gravação usam a mesma transação. A trava comum em `operating_settings` coordena a edição com criação/encerramento de reservas e alterações de funcionamento.
 
 ### Exclusão de mesas
 
@@ -343,6 +343,38 @@ O encerramento usa a mesma conexão e protocolo de disponibilidade: transação 
 
 Na página administrativa, preencher os filtros e clicar em Aplicar filtros consulta a API; Atualizar reaplica os campos atuais e Limpar filtros consulta sem filtros. A tabela usa os dados relacionados e o período persistido, sem consultar mesas/mensagens/funcionamento ou filtrar os resultados no navegador. Reservas ativas têm ação de encerramento; definitivas mostram data, administrador e motivo. Durante consulta/gravação os controles ficam bloqueados. Sucesso ou conflito recarrega a listagem com os filtros atuais; outros erros de gravação preservam os campos digitados para nova tentativa. Falha de consulta remove as linhas antigas e permite Atualizar. O relatório está identificado como pendente do M16 e seus controles permanecem desabilitados.
 
+### Proteções integradas — M13
+
+As operações administrativas preservam reservas `ativa` cujo término previsto ainda é futuro no relógio de `America/Sao_Paulo`, inclusive em andamento:
+
+| Operação | Proteção |
+| --- | --- |
+| Editar mesa | Impede indisponibilidade ou capacidade menor que a quantidade de pessoas; permite capacidade suficiente, renumeração, posição e rotação válidas |
+| Salvar semana | Exige a permanência inteira em um único turno; ignora datas que possuem exceção |
+| Salvar exceção | Substitui a semana e exige que comporte as reservas da data |
+| Excluir exceção | Só permite voltar à semana se ela comportar as reservas da data |
+| Excluir mesa | Qualquer reserva vinculada impede exclusão, mesmo passada ou com status definitivo |
+
+Os limites exatos de início e término são aceitos. Dois turnos encostados não substituem um único turno que comporte toda a permanência. Reservas cujo término já passou, mesmo ainda marcadas como ativas, e reservas com status definitivo não impedem mudanças de capacidade/status/funcionamento. Após encerramento pelo PATCH de reservas, essas mudanças podem ser feitas sem apagar o histórico.
+
+Conflitos de edição de mesa ou funcionamento retornam 409 com data e número da mesa, sem nome/e-mail do cliente. As gravações compartilham a trava de configuração como primeira leitura da transação e consultam os dados após obtê-la, usando a mesma conexão. Se uma criação confirmar primeiro, uma mudança incompatível será rejeitada; se a mudança confirmar primeiro, a criação deverá respeitar o novo estado. Um encerramento confirmado antes de uma alteração administrativa deixa de bloqueá-la. Rejeições preservam a configuração anterior.
+
+### Contato e mensagens do cliente — M14
+
+`POST /api/messages` é exclusivo de cliente autenticado. Enviar somente:
+
+```json
+{ "assunto": "Dúvida sobre acesso", "mensagem": "O restaurante possui entrada acessível?" }
+```
+
+Os dois campos são textos obrigatórios, não vazios após trim, com até 80 e 500 caracteres respectivamente. Campos extras, tipos inválidos e parâmetros de query retornam 400. O servidor obtém a identidade pela sessão e cria a mensagem com status `aberta` e timestamp do banco. Não aceita identidade, status, resposta ou timestamps do navegador.
+
+Retorna 201 com `id`, `usuarioId`, `usuarioNome`, `usuarioEmail`, `assunto`, `mensagem`, `status`, `createdAt`, `resposta`, `respostaEm`, `respostaPor` e `respostaPorNome`. IDs são strings, timestamps numéricos em milissegundos e os quatro campos de resposta inicialmente são nulos. A inserção e a leitura da resposta usam a mesma conexão transacional; falhas fazem rollback e a conexão é sempre liberada. Esse envio não altera disponibilidade e não usa a trava comum de reservas.
+
+`GET /api/messages/mine` é exclusivo de cliente e não aceita filtros ou corpo. Retorna 200 com array limitado no SQL ao usuário da sessão, ordenado por criação e ID decrescentes, incluindo mensagens abertas e respondidas. Sem mensagens retorna `[]`; `usuarioId` na query retorna 400. Dados do remetente e do administrador que respondeu vêm dos relacionamentos, sem hashes. Os dois endpoints retornam 401 sem sessão e 403 para administrador.
+
+A página Contato usa somente autenticação e os novos endpoints, sem `/api/data`. Durante consulta/envio os controles ficam bloqueados; envio mostra “Enviando mensagem...”. Falhas preservam o texto digitado e mostram a mensagem da API. Sucesso limpa o formulário e consulta novamente o histórico completo, sem repetir o POST. Se essa consulta falhar, o envio continua identificado como bem-sucedido e o histórico exibe seu próprio erro; Recarregar mensagens permite tentar novamente. Datas são exibidas no fuso `America/Sao_Paulo`, e conteúdos de texto são escapados na renderização. Listagem/resposta administrativas seguem pendentes do M15.
+
 ## Validar
 
 Validação exclusivamente manual: cadastrar cliente, repetir o e-mail, tentar senha incorreta, entrar, recarregar a página autenticada e sair.
@@ -428,6 +460,25 @@ Para conferir a gestão administrativa de reservas manualmente:
 5. Em duas sessões de administradores distintos, enviar status/motivos diferentes para a mesma ativa quase ao mesmo tempo: um 200 e um 409, preservando a auditoria do vencedor. Manter a trava comum em outra conexão, enviar PATCH e confirmar um encerramento antes do COMMIT: o PATCH deve aguardar e rejeitar o status já definitivo.
 6. Provocar falha SQL por trigger temporária AFTER UPDATE que gera SIGNAL em banco de conferência. Conferir 500 sem detalhes SQL e manutenção do status/auditoria anteriores; remover a trigger e repetir com sucesso. Simular erro de listagem e conferir recuperação pelo serviço após restabelecer o banco.
 7. No navegador, aplicar/limpar filtros, atualizar, encerrar nos três status, conferir auditoria e ausência de ações em definitivas. Durante consulta/gravação, conferir bloqueio de filtros/ações e apenas um PATCH no clique duplo. Conferir mensagem de conflito em outra sessão, preservação dos campos em outros erros, sessão encerrada e recuperação de falha. Na aba Rede, a página deve usar apenas autenticação e `/api/reservations`, sem mesas/mensagens/funcionamento/`/api/data`; relatório deve permanecer identificado como pendente e desabilitado. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
+
+Para conferir as proteções integradas do M13 manualmente:
+
+1. Criar uma reserva pelo POST como cliente. Como administrador, reduzir a capacidade abaixo de pessoas ou desativar a mesa: conferir 409 com data/mesa e manutenção dos dados. Renumerar/mover/girar e manter capacidade suficiente devem funcionar; novas mensagens devem usar o número atual da mesa.
+2. Fechar o dia semanal, encurtar seu turno ou dividir a permanência entre turnos: conferir 409. Manter um turno com os limites exatos deve funcionar. Criar uma exceção compatível e fechar o dia semanal: deve funcionar sem alterar a exceção.
+3. Tentar fechar/encurtar a exceção ou removê-la quando a semana não comporta a reserva: conferir 409 e preservação do registro. Tornar a semana compatível e remover: conferir 200 e retorno à programação semanal. Incluir uma exceção que abra um domingo normalmente fechado.
+4. Em banco de conferência, ajustar via SQL data/horário de reservas criadas pela API para representar uma em andamento, outra passada e outra com término já passado hoje. A em andamento deve continuar protegida. As encerradas no relógio não devem impedir mudanças, mesmo com status ativa; qualquer vínculo continua impedindo exclusão da mesa.
+5. Encerrar reservas pelos três status definitivos da API. Repetir as mudanças antes bloqueadas e conferir sucesso, histórico mantido e exclusão de mesa ainda bloqueada.
+6. Em sessões de cliente e administrador distintas, manter a trava comum em outra conexão e enfileirar criação/alteração em ordens diferentes. Criação antes de redução de capacidade ou fechamento semanal: 201/409. Desativação de mesa antes de criar: 200/409. Exceção que fecha a data ou exclusão de exceção que abre domingo antes de criar: 200/400. Encerramento antes de reduzir capacidade: ambos podem retornar 200. Conferir os dados finais por API/SQL.
+7. No navegador, repetir os conflitos em Mesas/Configurações e conferir mensagem com data/mesa, campos preservados e configuração inalterada após recarga. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
+
+Para conferir envio e histórico de mensagens do cliente manualmente:
+
+1. Sem sessão e após logout, conferir 401 em POST `/api/messages` e GET `/api/messages/mine`; como administrador, 403. Cliente novo deve receber 200 com `[]` e `Cache-Control: no-store`.
+2. Enviar assunto/mensagem válidos com espaços nas extremidades e conferir 201, trim, remetente da sessão, status aberta, timestamp do banco e campos de resposta nulos. Confirmar persistência no SQL e após nova consulta.
+3. Conferir 400 para corpo vazio/lista, texto vazio ou só espaços, tipos não textuais, campos acima de 80/500, query e campos extras como `usuarioId`, `status`, `createdAt` e `resposta`. Limites exatos devem ser aceitos. Textos com acentos, Unicode e HTML devem ser persistidos como texto e exibidos sem executar marcação.
+4. Usar dois clientes em sessões distintas: cada histórico deve conter somente suas mensagens. Tentar `?usuarioId=ID_DO_OUTRO_CLIENTE` e corpo no GET; conferir 400. Preparar mensagens com empate de timestamp no banco de conferência e verificar desempate por ID decrescente. Preparar uma respondida por SQL enquanto M15 está pendente e conferir resposta/autor/data pelos relacionamentos, sem alterar o envio inicial.
+5. Provocar falha SQL em banco de conferência com trigger temporária AFTER INSERT que gera SIGNAL: conferir 500 sem detalhes SQL e ausência de registro parcial; remover a trigger e enviar com sucesso. Simular falha de histórico, restaurar a conexão e conferir recuperação pelo serviço.
+6. No navegador, enviar, recarregar e conferir lista vazia/aberta/respondida, caracteres escapados e datas no fuso do restaurante. Conferir controles bloqueados e apenas um POST em clique duplo/Enter, formulário preservado em erro e limpo em sucesso, falha de histórico após envio sem duplicar a mensagem, sessão encerrada e recarga após recuperação. Na aba Rede, somente autenticação, `/api/messages` e `/api/messages/mine`. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
 
 O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 
