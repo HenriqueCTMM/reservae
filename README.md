@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/src/assets/logo-reservae.png" alt="Reservaê" width="220" />
+  <img src="backend/public/assets/logo-reservae.png" alt="Reservaê" width="220" />
 </p>
 
 # Reservaê
@@ -9,7 +9,7 @@ Aplicação para reservas de mesas de restaurante, com frontend e backend no mes
 ## Tecnologias
 
 - Frontend: HTML, CSS com Tailwind via CDN e JavaScript ES Modules.
-- Backend: Node.js 22+ e Express 4.
+- Backend: Node.js 22+, Express 4 e templates EJS (migração iniciada).
 - Banco: MySQL 8.4.
 - Autenticação por e-mail/senha, com bcrypt e express-session, seguindo o projeto `auth-site-aula`.
 - npm workspaces: instalação centralizada e um único `package-lock.json`.
@@ -23,8 +23,6 @@ frontend/
     app.js
     pages/             # Telas de cliente e administrador
     js/services/       # Comunicação com a API e serviços de tela
-    css/
-    assets/
   package.json
 backend/
   app.js               # Configuração do Express, sessão e frontend estático
@@ -34,6 +32,8 @@ backend/
   models/              # Consultas SQL por recurso
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Endpoints e permissões por recurso
+  views/               # Templates EJS e partials; piloto de login
+  public/              # CSS e assets compartilhados pelas telas EJS e HTML
   utils/               # Datas, horários e regras de duração/slots
   sql/schema.sql       # Tabelas, relacionamentos e configurações básicas
   scripts/init-db.js    # Inicialização do banco sem apagar dados existentes
@@ -78,6 +78,12 @@ package-lock.json
 5. Acesse **http://localhost:3000**.
 
 O Express entrega o frontend e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL para que os formulários acessem a API. `npm start` inicia sem o modo watch.
+
+### Migração MVC com EJS — E01
+
+A base EJS está disponível em **http://localhost:3000/login**, com renderização por controller e partials de head, link de acessibilidade e rodapé. CSS e imagens estão em `backend/public`, mantendo as URLs `/css/*` e `/assets/*` usadas pelas telas atuais.
+
+A página piloto usa o fluxo de login existente pela API. O processamento de formulários no servidor e a proteção das páginas fazem parte do E02. Durante a transição, `/`, `/index.html` e `/pages/*.html` continuam acessíveis. Veja o [plano MVC com EJS](docs/migracao/PLANO-MVC-EJS.md) e o [registro de validação E01](docs/migracao/E01-VALIDACAO-MANUAL.md).
 
 ## Etapa atual: autenticação, mesas, funcionamento, reservas, contato e relatório
 

@@ -17,7 +17,7 @@ loginForm.addEventListener('submit', async (event) => {
         const user = await request('/auth/login', {
             method: 'POST', body: JSON.stringify({ email: emailField.value.trim(), senha: passwordField.value })
         });
-        window.location.href = user.perfil === 'admin' ? './pages/admin.html' : './pages/reservas.html';
+        window.location.href = user.perfil === 'admin' ? '/pages/admin.html' : '/pages/reservas.html';
     } catch (error) {
         setFieldInvalid(emailField);
         setFieldInvalid(passwordField);

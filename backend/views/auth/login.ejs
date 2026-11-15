@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<%- include('../partials/head') %>
+
+<body class="app-surface flex min-h-screen flex-col text-slate-900">
+    <%- include('../partials/skip-link') %>
+
+    <main id="conteudo-principal" tabindex="-1"
+        class="app-container flex flex-1 items-center justify-center py-8 sm:py-10" aria-labelledby="login-title">
+        <section class="app-auth-card app-card w-full max-w-md rounded-2xl bg-white p-6 shadow-lg sm:p-8"
+            aria-labelledby="login-title">
+            <div class="mb-8 text-center">
+                <h1 id="login-title" class="sr-only">Reservaê</h1>
+                <img src="/assets/logo-reservae.png" alt="Reservaê" class="mx-auto h-16 w-auto" />
+                <img src="/assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô - Crepes e Pizzas"
+                    class="mx-auto mt-4 h-36 w-36 rounded-lg object-cover shadow-sm" />
+            </div>
+
+            <form id="loginForm" class="space-y-4" aria-labelledby="login-title">
+                <div>
+                    <label for="email" class="mb-1 block text-sm font-medium">E-mail</label>
+                    <input id="email" name="email" type="email" autocomplete="email"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                        placeholder="Digite seu e-mail" required />
+                </div>
+
+                <div>
+                    <label for="senha" class="mb-1 block text-sm font-medium">Senha</label>
+                    <input id="senha" name="senha" type="password" autocomplete="current-password"
+                        class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                        placeholder="Digite sua senha" required />
+                </div>
+
+                <button type="submit"
+                    class="w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Entrar</button>
+            </form>
+
+            <div id="loginMessage" class="mt-4 hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive"
+                aria-atomic="true"></div>
+
+            <p class="mt-6 text-center text-sm text-slate-600">
+                Ainda não tem conta?
+                <a href="/pages/cadastro.html"
+                    class="font-semibold text-slate-900 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Criar
+                    conta de cliente</a>
+            </p>
+        </section>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script type="module" src="/app.js"></script>
+</body>
+
+</html>
