@@ -1,11 +1,7 @@
-import { logout, protectRoute } from './auth.js';
+import './auth.js';
 import { createMessage, getMyMessages } from './services/messages-service.js';
 import { clearMessage, escapeHtml, setFieldInvalid, showMessage } from './ui.js';
 
-const currentUser = await protectRoute(['cliente']);
-
-const clientUserName = document.getElementById('clientUserName');
-const logoutButton = document.getElementById('logoutButton');
 const contactForm = document.getElementById('contactForm');
 const contactSubject = document.getElementById('contactSubject');
 const contactMessageText = document.getElementById('contactMessageText');
@@ -17,9 +13,6 @@ const reloadMyMessagesButton = document.getElementById('reloadMyMessagesButton')
 let messages = [];
 let contactBusy = false;
 
-clientUserName.textContent = currentUser.nome;
-logoutButton.addEventListener('click', logout);
-
 function formatDateTime(timestamp) {
     if (!timestamp) {
         return 'data não informada';
@@ -29,7 +22,7 @@ function formatDateTime(timestamp) {
         dateStyle: 'short',
         timeStyle: 'short',
         timeZone: 'America/Sao_Paulo'
-    }).format(new Date(timestamp));
+    }).format(new Date(Number(timestamp)));
 }
 
 function getMessageStatusClasses(status) {
@@ -110,6 +103,7 @@ contactForm.addEventListener('submit', async (event) => {
     const subject = contactSubject.value.trim();
     const text = contactMessageText.value.trim();
 
+    // maxlength no HTML conta unidades UTF-16; os limites de negócio contam code points.
     if (!subject || [...subject].length > 80 || !text || [...text].length > 500) {
         setFieldInvalid(contactSubject, !subject || [...subject].length > 80);
         setFieldInvalid(contactMessageText, !text || [...text].length > 500);
@@ -137,4 +131,3 @@ contactForm.addEventListener('submit', async (event) => {
 });
 
 reloadMyMessagesButton.addEventListener('click', loadMessages);
-await loadMessages();

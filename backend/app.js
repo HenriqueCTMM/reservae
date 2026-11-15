@@ -58,7 +58,7 @@ function createApp({
     app.use('/api', (req, res) => {
         res.status(404).json({ message: 'Endpoint não implementado nesta etapa.' });
     });
-    app.use(createPageRoutes(User));
+    app.use(createPageRoutes(User, { Reservation, Message }));
     app.use(express.static(path.join(__dirname, 'public')));
     // Somente módulos públicos: HTML legado é entregue pelas rotas autorizadas.
     app.use('/js', express.static(path.join(__dirname, '..', 'frontend', 'src', 'js')));

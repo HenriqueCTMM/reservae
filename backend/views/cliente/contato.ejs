@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<%- include('../partials/head') %>
+
+<body class="app-surface flex min-h-screen flex-col text-slate-900">
+    <%- include('../partials/skip-link') %>
+    <%- include('../partials/navigation', {
+        pageTitle: 'Contato', pageDescription: 'Envie dúvidas ou observações para o restaurante',
+        titleId: 'contact-page-title', activePage: '/contato'
+    }) %>
+
+    <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 py-5 md:py-6" aria-labelledby="contact-page-title">
+        <section class="app-card rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="contact-title">
+            <div class="mb-6">
+                <h2 id="contact-title" class="text-xl font-bold">Contato com o restaurante</h2>
+                <p class="text-sm text-slate-500">Envie mensagens e acompanhe as respostas do restaurante.</p>
+            </div>
+
+            <noscript><p class="mb-4 rounded-xl bg-slate-100 p-4 text-sm">O envio e a atualização de mensagens precisam de JavaScript. O histórico abaixo já foi carregado pelo servidor.</p></noscript>
+            <div class="grid gap-6 lg:grid-cols-[minmax(300px,360px)_1fr]">
+                <form id="contactForm" class="space-y-4" aria-labelledby="contact-title">
+                    <div>
+                        <label for="contactSubject" class="mb-1 block text-sm font-medium">Assunto</label>
+                        <input id="contactSubject" type="text" maxlength="160" aria-describedby="contactSubjectHelp"
+                            class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" required />
+                        <p id="contactSubjectHelp" class="app-help-text mt-1">Escreva um resumo da sua mensagem em até 80 caracteres.</p>
+                    </div>
+                    <div>
+                        <label for="contactMessageText" class="mb-1 block text-sm font-medium">Mensagem</label>
+                        <textarea id="contactMessageText" rows="5" maxlength="1000" aria-describedby="contactMessageHelp"
+                            class="w-full resize-none rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" required></textarea>
+                        <p id="contactMessageHelp" class="app-help-text mt-1">Descreva sua dúvida ou observação em até 500 caracteres.</p>
+                    </div>
+                    <button id="sendMessageButton" type="submit"
+                        class="w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Enviar mensagem</button>
+                    <div id="contactMessage" class="hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true"></div>
+                </form>
+
+                <div>
+                    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+                        <h3 class="font-bold">Minhas mensagens</h3>
+                        <button id="reloadMyMessagesButton" type="button"
+                            class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold transition hover:bg-slate-100 disabled:opacity-50">Recarregar mensagens</button>
+                    </div>
+                    <div id="clientMessagesList" class="space-y-3" aria-live="polite" aria-busy="false">
+                        <% if (historyError) { %>
+                            <div role="alert" class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600"><%= historyError %></div>
+                        <% } else if (!messages.length) { %>
+                            <div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">Nenhuma mensagem enviada ainda.</div>
+                        <% } else { %>
+                            <% messages.forEach((message) => { %>
+                                <article class="rounded-2xl border border-slate-200 p-4">
+                                    <div class="mb-2 flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                            <h4 class="font-bold"><%= message.assunto %></h4>
+                                            <p class="text-xs text-slate-500">Enviada em <%= formatDateTime(message.createdAt) %></p>
+                                        </div>
+                                        <span class="rounded-full px-3 py-1 text-xs font-semibold <%= message.status === 'respondida' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700' %>"><%= message.status === 'respondida' ? 'Respondida' : 'Aberta' %></span>
+                                    </div>
+                                    <p class="text-sm text-slate-600"><%= message.mensagem %></p>
+                                    <% if (message.resposta) { %>
+                                        <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                                            <p class="font-semibold">Resposta do restaurante</p>
+                                            <p class="mt-1"><%= message.resposta %></p>
+                                            <p class="mt-2 text-xs text-emerald-700"><%= formatDateTime(message.respostaEm) %> • <%= message.respostaPorNome || 'Restaurante' %></p>
+                                        </div>
+                                    <% } %>
+                                </article>
+                            <% }); %>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <%- include('../partials/footer') %>
+    <script type="module" src="/js/contato.js"></script>
+</body>
+
+</html>

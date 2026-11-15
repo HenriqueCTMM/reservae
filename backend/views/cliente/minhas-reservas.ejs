@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<%- include('../partials/head') %>
+
+<body class="app-surface flex min-h-screen flex-col text-slate-900">
+    <%- include('../partials/skip-link') %>
+    <%- include('../partials/navigation', {
+        pageTitle: 'Minhas Reservas', pageDescription: 'Consulte as reservas realizadas na plataforma',
+        titleId: 'my-reservations-page-title', activePage: '/minhas-reservas'
+    }) %>
+
+    <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 py-5 md:py-6" aria-labelledby="my-reservations-page-title">
+        <section class="app-card rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="reservations-history-title">
+            <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 id="reservations-history-title" class="text-xl font-bold">Histórico de reservas</h2>
+                    <p class="text-sm text-slate-500">Veja suas reservas atuais e encerradas</p>
+                </div>
+                <form action="/minhas-reservas" method="get">
+                    <button id="reloadMyReservationsButton" type="submit"
+                        class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Recarregar reservas</button>
+                </form>
+            </div>
+
+            <div id="myReservationsList" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-live="polite" aria-busy="false">
+                <% if (historyError) { %>
+                    <div role="alert" class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700"><%= historyError %></div>
+                <% } else if (!reservations.length) { %>
+                    <div class="rounded-2xl border border-slate-200 p-6 text-sm text-slate-500">Você ainda não possui reservas.</div>
+                <% } else { %>
+                    <% reservations.forEach((reservation) => { const status = reservationStatus(reservation.status); %>
+                        <article class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <h3 class="text-lg font-bold">Mesa <%= reservation.mesaNumero %></h3>
+                                    <p class="text-sm text-slate-500"><%= reservation.mesaCapacidade %> lugares</p>
+                                </div>
+                                <span class="rounded-full px-3 py-1 text-xs font-semibold <%= status.classes %>"><%= status.label %></span>
+                            </div>
+                            <div class="space-y-2 text-sm text-slate-700">
+                                <p><strong>Data:</strong> <%= formatDate(reservation.data) %></p>
+                                <p><strong>Horário:</strong> <%= reservation.horario %> às <%= reservation.fimPrevisto %></p>
+                                <p><strong>Permanência prevista:</strong> <%= formatDuration(reservation.duracaoMinutos) %></p>
+                                <p><strong>Pessoas:</strong> <%= reservation.pessoas %></p>
+                            </div>
+                        </article>
+                    <% }); %>
+                <% } %>
+            </div>
+        </section>
+    </main>
+
+    <%- include('../partials/footer') %>
+</body>
+
+</html>

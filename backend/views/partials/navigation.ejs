@@ -1,8 +1,17 @@
 <header class="border-b border-slate-200 bg-white">
     <div class="app-container flex flex-col gap-4 py-4 md:flex-row md:items-center md:justify-between">
-        <a href="/" aria-label="Página inicial do Reservaê">
-            <img src="/assets/logo-reservae.png" alt="Reservaê" class="h-10 w-auto" />
-        </a>
+        <div class="flex items-center gap-4">
+            <a href="/" aria-label="Página inicial do Reservaê">
+                <img src="/assets/logo-reservae.png" alt="Reservaê" class="h-10 w-auto" />
+            </a>
+            <img src="/assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô" class="h-12 w-12 rounded-md object-cover" />
+            <% if (typeof pageTitle !== 'undefined') { %>
+                <div>
+                    <h1 id="<%= titleId %>" class="text-2xl font-bold"><%= pageTitle %></h1>
+                    <p class="text-sm text-slate-500"><%= pageDescription %></p>
+                </div>
+            <% } %>
+        </div>
         <nav class="app-mobile-stack flex flex-wrap items-center gap-3 text-sm font-semibold" aria-label="Navegação principal">
             <% if (user?.perfil === 'admin') { %>
                 <a href="/pages/admin.html" class="rounded-xl px-4 py-2 hover:bg-slate-100">Mesas</a>
@@ -10,9 +19,17 @@
                 <a href="/pages/admin-configuracoes.html" class="rounded-xl px-4 py-2 hover:bg-slate-100">Configurações</a>
                 <a href="/pages/admin-mensagens.html" class="rounded-xl px-4 py-2 hover:bg-slate-100">Mensagens</a>
             <% } else if (user?.perfil === 'cliente') { %>
-                <a href="/pages/reservas.html" class="rounded-xl px-4 py-2 hover:bg-slate-100">Reservar</a>
-                <a href="/pages/minhas-reservas.html" class="rounded-xl px-4 py-2 hover:bg-slate-100">Minhas reservas</a>
-                <a href="/pages/contato.html" class="rounded-xl px-4 py-2 hover:bg-slate-100">Contato</a>
+                <% const clientLinks = [
+                    { href: '/pages/reservas.html', label: 'Nova reserva' },
+                    { href: '/minhas-reservas', label: 'Minhas reservas' },
+                    { href: '/contato', label: 'Contato' }
+                ]; %>
+                <% clientLinks.forEach((link) => {
+                    const active = typeof activePage !== 'undefined' && activePage === link.href;
+                %>
+                    <a href="<%= link.href %>" <% if (active) { %>aria-current="page"<% } %>
+                        class="rounded-xl border px-4 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 <%= active ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-100' %>"><%= link.label %></a>
+                <% }); %>
             <% } %>
             <% if (user) { %>
                 <span class="rounded-full bg-slate-100 px-4 py-2"><%= user.nome %></span>
