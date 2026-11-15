@@ -16,7 +16,8 @@ import { getReservationsReport } from './services/reports-service.js';
 import { getTables, removeTable, saveTable, updateTable } from './services/tables-service.js';
 import { clearMessage, escapeHtml, formatDate, setFieldInvalid, showMessage, trapFocus } from './ui.js';
 
-const user = await protectRoute(['admin']);
+const serverRendered = document.body.dataset.serverRendered === 'true';
+const user = serverRendered ? null : await protectRoute(['admin']);
 
 const adminUserName = document.getElementById('adminUserName');
 const logoutButton = document.getElementById('logoutButton');
@@ -74,8 +75,8 @@ const exceptionReason = document.getElementById('exceptionReason');
 const clearExceptionFormButton = document.getElementById('clearExceptionFormButton');
 const exceptionsList = document.getElementById('exceptionsList');
 
-adminUserName.textContent = user.nome;
-logoutButton.addEventListener('click', logout);
+if (adminUserName && user) adminUserName.textContent = user.nome;
+logoutButton?.addEventListener('click', logout);
 
 let tables = [];
 let tablesLoading = false;
@@ -84,7 +85,9 @@ let reservations = [];
 let reservationsBusy = false;
 let reservationReport = null;
 let reportBusy = false;
-let messages = [];
+// JSON em atributo HTML escapado pelo EJS; nunca embutido em script executável.
+let messages = adminMessagesList?.dataset.initialMessages ? JSON.parse(adminMessagesList.dataset.initialMessages) : [];
+adminMessagesList?.removeAttribute('data-initial-messages');
 let messagesBusy = false;
 const messageReplyDrafts = new Map();
 let operatingConfig = null;
@@ -795,7 +798,7 @@ function formatDateTime(timestamp) {
         dateStyle: 'short',
         timeStyle: 'short',
         timeZone: 'America/Sao_Paulo'
-    }).format(new Date(timestamp));
+    }).format(new Date(Number(timestamp)));
 }
 
 function renderMessages() {
@@ -1551,4 +1554,4 @@ adminMessagesList?.addEventListener('click', (event) => {
     saveMessageReply(button.dataset.saveMessageReply);
 });
 
-await loadData();
+if (!serverRendered) await loadData();

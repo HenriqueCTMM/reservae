@@ -1,0 +1,38 @@
+<% const status = reservationStatus(reservation.status); %>
+<tr class="bg-slate-50 text-sm">
+    <td class="rounded-l-2xl px-3 py-3"><p><%= reservation.usuarioNome %></p><p class="text-xs text-slate-500"><%= reservation.usuarioEmail %></p></td>
+    <td class="px-3 py-3">Mesa <%= reservation.mesaNumero %></td>
+    <% if (isReport) { %>
+        <td class="px-3 py-3">
+            <p><%= formatDate(reservation.data) %> das <%= reservation.horario %> às <%= reservation.fimPrevisto %></p>
+            <p class="text-xs text-slate-500"><%= formatDuration(reservation.duracaoMinutos) %> • <%= reservation.pessoas %> pessoas</p>
+        </td>
+    <% } else { %>
+        <td class="px-3 py-3"><%= formatDate(reservation.data) %></td>
+        <td class="px-3 py-3"><p><%= reservation.horario %> às <%= reservation.fimPrevisto %></p><p class="text-xs text-slate-500"><%= formatDuration(reservation.duracaoMinutos) %></p></td>
+        <td class="px-3 py-3"><%= reservation.pessoas %></td>
+    <% } %>
+    <td class="px-3 py-3"><span class="rounded-full px-3 py-1 text-xs font-semibold <%= status.classes %>"><%= status.label %></span></td>
+    <% if (isReport) { %>
+        <td class="px-3 py-3"><p><%= reservation.statusUpdatedAt ? formatDateTime(reservation.statusUpdatedAt) : '-' %></p><p class="text-xs text-slate-500"><%= reservation.statusUpdatedByName || '-' %></p></td>
+        <td class="rounded-r-2xl px-3 py-3"><%= reservation.statusReason || '-' %></td>
+    <% } else { %>
+        <td class="rounded-r-2xl px-3 py-3">
+            <% if (reservation.status === 'ativa') { %>
+                <div class="grid min-w-56 gap-2 sm:min-w-64">
+                    <select data-reservation-status="<%= reservation.id %>" aria-label="Novo status da reserva <%= reservation.id %>" class="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
+                        <option value="finalizada">Finalizada</option><option value="cancelada">Cancelada</option><option value="nao_compareceu">Não compareceu</option>
+                    </select>
+                    <input data-reservation-reason="<%= reservation.id %>" aria-label="Motivo da alteração da reserva <%= reservation.id %>" type="text" maxlength="160" placeholder="Motivo/observação opcional" class="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" />
+                    <button type="button" data-update-reservation-status="<%= reservation.id %>" class="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Salvar status</button>
+                </div>
+            <% } else { %>
+                <div class="min-w-44 text-xs text-slate-500 sm:min-w-52">
+                    <p><%= reservation.statusUpdatedAt ? formatDateTime(reservation.statusUpdatedAt) : 'Sem data registrada' %></p>
+                    <p><%= reservation.statusUpdatedByName || 'Admin não informado' %></p>
+                    <% if (reservation.statusReason) { %><p class="mt-1"><%= reservation.statusReason %></p><% } %>
+                </div>
+            <% } %>
+        </td>
+    <% } %>
+</tr>

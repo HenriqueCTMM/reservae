@@ -14,10 +14,18 @@
         </div>
         <nav class="app-mobile-stack flex flex-wrap items-center gap-3 text-sm font-semibold" aria-label="Navegação principal">
             <% if (user?.perfil === 'admin') { %>
-                <a href="/pages/admin.html" class="rounded-xl px-4 py-2 hover:bg-slate-100">Mesas</a>
-                <a href="/pages/admin-reservas.html" class="rounded-xl px-4 py-2 hover:bg-slate-100">Reservas</a>
-                <a href="/pages/admin-configuracoes.html" class="rounded-xl px-4 py-2 hover:bg-slate-100">Configurações</a>
-                <a href="/pages/admin-mensagens.html" class="rounded-xl px-4 py-2 hover:bg-slate-100">Mensagens</a>
+                <% const adminLinks = [
+                    { href: '/pages/admin.html', label: 'Mesas' },
+                    { href: '/admin/reservas', label: 'Reservas' },
+                    { href: '/pages/admin-configuracoes.html', label: 'Configurações' },
+                    { href: '/admin/mensagens', label: 'Mensagens' }
+                ]; %>
+                <% adminLinks.forEach((link) => {
+                    const active = typeof activePage !== 'undefined' && activePage === link.href;
+                %>
+                    <a href="<%= link.href %>" <% if (active) { %>aria-current="page"<% } %>
+                        class="rounded-xl border px-4 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 <%= active ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-100' %>"><%= link.label %></a>
+                <% }); %>
             <% } else if (user?.perfil === 'cliente') { %>
                 <% const clientLinks = [
                     { href: '/pages/reservas.html', label: 'Nova reserva' },

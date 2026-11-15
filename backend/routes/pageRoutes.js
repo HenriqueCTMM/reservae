@@ -1,13 +1,15 @@
 const express = require('express');
 const createPageController = require('../controllers/pageController');
 const createClientPageController = require('../controllers/clientPageController');
+const createAdminPageController = require('../controllers/adminPageController');
 const createAuthMiddleware = require('../middlewares/authMiddleware');
 const requireSameOrigin = require('../middlewares/formOriginMiddleware');
 
-module.exports = function createPageRoutes(User, { Reservation, Message }) {
+module.exports = function createPageRoutes(User, { Reservation, Message, Report }) {
     const router = express.Router();
     const page = createPageController(User);
     const clientPage = createClientPageController({ Reservation, Message });
+    const adminPage = createAdminPageController({ Reservation, Message, Report });
     const { loadPageUser, requirePageAuth, requirePageProfile } = createAuthMiddleware(User);
     const parseForm = express.urlencoded({ extended: false, limit: '16kb' });
 
@@ -26,8 +28,10 @@ module.exports = function createPageRoutes(User, { Reservation, Message }) {
     router.get('/pages/minhas-reservas.html', (req, res) => res.redirect('/minhas-reservas'));
     router.get('/pages/contato.html', (req, res) => res.redirect('/contato'));
     router.get('/pages/admin.html', loadPageUser, requirePageAuth, requirePageProfile('admin'), page.legacyPage('admin.html'));
-    router.get('/pages/admin-reservas.html', loadPageUser, requirePageAuth, requirePageProfile('admin'), page.legacyPage('admin-reservas.html'));
-    router.get('/pages/admin-mensagens.html', loadPageUser, requirePageAuth, requirePageProfile('admin'), page.legacyPage('admin-mensagens.html'));
+    router.get('/admin/reservas', loadPageUser, requirePageAuth, requirePageProfile('admin'), adminPage.getReservations);
+    router.get('/admin/mensagens', loadPageUser, requirePageAuth, requirePageProfile('admin'), adminPage.getMessages);
+    router.get('/pages/admin-reservas.html', (req, res) => res.redirect('/admin/reservas'));
+    router.get('/pages/admin-mensagens.html', (req, res) => res.redirect('/admin/mensagens'));
     router.get('/pages/admin-configuracoes.html', loadPageUser, requirePageAuth, requirePageProfile('admin'), page.legacyPage('admin-configuracoes.html'));
 
     return router;

@@ -33,7 +33,7 @@ backend/
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Endpoints e permissões por recurso
   services/            # Regras de autenticação compartilhadas entre web e API
-  views/               # Autenticação, históricos do cliente, erros e partials EJS
+  views/               # Autenticação, cliente, reservas/mensagens administrativas e partials EJS
   public/              # CSS e assets compartilhados pelas telas EJS e HTML
   utils/               # Datas, horários e regras de duração/slots
   sql/schema.sql       # Tabelas, relacionamentos e configurações básicas
@@ -80,21 +80,25 @@ package-lock.json
 
 O Express entrega as páginas e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL; os formulários de autenticação são processados pelo servidor e as telas de negócio mantêm suas interações pela API. `npm start` inicia sem o modo watch.
 
-### Migração MVC com EJS — E03
+### Migração MVC com EJS — E04
 
 A autenticação web está disponível em **http://localhost:3000/login** e `/cadastro`, com templates EJS, validação no servidor e formulários que funcionam sem JavaScript. Login, cadastro e logout bem-sucedidos usam redirecionamento 303. O cadastro volta ao login com confirmação de uso único; falhas preservam nome/e-mail, sem preencher a senha.
 
-A sessão é compartilhada entre páginas e API. `/` encaminha para login ou para a área do perfil autenticado. `/index.html` e `/pages/cadastro.html` redirecionam para as novas páginas. Todas as páginas de negócio são autorizadas pelo servidor antes de entregar o HTML: sem sessão retorna ao login; perfil incorreto recebe 403 HTML. Nova reserva e as quatro telas administrativas permanecem em `/pages/` até E04–E05.
+A sessão é compartilhada entre páginas e API. `/` encaminha para login ou para a área do perfil autenticado. `/index.html` e `/pages/cadastro.html` redirecionam para as novas páginas. Todas as páginas de negócio são autorizadas pelo servidor antes de entregar o HTML: sem sessão retorna ao login; perfil incorreto recebe 403 HTML. Nova reserva, Mesas e Configurações permanecem em `/pages/` até E05.
 
 **Minhas reservas** (`/minhas-reservas`) e **Contato** (`/contato`) já chegam com seus históricos renderizados em EJS, limitados ao cliente da sessão. Os endereços antigos dessas duas telas redirecionam para as novas URLs. Nome do cliente, navegação e indicação de página atual também vêm no HTML.
 
 Minhas reservas mostra os quatro status, dados de mesa, data, período e permanência; o botão Recarregar reservas faz um novo GET da página, sem JavaScript. Contato mantém envio e recarga assíncronos pelos endpoints existentes, sem consultar sessão ou histórico novamente ao abrir a view. Falha no histórico inicial é exibida como erro com status 500, e não como lista vazia; em Contato, o formulário continua disponível para envio e recuperação do histórico. Erros de envio preservam o rascunho e sucesso de envio seguido de falha de histórico não repete o POST.
 
+**Reservas administrativas** (`/admin/reservas`) e **Mensagens administrativas** (`/admin/mensagens`) também chegam renderizadas em EJS, com dados, auditoria, formulários aplicáveis e totais iniciais. Os endereços antigos redirecionam para as novas URLs. A abertura das views não repete consultas de sessão ou dados pelo navegador. O script administrativo continua atendendo Mesas e Configurações legadas durante a transição.
+
+A listagem e o relatório administrativos são carregados separadamente no servidor: falha de uma área retorna 500 sem eliminar o resultado válido da outra, e um relatório com erro não mostra totais zerados como se fosse válido. O GET inicial é sem filtros; aplicar/limpar filtros, gerar relatório, encerrar reservas e responder mensagens continuam usando as APIs existentes, com controles e erros independentes. Filtros na query do GET da página não são aplicados nesta etapa. Respostas e encerramentos continuam definitivos e auditados pela sessão, com recuperação após conflito e preservação de rascunhos de resposta de outras mensagens.
+
 As telas existentes saem da conta por `POST /logout`. O servidor consulta identidade/perfil no banco e aplica `Cache-Control: no-store` às páginas de autenticação e às protegidas. Um partial de navegação por perfil e um template de erro HTML estão disponíveis para as views. Os endpoints da API preservam suas respostas JSON.
 
 CSS e imagens estão em `backend/public`; os módulos legados continuam públicos em `/js/*`. O diretório `frontend/src` inteiro não é mais servido estaticamente, evitando acesso às páginas por fora das rotas autorizadas. Formulários web aceitam URL-encoded com limite de 16 KB e verificam a origem do envio; a API continua recebendo JSON.
 
-Veja o [plano MVC com EJS](docs/migracao/PLANO-MVC-EJS.md) e os registros [E01](docs/migracao/E01-VALIDACAO-MANUAL.md), [E02](docs/migracao/E02-VALIDACAO-MANUAL.md) e [E03](docs/migracao/E03-VALIDACAO-MANUAL.md). Autenticação e históricos do cliente foram conferidos via HTTP e MySQL 8.4 descartável; o aceite visual permanece pendente.
+Veja o [plano MVC com EJS](docs/migracao/PLANO-MVC-EJS.md) e os registros [E01](docs/migracao/E01-VALIDACAO-MANUAL.md), [E02](docs/migracao/E02-VALIDACAO-MANUAL.md), [E03](docs/migracao/E03-VALIDACAO-MANUAL.md) e [E04](docs/migracao/E04-VALIDACAO-MANUAL.md). Os fluxos migrados foram conferidos via HTTP e MySQL 8.4 descartável; o aceite visual permanece pendente.
 
 ## Etapa atual: autenticação, mesas, funcionamento, reservas, contato e relatório
 
@@ -106,7 +110,7 @@ Veja o [plano MVC com EJS](docs/migracao/PLANO-MVC-EJS.md) e os registros [E01](
 - O login regenera e salva a sessão antes de encaminhar cliente para Reservas ou administrador para Mesas.
 - Consulta de sessão e logout da API continuam compatíveis; o logout web encerra a mesma sessão e limpa o cookie.
 
-Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, disponibilidade, criação/histórico/gestão de reservas, mensagens (envio/histórico do cliente e listagem/resposta administrativa) e relatório de reservas. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`), Reservas (`pages/reservas.html`), listagem/encerramento e relatório em Reservas administrativas (`pages/admin-reservas.html`) e Mensagens administrativas (`pages/admin-mensagens.html`) estão integrados às respectivas APIs. Minhas reservas (`/minhas-reservas`) e Contato (`/contato`) renderizam seus históricos iniciais pelo servidor, e Contato mantém a API para envio e atualização. A integração foi consolidada no M17, com remoção dos serviços genéricos e seed pelo navegador. API e serviços foram conferidos; a validação visual dessas telas e o roteiro completo de apresentação permanecem pendentes.
+Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, disponibilidade, criação/histórico/gestão de reservas, mensagens (envio/histórico do cliente e listagem/resposta administrativa) e relatório de reservas. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`) e Nova reserva (`pages/reservas.html`) estão integradas às respectivas APIs. Minhas reservas (`/minhas-reservas`), Contato (`/contato`), Reservas administrativas (`/admin/reservas`) e Mensagens administrativas (`/admin/mensagens`) renderizam seus dados iniciais pelo servidor e mantêm as interações assíncronas necessárias. A integração foi consolidada no M17, com remoção dos serviços genéricos e seed pelo navegador. API e serviços foram conferidos; a validação visual dessas telas e o roteiro completo de apresentação permanecem pendentes.
 
 O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
@@ -439,21 +443,21 @@ O relatório na página administrativa carrega inicialmente sem filtros. Gerar /
 
 O frontend usa somente os endpoints explícitos dos módulos. Foram removidos o adaptador genérico de `/api/data`, operações de coleção/ID arbitrários, serviços de usuários sem tela, seed/dados padrão do navegador, cache local de perfil e funções sem uso que calculavam regras de reserva no cliente. A preparação dos dados permanece em `npm run db:init`, `npm run db:admin` e `npm run db:seed`. O acompanhamento de disponibilidade a cada 3 segundos e os helpers de exibição/validação dos formulários de funcionamento permanecem.
 
-Cada página consulta somente seus próprios módulos. Nas views migradas em E03, a autorização e o carregamento inicial são feitos pelo servidor:
+Cada página consulta somente seus próprios módulos. Nas views migradas em E03–E04, a autorização e o carregamento inicial são feitos pelo servidor:
 
 | Página | Endpoints de dados |
 | --- | --- |
 | Mesas administrativas | `/api/tables` |
 | Configurações | `/api/operating-hours` e `/api/operating-hours/exceptions` |
-| Reservas administrativas | `/api/reservations` e `/api/reports/reservations` |
-| Mensagens administrativas | `/api/messages` |
+| Reservas administrativas | Dados iniciais em `GET /admin/reservas`; filtros/ações em `/api/reservations` e `/api/reports/reservations` |
+| Mensagens administrativas | Dados iniciais em `GET /admin/mensagens`; atualização/resposta em `/api/messages` |
 | Reservar | `/api/availability` e criação em `/api/reservations` |
 | Minhas reservas | Histórico inicial e recarga por `GET /minhas-reservas`, sem consulta de dados pelo navegador |
 | Contato | Histórico inicial em `GET /contato`; criação em `/api/messages` e atualização explícita em `/api/messages/mine` |
 
 Semana e exceções têm carregamento/erros independentes, assim como listagem administrativa e relatório. Uma falha não cancela a consulta do outro módulo. Mesas têm estado explícito de carregamento/erro e botão Recarregar mesas. O erro permanece ao abrir o mapa ou limpar o formulário, sem ser confundido com restaurante vazio. Após recarga bem-sucedida, uma mesa em edição é preenchida novamente com os dados atuais do servidor; se ela não existir mais, a edição é encerrada.
 
-Em uma tela protegida, um 401 de endpoint de dados emite o evento `reservae:session-expired`, e a camada de autenticação redireciona uma única vez para `/login`. Login incorreto continua mostrando seu próprio erro; 403 não é tratado como sessão encerrada. As telas legadas ainda consultam `/api/auth/me`: 401 retorna ao login, e outras falhas mostram aviso e Recarregar página. Minhas reservas e Contato já recebem identidade e autorização do servidor, sem essa consulta adicional. O redirecionamento no navegador complementa a autorização no backend.
+Em uma tela protegida, um 401 de endpoint de dados emite o evento `reservae:session-expired`, e a camada de autenticação redireciona uma única vez para `/login`. Login incorreto continua mostrando seu próprio erro; 403 não é tratado como sessão encerrada. As telas legadas ainda consultam `/api/auth/me`: 401 retorna ao login, e outras falhas mostram aviso e Recarregar página. As views de cliente e de reservas/mensagens administrativas já recebem identidade e autorização do servidor, sem essa consulta adicional. O redirecionamento no navegador complementa a autorização no backend.
 
 ## Validar
 
@@ -539,7 +543,7 @@ Para conferir a gestão administrativa de reservas manualmente:
 4. Conferir 400 para ID inválido, query no PATCH, corpo vazio/lista, status `ativa`/`expirada`/inválido, motivo não textual/acima de 160 e campos extras de identidade/timestamps. Motivo com 160 deve ser aceito; ID válido inexistente retorna 404.
 5. Em duas sessões de administradores distintos, enviar status/motivos diferentes para a mesma ativa quase ao mesmo tempo: um 200 e um 409, preservando a auditoria do vencedor. Manter a trava comum em outra conexão, enviar PATCH e confirmar um encerramento antes do COMMIT: o PATCH deve aguardar e rejeitar o status já definitivo.
 6. Provocar falha SQL por trigger temporária AFTER UPDATE que gera SIGNAL em banco de conferência. Conferir 500 sem detalhes SQL e manutenção do status/auditoria anteriores; remover a trigger e repetir com sucesso. Simular erro de listagem e conferir recuperação pelo serviço após restabelecer o banco.
-7. No navegador, aplicar/limpar filtros, atualizar, encerrar nos três status, conferir auditoria e ausência de ações em definitivas. Durante consulta/gravação, conferir bloqueio de filtros/ações e apenas um PATCH no clique duplo. Conferir mensagem de conflito em outra sessão, preservação dos campos em outros erros, sessão encerrada e recuperação de falha. Na aba Rede, a página deve usar apenas autenticação, `/api/reservations` e `/api/reports/reservations`, sem mesas/mensagens/funcionamento/`/api/data`. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
+7. No navegador, abrir `/admin/reservas` e conferir listagem, auditoria e relatório já no HTML inicial, sem consultas adicionais de sessão/dados. Aplicar/limpar filtros, atualizar, encerrar nos três status e conferir ausência de ações em definitivas. Durante consulta/gravação, conferir bloqueio de filtros/ações e apenas um PATCH no clique duplo. Conferir conflito em outra sessão, campos preservados em outros erros, sessão encerrada e recuperação. As interações usam `/api/reservations` e `/api/reports/reservations`, sem mesas/mensagens/funcionamento/`/api/data`. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
 
 Para conferir as proteções integradas do M13 manualmente:
 
@@ -569,7 +573,7 @@ Para conferir mensagens administrativas manualmente:
 5. Em duas sessões administrativas, enviar respostas simultâneas à mesma mensagem aberta: somente uma deve retornar 200; a outra, 409. Conferir texto/autor/data persistidos. Ocupar a trava de `operating_settings` em outra conexão e conferir que responder mensagem continua funcionando.
 6. Em banco de conferência, provocar falha com trigger temporária AFTER UPDATE que gera SIGNAL. Conferir 500 sem detalhes SQL e mensagem ainda aberta, com resposta/autor/data nulos. Remover a trigger e conferir recuperação pelo serviço. Simular falha da listagem, restaurar e conferir recuperação sem dados parciais.
 7. Consultar histórico com cada cliente e confirmar que recebe apenas suas mensagens e respectivas respostas. Encerrar sessão administrativa e conferir 401 em listagem/resposta pelos serviços reais.
-8. No navegador, conferir carregamento/vazio/erro/recarga, estados Aberta/Respondida, resposta escapada e datas no fuso do restaurante. Digitar rascunhos em duas mensagens: enviar uma deve preservar a outra; falha deve preservar o texto; sucesso deve remover a edição. Conferir clique duplo/Enter, controles bloqueados, conflito entre duas abas, recuperação de erro e sessão encerrada. Na aba Rede, somente autenticação e GET/PATCH de mensagens; sem consultas a `/api/data`, mesas, reservas ou horários. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
+8. No navegador, abrir `/admin/mensagens` e conferir mensagens, respostas e formulários aplicáveis no HTML inicial, sem consultas iniciais duplicadas. Conferir vazio/erro/recarga, estados Aberta/Respondida, resposta escapada e datas no fuso do restaurante. Digitar rascunhos em duas mensagens: enviar uma deve preservar a outra; falha deve preservar o texto; sucesso deve remover a edição. Conferir clique duplo/Enter, controles bloqueados, conflito entre abas, recuperação e sessão encerrada. As interações usam somente GET/PATCH de mensagens, sem outros módulos. Essas interações visuais ainda precisam de execução manual e evidências da equipe.
 
 Para conferir o relatório de reservas manualmente:
 

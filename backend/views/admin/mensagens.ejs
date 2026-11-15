@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<%- include('../partials/head') %>
+<body data-server-rendered="true" class="app-surface flex min-h-screen flex-col text-slate-900">
+    <%- include('../partials/skip-link') %>
+    <%- include('../partials/navigation', {
+        pageTitle: 'Mensagens', pageDescription: 'Responda contatos enviados pelos clientes',
+        titleId: 'admin-page-title', activePage: '/admin/mensagens'
+    }) %>
+    <main id="conteudo-principal" tabindex="-1" class="app-container flex-1 space-y-6 py-5 md:py-6" aria-labelledby="admin-page-title">
+        <div id="adminMessage" class="hidden rounded-xl px-4 py-3 text-sm" aria-live="assertive" aria-atomic="true"></div>
+        <article class="app-card rounded-2xl bg-white p-3 shadow-sm" aria-labelledby="admin-messages-title">
+            <div class="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <h2 id="admin-messages-title" class="text-xl font-bold">Mensagens dos clientes</h2>
+                    <p class="text-sm text-slate-500">Acompanhe contatos enviados pelos usuários logados</p>
+                </div>
+                <button id="refreshMessagesButton" type="button" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Atualizar mensagens</button>
+            </div>
+            <div id="adminMessagesList" data-initial-messages="<%= JSON.stringify(messages) %>" class="grid gap-3 md:grid-cols-2" aria-live="polite" aria-busy="false">
+                <% if (messagesError) { %>
+                    <div role="alert" class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><%= messagesError %></div>
+                <% } else if (!messages.length) { %>
+                    <div class="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500 md:col-span-2">Nenhuma mensagem enviada pelos clientes.</div>
+                <% } else { %>
+                    <% messages.forEach((message) => { %>
+                        <article class="rounded-2xl border border-slate-200 p-4">
+                            <div class="flex h-full flex-col gap-4">
+                                <div>
+                                    <div class="mb-2 flex flex-wrap items-center gap-2">
+                                        <h3 class="font-bold"><%= message.assunto %></h3>
+                                        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold"><%= message.status === 'respondida' ? 'Respondida' : 'Aberta' %></span>
+                                    </div>
+                                    <p class="whitespace-pre-wrap text-sm text-slate-600"><%= message.mensagem %></p>
+                                    <p class="mt-3 text-xs text-slate-500"><%= message.usuarioNome || 'Usuário' %> • <%= message.usuarioEmail || 'Sem e-mail' %> • <%= formatDateTime(message.createdAt) %></p>
+                                    <% if (message.resposta) { %>
+                                        <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                                            <p class="font-semibold">Resposta enviada</p>
+                                            <p class="mt-1 whitespace-pre-wrap"><%= message.resposta %></p>
+                                            <p class="mt-2 text-xs text-emerald-700"><%= message.respostaPorNome || 'Admin' %> • <%= formatDateTime(message.respostaEm) %></p>
+                                        </div>
+                                    <% } %>
+                                </div>
+                                <% if (message.status === 'aberta' && message.resposta === null) { %>
+                                    <div class="grid w-full gap-3">
+                                        <label for="messageReply-<%= message.id %>" class="block text-sm font-medium">Resposta (até 500 caracteres)</label>
+                                        <textarea id="messageReply-<%= message.id %>" data-message-reply="<%= message.id %>" rows="4" class="w-full resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900" placeholder="Digite a resposta ao cliente"></textarea>
+                                        <button type="button" data-save-message-reply="<%= message.id %>" class="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Salvar resposta</button>
+                                    </div>
+                                <% } %>
+                            </div>
+                        </article>
+                    <% }); %>
+                <% } %>
+            </div>
+        </article>
+    </main>
+    <%- include('../partials/footer') %>
+    <script type="module" src="/js/admin.js"></script>
+</body>
+</html>

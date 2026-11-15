@@ -1,13 +1,6 @@
 const pool = require('../config/database');
 
-function publicMessage(message) {
-    return {
-        ...message,
-        id: String(message.id), usuarioId: String(message.usuarioId), createdAt: Number(message.createdAt),
-        respostaEm: message.respostaEm === null ? null : Number(message.respostaEm),
-        respostaPor: message.respostaPor === null ? null : String(message.respostaPor)
-    };
-}
+const { publicMessage } = require('../utils/messageResponse');
 
 module.exports = function createMessageController(Message) {
     return {
