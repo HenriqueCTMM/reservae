@@ -10,22 +10,23 @@ function stopAfterRedirect(url) {
 }
 
 function getLoginUrl() {
-    return window.location.pathname.includes('/pages/') ? '../index.html' : './index.html';
+    return '/login';
 }
 
 function getRoleUrl(user) {
-    const isPagesRoute = window.location.pathname.includes('/pages/');
-
     if (user.perfil === 'admin') {
-        return isPagesRoute ? './admin.html' : './pages/admin.html';
+        return '/pages/admin.html';
     }
 
-    return isPagesRoute ? './reservas.html' : './pages/reservas.html';
+    return '/pages/reservas.html';
 }
 
 export async function logout() {
-    await request('/auth/logout', { method: 'POST', body: '{}' });
-    window.location.href = getLoginUrl();
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/logout';
+    document.body.append(form);
+    form.submit();
 }
 
 export function redirectByUserRole(user) {

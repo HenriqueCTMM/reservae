@@ -19,20 +19,21 @@ Aplicação para reservas de mesas de restaurante, com frontend e backend no mes
 ```text
 frontend/
   src/
-    index.html
-    app.js
-    pages/             # Telas de cliente e administrador
+    index.html          # Login antigo, substituído pela view EJS
+    app.js              # Script antigo de login, sem uso na view EJS
+    pages/              # Telas de negócio legadas, entregues por rotas autorizadas
     js/services/       # Comunicação com a API e serviços de tela
   package.json
 backend/
-  app.js               # Configuração do Express, sessão e frontend estático
+  app.js               # Express, sessão compartilhada, views e arquivos públicos
   server.js            # Inicialização HTTP
   config/              # Variáveis de ambiente e pool MySQL
   controllers/         # Autenticação, mesas, funcionamento, reservas, mensagens e relatório
   models/              # Consultas SQL por recurso
   middlewares/         # Autenticação e permissão por perfil
   routes/              # Endpoints e permissões por recurso
-  views/               # Templates EJS e partials; piloto de login
+  services/            # Regras de autenticação compartilhadas entre web e API
+  views/               # Login, cadastro, erros e partials EJS
   public/              # CSS e assets compartilhados pelas telas EJS e HTML
   utils/               # Datas, horários e regras de duração/slots
   sql/schema.sql       # Tabelas, relacionamentos e configurações básicas
@@ -77,13 +78,19 @@ package-lock.json
 
 5. Acesse **http://localhost:3000**.
 
-O Express entrega o frontend e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL para que os formulários acessem a API. `npm start` inicia sem o modo watch.
+O Express entrega as páginas e a API na mesma origem. Não há compilação do frontend ou necessidade de iniciar um segundo servidor. Abra a aplicação por essa URL; os formulários de autenticação são processados pelo servidor e as telas de negócio mantêm suas interações pela API. `npm start` inicia sem o modo watch.
 
-### Migração MVC com EJS — E01
+### Migração MVC com EJS — E02
 
-A base EJS está disponível em **http://localhost:3000/login**, com renderização por controller e partials de head, link de acessibilidade e rodapé. CSS e imagens estão em `backend/public`, mantendo as URLs `/css/*` e `/assets/*` usadas pelas telas atuais.
+A autenticação web está disponível em **http://localhost:3000/login** e `/cadastro`, com templates EJS, validação no servidor e formulários que funcionam sem JavaScript. Login, cadastro e logout bem-sucedidos usam redirecionamento 303. O cadastro volta ao login com confirmação de uso único; falhas preservam nome/e-mail, sem preencher a senha.
 
-A página piloto usa o fluxo de login existente pela API. O processamento de formulários no servidor e a proteção das páginas fazem parte do E02. Durante a transição, `/`, `/index.html` e `/pages/*.html` continuam acessíveis. Veja o [plano MVC com EJS](docs/migracao/PLANO-MVC-EJS.md) e o [registro de validação E01](docs/migracao/E01-VALIDACAO-MANUAL.md).
+A sessão é compartilhada entre páginas e API. `/` encaminha para login ou para a área do perfil autenticado. `/index.html` e `/pages/cadastro.html` redirecionam para as novas páginas. As sete telas de negócio em `/pages/` são autorizadas pelo servidor antes de entregar o HTML: sem sessão retorna ao login; perfil incorreto recebe 403 HTML. Suas views com dados iniciais serão migradas em E03–E05.
+
+As telas existentes saem da conta por `POST /logout`. O servidor consulta identidade/perfil no banco e aplica `Cache-Control: no-store` às páginas de autenticação e às protegidas. Um partial de navegação por perfil e um template de erro HTML estão disponíveis para as views. Os endpoints da API preservam suas respostas JSON.
+
+CSS e imagens estão em `backend/public`; os módulos legados continuam públicos em `/js/*`. O diretório `frontend/src` inteiro não é mais servido estaticamente, evitando acesso às páginas por fora das rotas autorizadas. Formulários web aceitam URL-encoded com limite de 16 KB e verificam a origem do envio; a API continua recebendo JSON.
+
+Veja o [plano MVC com EJS](docs/migracao/PLANO-MVC-EJS.md), o [registro E01](docs/migracao/E01-VALIDACAO-MANUAL.md) e o [registro E02](docs/migracao/E02-VALIDACAO-MANUAL.md). Os fluxos de autenticação foram conferidos via HTTP e MySQL 8.4 descartável; o aceite visual permanece pendente.
 
 ## Etapa atual: autenticação, mesas, funcionamento, reservas, contato e relatório
 
@@ -91,9 +98,9 @@ A página piloto usa o fluxo de login existente pela API. O processamento de for
 - E-mails são normalizados para minúsculas e não podem se repetir.
 - Senhas são armazenadas como hash bcrypt com custo 12, como no projeto de referência.
 - Todo cadastro público cria um `cliente`, independentemente do perfil enviado.
-- Após o cadastro, o usuário volta ao login pelo link da tela. Não há login automático.
-- O login cria uma sessão e mantém o redirecionamento do frontend para a tela de reservas.
-- Consulta de sessão e logout dão suporte ao fluxo de autenticação já existente nas telas.
+- Após o cadastro web, o servidor redireciona ao login com confirmação de uso único. Não há login automático.
+- O login regenera e salva a sessão antes de encaminhar cliente para Reservas ou administrador para Mesas.
+- Consulta de sessão e logout da API continuam compatíveis; o logout web encerra a mesma sessão e limpa o cookie.
 
 Nesta etapa, estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, disponibilidade, criação/histórico/gestão de reservas, mensagens (envio/histórico do cliente e listagem/resposta administrativa) e relatório de reservas. Mesas (`pages/admin.html`), Configurações (`pages/admin-configuracoes.html`), Reservas (`pages/reservas.html`), Minhas reservas (`pages/minhas-reservas.html`), listagem/encerramento e relatório em Reservas administrativas (`pages/admin-reservas.html`), Contato (`pages/contato.html`) e Mensagens administrativas (`pages/admin-mensagens.html`) estão integrados às respectivas APIs. A integração foi consolidada no M17, com remoção dos serviços genéricos e seed pelo navegador. API e serviços foram conferidos manualmente; a validação visual dessas telas e o roteiro completo de apresentação permanecem para M18.
 
@@ -175,7 +182,7 @@ Usuários ficam na tabela `users` do MySQL. Login e sessão atual retornam `{ id
 
 Como no projeto de aula, sessões ficam na memória do servidor e são encerradas ao reiniciá-lo. O cookie tem duração de 8 horas, é HttpOnly e SameSite=Strict; com `NODE_ENV=production`, também é Secure e requer HTTPS. O frontend consulta o perfil em `/api/auth/me`; não mantém identidade, perfil ou dados de negócio no localStorage.
 
-A sessão agora é compartilhada por toda a API. Cadastro e login continuam públicos; a consulta `/api/auth/me` e as demais rotas de dados exigem autenticação. O middleware `requireAuth` consulta o usuário no MySQL e disponibiliza `req.user` sem o hash da senha. Sessão ausente ou usuário removido resulta em 401; nesse último caso, a sessão também é encerrada.
+A sessão é compartilhada pelas páginas e por toda a API. Cadastro e login continuam públicos; a consulta `/api/auth/me` e as demais rotas de dados exigem autenticação. O middleware consulta o usuário no MySQL e disponibiliza `req.user` e, nas views, `res.locals.user`, sem o hash da senha. Sessão ausente resulta em 401 JSON na API ou redirecionamento ao login nas páginas protegidas; usuário removido também encerra a sessão e limpa o cookie.
 
 O middleware `requireProfile` é aplicado após `requireAuth`: cadastro, edição e exclusão de mesas, gravação de horários e gravação/exclusão de exceções exigem `requireProfile('admin')` e retornam 403 para clientes. As próximas rotas poderão exigir perfil de administrador ou cliente da mesma forma. Perfil e identidade enviados no corpo ou guardados no navegador não concedem acesso. As respostas da API recebem `Cache-Control: no-store`.
 
