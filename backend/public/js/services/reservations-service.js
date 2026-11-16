@@ -8,10 +8,6 @@ export async function getReservations(filters = {}) {
     return request(`/reservations${query.size ? `?${query}` : ''}`);
 }
 
-export async function getMyReservations() {
-    return request('/reservations/mine');
-}
-
 export async function createReservation(reservation) {
     return request('/reservations', {
         method: 'POST',

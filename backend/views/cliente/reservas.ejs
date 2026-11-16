@@ -1,47 +1,14 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reservaê | Reserva de mesas</title>
-    <link rel="icon" href="../assets/logo-reservae.png" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="../css/app.css" />
-</head>
+<%- include('../partials/head') %>
 
 <body class="app-surface flex min-h-screen flex-col text-slate-900">
     <a href="#conteudo-principal"
         class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Pular
         para o conteúdo principal</a>
 
-    <header class="border-b border-slate-200 bg-white">
-        <div class="app-container flex flex-col gap-4 py-4 md:flex-row md:items-center md:justify-between">
-            <div class="flex items-center gap-4">
-                <img src="../assets/logo-reservae.png" alt="Reservaê" class="h-10 w-auto" />
-                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô"
-                    class="h-12 w-12 rounded-md object-cover" />
-                <div>
-                    <h1 id="reservation-page-title" class="text-2xl font-bold">Reserva de Mesas</h1>
-                    <p class="text-sm text-slate-500">Escolha a data, horário e a mesa desejada</p>
-                </div>
-            </div>
-
-            <nav class="app-mobile-stack flex flex-wrap items-center gap-3" aria-label="Navegação do cliente">
-                <a href="./reservas.html" aria-current="page"
-                    class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Nova
-                    reserva</a>
-                <a href="/minhas-reservas"
-                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Minhas
-                    reservas</a>
-                <a href="/contato"
-                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Contato</a>
-                <span id="clientUserName" class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span>
-                <button id="logoutButton"
-                    class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Sair</button>
-            </nav>
-        </div>
-    </header>
+    <%- include('../partials/navigation', { pageTitle: 'Reserva de Mesas', pageDescription: 'Escolha a data, horário e a mesa desejada', titleId: 'reservation-page-title', activePage: '/reservas' }) %>
 
     <main id="conteudo-principal" tabindex="-1"
         class="app-container grid flex-1 gap-5 py-5 md:gap-6 md:py-6 lg:grid-cols-[minmax(320px,360px)_1fr]"
@@ -55,7 +22,7 @@
             <form id="reservationForm" class="space-y-4" aria-labelledby="reservation-form-title">
                 <div>
                     <label for="reservationDate" class="mb-1 block text-sm font-medium">Data</label>
-                    <input id="reservationDate" type="date" aria-describedby="reservationDateHelp reservationDateError"
+                    <input id="reservationDate" type="date" min="<%= minDate %>" max="9999-12-31" aria-describedby="reservationDateHelp reservationDateError"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required />
                     <p id="reservationDateHelp" class="app-help-text mt-1">Escolha uma data de funcionamento do
@@ -128,14 +95,14 @@
 
             <div
                 class="app-scroll overflow-auto rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 sm:p-4">
-                <div id="clientRestaurantMap" class="relative h-[520px] min-w-[800px] rounded-2xl bg-white"></div>
+                <div id="clientRestaurantMap" class="relative h-[520px] min-w-[800px] rounded-2xl bg-white"><%- include('reservation-map-initial') %></div>
             </div>
         </section>
 
         <section class="app-card rounded-2xl bg-white p-6 shadow-sm lg:col-span-2" aria-labelledby="tables-summary-title">
             <h2 id="tables-summary-title" class="text-xl font-bold">Resumo acessível das mesas</h2>
             <p id="mapStatusMessage" class="sr-only" aria-live="polite" aria-atomic="true"></p>
-            <div id="tableStatusList" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
+            <div id="tableStatusList" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><p class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 sm:col-span-2 lg:col-span-3">Selecione uma data e um horário para visualizar as mesas.</p></div>
         </section>
 
     </main>
@@ -152,30 +119,14 @@
                     class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Fechar</button>
             </div>
             <div class="app-scroll flex-1 overflow-auto bg-slate-50 p-3">
-                <div id="clientRestaurantMapModal" class="relative rounded-2xl bg-white"></div>
+                <div id="clientRestaurantMapModal" class="relative h-[520px] min-w-[800px] rounded-2xl bg-white"><%- include('reservation-map-initial') %></div>
             </div>
         </div>
     </div>
 
-    <footer class="border-t border-slate-200 bg-white">
-        <div class="app-container grid gap-4 py-5 text-sm text-slate-600 md:grid-cols-[auto_1fr_auto] md:items-center">
-            <div class="flex items-center gap-3">
-                <img src="../assets/logo-reservae.png" alt="Reservaê" class="h-8 w-auto" />
-                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô"
-                    class="h-10 w-10 rounded-md object-cover" />
-            </div>
-            <div>
-                <p class="font-semibold text-slate-900">Dona Maragô Bistrô</p>
-                <p>Reservas online para crepes, pizzas e momentos especiais.</p>
-            </div>
-            <div class="md:text-right">
-                <p class="font-medium text-slate-700">Atendimento conforme funcionamento do restaurante.</p>
-                <p>Gerencie reservas com praticidade e segurança.</p>
-            </div>
-        </div>
-    </footer>
+    <%- include('../partials/footer') %>
 
-    <script type="module" src="../js/reservas.js"></script>
+    <script type="module" src="/js/reservas.js"></script>
 </body>
 
 </html>

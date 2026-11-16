@@ -2,7 +2,7 @@
   "name": "restaurante-app",
   "version": "1.0.0",
   "private": true,
-  "workspaces": ["frontend", "backend"],
+  "workspaces": ["backend"],
   "engines": { "node": ">=22" },
   "scripts": {
     "dev": "npm run dev --workspace backend",

@@ -15,9 +15,9 @@
         <nav class="app-mobile-stack flex flex-wrap items-center gap-3 text-sm font-semibold" aria-label="Navegação principal">
             <% if (user?.perfil === 'admin') { %>
                 <% const adminLinks = [
-                    { href: '/pages/admin.html', label: 'Mesas' },
+                    { href: '/admin/mesas', label: 'Mesas' },
                     { href: '/admin/reservas', label: 'Reservas' },
-                    { href: '/pages/admin-configuracoes.html', label: 'Configurações' },
+                    { href: '/admin/configuracoes', label: 'Configurações' },
                     { href: '/admin/mensagens', label: 'Mensagens' }
                 ]; %>
                 <% adminLinks.forEach((link) => {
@@ -28,7 +28,7 @@
                 <% }); %>
             <% } else if (user?.perfil === 'cliente') { %>
                 <% const clientLinks = [
-                    { href: '/pages/reservas.html', label: 'Nova reserva' },
+                    { href: '/reservas', label: 'Nova reserva' },
                     { href: '/minhas-reservas', label: 'Minhas reservas' },
                     { href: '/contato', label: 'Contato' }
                 ]; %>

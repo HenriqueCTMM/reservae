@@ -1,7 +1,14 @@
 const viewFormatting = require('../utils/viewFormatting');
+const { getRestaurantDateTime } = require('../utils/dateTime');
 
 module.exports = function createClientPageController({ Reservation, Message }) {
     return {
+        getNewReservation(req, res) {
+            res.render('cliente/reservas', {
+                title: 'Reservaê | Reserva de mesas', minDate: getRestaurantDateTime().slice(0, 10)
+            });
+        },
+
         async getMyReservations(req, res) {
             let reservations = [];
             let historyError = '';

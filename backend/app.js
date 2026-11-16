@@ -56,14 +56,13 @@ function createApp({
     app.use('/api/messages', createMessageRoutes(Message, requireProfile));
     app.use('/api/reports', createReportRoutes(Report, requireProfile));
     app.use('/api', (req, res) => {
-        res.status(404).json({ message: 'Endpoint não implementado nesta etapa.' });
+        res.status(404).json({ message: 'Endpoint não encontrado.' });
     });
-    app.use(createPageRoutes(User, { Reservation, Message, Report }));
     app.use(express.static(path.join(__dirname, 'public')));
-    // Somente módulos públicos: HTML legado é entregue pelas rotas autorizadas.
-    app.use('/js', express.static(path.join(__dirname, '..', 'frontend', 'src', 'js')));
+    app.use(createPageRoutes(User, { Reservation, Message, Report, Table, OperatingHours }));
     app.use((error, req, res, next) => {
         if (res.headersSent) return next(error);
+        res.set('Cache-Control', 'no-store');
         const isApi = req.path === '/api' || req.path.startsWith('/api/');
         if (!isApi) {
             const status = error.status === 413 ? 413 : error.status === 400 ? 400 : 500;

@@ -1,9 +1,8 @@
-const path = require('node:path');
 const createAuthService = require('../services/authService');
 const { saveSession, startSession, endSession } = require('../utils/session');
 
 function homeUrl(user) {
-    return user?.perfil === 'admin' ? '/pages/admin.html' : '/pages/reservas.html';
+    return user?.perfil === 'admin' ? '/admin/mesas' : '/reservas';
 }
 
 function formFields(body) {
@@ -17,6 +16,11 @@ module.exports = function createPageController(User) {
     const authService = createAuthService(User);
 
     return {
+        getNotFound(req, res) {
+            res.set('Cache-Control', 'no-store');
+            res.status(404).render('errors/404', { title: 'Reservaê | Página não encontrada' });
+        },
+
         getHome(req, res) {
             res.redirect(req.user ? homeUrl(req.user) : '/login');
         },
@@ -85,16 +89,6 @@ module.exports = function createPageController(User) {
             } catch (error) {
                 next(error);
             }
-        },
-
-        legacyPage(filename) {
-            // O nome é definido exclusivamente pelas rotas explícitas, nunca pelo usuário.
-            return (req, res, next) => {
-                res.sendFile(path.join(__dirname, '..', '..', 'frontend', 'src', 'pages', filename),
-                    { cacheControl: false }, (error) => {
-                        if (error) next(error);
-                    });
-            };
         }
     };
 };

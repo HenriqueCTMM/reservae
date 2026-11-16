@@ -1,4 +1,4 @@
-import { protectRoute, logout } from './auth.js';
+import './auth.js';
 import { getMessages, updateMessageReply } from './services/messages-service.js';
 import {
     formatDuration,
@@ -16,11 +16,6 @@ import { getReservationsReport } from './services/reports-service.js';
 import { getTables, removeTable, saveTable, updateTable } from './services/tables-service.js';
 import { clearMessage, escapeHtml, formatDate, setFieldInvalid, showMessage, trapFocus } from './ui.js';
 
-const serverRendered = document.body.dataset.serverRendered === 'true';
-const user = serverRendered ? null : await protectRoute(['admin']);
-
-const adminUserName = document.getElementById('adminUserName');
-const logoutButton = document.getElementById('logoutButton');
 const tableForm = document.getElementById('tableForm');
 const tableFormTitle = document.getElementById('table-form-title');
 const tableSubmitButton = document.getElementById('tableSubmitButton');
@@ -75,12 +70,11 @@ const exceptionReason = document.getElementById('exceptionReason');
 const clearExceptionFormButton = document.getElementById('clearExceptionFormButton');
 const exceptionsList = document.getElementById('exceptionsList');
 
-if (adminUserName && user) adminUserName.textContent = user.nome;
-logoutButton?.addEventListener('click', logout);
-
-let tables = [];
+let tables = tablesList?.dataset.initialTables ? JSON.parse(tablesList.dataset.initialTables) : [];
 let tablesLoading = false;
-let tablesLoadError = '';
+let tablesLoadError = tablesList?.dataset.loadError || '';
+tablesList?.removeAttribute('data-initial-tables');
+tablesList?.removeAttribute('data-load-error');
 let reservations = [];
 let reservationsBusy = false;
 let reservationReport = null;
@@ -90,9 +84,12 @@ let messages = adminMessagesList?.dataset.initialMessages ? JSON.parse(adminMess
 adminMessagesList?.removeAttribute('data-initial-messages');
 let messagesBusy = false;
 const messageReplyDrafts = new Map();
-let operatingConfig = null;
-let operatingExceptions = [];
-let exceptionsReady = false;
+let operatingConfig = weeklyHoursFields?.dataset.initialConfig ? JSON.parse(weeklyHoursFields.dataset.initialConfig) : null;
+const initialExceptions = exceptionsList?.dataset.initialExceptions ? JSON.parse(exceptionsList.dataset.initialExceptions) : null;
+let operatingExceptions = initialExceptions || [];
+let exceptionsReady = initialExceptions !== null;
+weeklyHoursFields?.removeAttribute('data-initial-config');
+exceptionsList?.removeAttribute('data-initial-exceptions');
 let exceptionsBusy = false;
 let ignoreMapClickAfterDrag = false;
 let editingTableSnapshot = null;
@@ -347,7 +344,7 @@ async function saveExistingTable(tableId, changes, successMessage = 'Mesa salva 
         return true;
     } catch (error) {
         showMessage(adminMessage, error.message || 'Não foi possível salvar a mesa.', 'error');
-        await loadData();
+        await loadTables();
         return false;
     }
 }
@@ -393,7 +390,7 @@ async function saveTablePosition(tableId, posicaoX, posicaoY) {
         return true;
     } catch (error) {
         showMessage(adminMessage, error.message || 'Não foi possível salvar a posição da mesa.', 'error');
-        await loadData();
+        await loadTables();
         return false;
     }
 }
@@ -501,7 +498,7 @@ function openAdminMap() {
 
 function renderMapContainer(container, { closeOnSelect = false } = {}) {
     container.innerHTML = '';
-    tableCount.textContent = tablesLoading ? '…' : String(tables.length);
+    tableCount.textContent = tablesLoading ? '…' : tablesLoadError ? '—' : String(tables.length);
 
     if (tablesLoading || tablesLoadError) {
         container.innerHTML = getMapMessageHtml(tablesLoading ? 'Carregando mesas...' : tablesLoadError, tablesLoadError ? 'error' : 'muted');
@@ -640,11 +637,15 @@ function renderTablesList() {
         tablesList.appendChild(item);
     });
 
-    document.querySelectorAll('[data-edit]').forEach((button) => {
+    bindTableListActions();
+}
+
+function bindTableListActions() {
+    tablesList.querySelectorAll('[data-edit]').forEach((button) => {
         button.addEventListener('click', () => selectTableForEditing(button.dataset.edit));
     });
 
-    document.querySelectorAll('[data-delete]').forEach((button) => {
+    tablesList.querySelectorAll('[data-delete]').forEach((button) => {
         button.addEventListener('click', () => deleteTable(button.dataset.delete));
     });
 }
@@ -1079,19 +1080,7 @@ async function loadExceptions() {
     }
 }
 
-async function loadData() {
-    if (adminMessagesList) {
-        await refreshMessages();
-        return;
-    }
-    if (adminReservationsTable) {
-        await Promise.all([refreshReservations(), refreshReservationReport()]);
-        return;
-    }
-    if (weeklyHoursForm) {
-        await Promise.all([loadOperatingHours(), loadExceptions()]);
-        return;
-    }
+async function loadTables() {
     if (!tableForm) return;
     if (tablesLoading) return;
     tablesLoading = true;
@@ -1286,7 +1275,7 @@ async function deleteTable(tableId) {
         await removeTable(tableId);
         showMessage(adminMessage, 'Mesa removida com sucesso.');
         resetForm();
-        await loadData();
+        await loadTables();
     } catch (error) {
         showMessage(adminMessage, error.message || 'Não foi possível remover a mesa.', 'error');
     }
@@ -1315,7 +1304,7 @@ tableForm?.addEventListener('submit', async (event) => {
     try {
         await saveTable(formValues);
         showMessage(adminMessage, 'Mesa cadastrada com sucesso.');
-        await loadData();
+        await loadTables();
     } catch (error) {
         showMessage(adminMessage, error.message || 'Não foi possível salvar a mesa.', 'error');
     }
@@ -1373,7 +1362,7 @@ tableForm?.addEventListener('change', (event) => {
 refreshReservationsButton?.addEventListener('click', refreshReservations);
 reloadTablesButton?.addEventListener('click', () => {
     clearMessage(adminMessage);
-    loadData();
+    loadTables();
 });
 refreshMessagesButton?.addEventListener('click', refreshMessages);
 
@@ -1554,4 +1543,8 @@ adminMessagesList?.addEventListener('click', (event) => {
     saveMessageReply(button.dataset.saveMessageReply);
 });
 
-if (!serverRendered) await loadData();
+if (tableForm) {
+    // Os dados já vieram no HTML. Só conectar as interações do mapa e da lista.
+    renderMap();
+    bindTableListActions();
+}

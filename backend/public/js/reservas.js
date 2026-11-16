@@ -1,12 +1,9 @@
-import { logout, protectRoute } from './auth.js';
+import './auth.js';
 import { clearMessage, escapeHtml, setFieldError, showMessage, trapFocus } from './ui.js';
 import { formatDuration } from './services/operating-hours-service.js';
 import { getAvailability, watchAvailability } from './services/availability-service.js';
 import { createReservation } from './services/reservations-service.js';
 
-const currentUser = await protectRoute(['cliente']);
-const clientUserName = document.getElementById('clientUserName');
-const logoutButton = document.getElementById('logoutButton');
 const reservationForm = document.getElementById('reservationForm');
 const reservationMessage = document.getElementById('reservationMessage');
 const clientRestaurantMap = document.getElementById('clientRestaurantMap');
@@ -28,9 +25,6 @@ const mapStatusMessage = document.getElementById('mapStatusMessage');
 const tableStatusList = document.getElementById('tableStatusList');
 const reloadAvailabilityButton = document.getElementById('reloadAvailabilityButton');
 const confirmReservationButton = document.getElementById('confirmReservationButton');
-
-clientUserName.textContent = currentUser.nome;
-logoutButton.addEventListener('click', logout);
 
 let tables = [];
 let availability = null;

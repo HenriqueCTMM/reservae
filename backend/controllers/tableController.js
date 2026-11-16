@@ -1,21 +1,8 @@
 const pool = require('../config/database');
 const { getRestaurantDateTime } = require('../utils/dateTime');
+const { publicTable } = require('../utils/tableResponse');
 
 const TABLE_FIELDS = ['numero', 'capacidade', 'status', 'posicaoX', 'posicaoY', 'rotacao'];
-
-function publicTable(table) {
-    return {
-        id: String(table.id),
-        numero: table.numero,
-        capacidade: table.capacidade,
-        status: table.status,
-        posicaoX: table.posicao_x,
-        posicaoY: table.posicao_y,
-        rotacao: table.rotacao,
-        createdAt: Number(table.created_at_ms),
-        updatedAt: Number(table.updated_at_ms)
-    };
-}
 
 function validateTableFields(data) {
     if (!data || typeof data !== 'object' || Array.isArray(data)) {

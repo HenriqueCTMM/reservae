@@ -1,46 +1,14 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reservaê | Painel administrativo</title>
-    <link rel="icon" href="../assets/logo-reservae.png" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="../css/app.css" />
-</head>
+<%- include('../partials/head') %>
 
 <body class="app-surface flex min-h-screen flex-col text-slate-900">
     <a href="#conteudo-principal"
         class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Pular
         para o conteúdo principal</a>
 
-    <header class="border-b border-slate-200 bg-white">
-        <div class="app-container flex flex-col gap-4 py-4 md:flex-row md:items-center md:justify-between">
-            <div class="flex items-center gap-4">
-                <img src="../assets/logo-reservae.png" alt="Reservaê" class="h-10 w-auto" />
-                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô"
-                    class="h-12 w-12 rounded-md object-cover" />
-                <div>
-                    <h1 id="admin-page-title" class="text-2xl font-bold">Painel do Restaurante</h1>
-                    <p class="text-sm text-slate-500">Gerenciamento de mesas e reservas</p>
-                </div>
-            </div>
-            <nav class="app-mobile-stack flex flex-wrap items-center gap-3" aria-label="Navegação do administrador">
-                <a href="./admin.html" aria-current="page"
-                    class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mesas</a>
-                <a href="/admin/reservas"
-                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Reservas</a>
-                <a href="./admin-configuracoes.html"
-                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Configurações</a>
-                <a href="/admin/mensagens"
-                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Mensagens</a>
-                <span id="adminUserName" class="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium"></span>
-                <button id="logoutButton"
-                    class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Sair</button>
-            </nav>
-        </div>
-    </header>
+    <%- include('../partials/navigation', { pageTitle: 'Painel do Restaurante', pageDescription: 'Gerenciamento de mesas e reservas', titleId: 'admin-page-title', activePage: '/admin/mesas' }) %>
 
     <main id="conteudo-principal" tabindex="-1"
         class="app-container grid flex-1 items-start gap-5 py-5 md:grid-cols-[minmax(240px,260px)_1fr] md:gap-6 md:py-6"
@@ -70,7 +38,7 @@
                 <div class="grid gap-4 md:grid-cols-2 md:gap-3">
                     <div>
                         <label for="numero" class="mb-1 block text-sm font-medium">Número da mesa</label>
-                        <input id="numero" type="number" min="1" max="65535" aria-describedby="numeroHelp"
+                        <input id="numero" type="number" min="1" max="65535" value="<%= nextTableNumber %>" aria-describedby="numeroHelp"
                             class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                             required />
                         <p id="numeroHelp" class="app-help-text mt-1">Use um número único para identificar a mesa.</p>
@@ -110,14 +78,14 @@
                 <div id="positionFields" class="grid gap-4 sm:grid-cols-2" hidden>
                     <div>
                         <label for="posicaoX" class="mb-1 block text-sm font-medium">Posição X</label>
-                        <input id="posicaoX" type="number" min="0" aria-describedby="posicaoXHelp"
+                        <input id="posicaoX" type="number" min="0" value="352" aria-describedby="posicaoXHelp"
                             class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                             required />
                         <p id="posicaoXHelp" class="app-help-text mt-1">Distância da esquerda no mapa.</p>
                     </div>
                     <div>
                         <label for="posicaoY" class="mb-1 block text-sm font-medium">Posição Y</label>
-                        <input id="posicaoY" type="number" min="0" aria-describedby="posicaoYHelp"
+                        <input id="posicaoY" type="number" min="0" value="212" aria-describedby="posicaoYHelp"
                             class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                             required />
                         <p id="posicaoYHelp" class="app-help-text mt-1">Distância do topo no mapa.</p>
@@ -147,7 +115,7 @@
                     <p class="text-sm text-slate-500">Visualização da distribuição das mesas</p>
                 </div>
                 <div class="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-700">
-                    <span id="tableCount">0</span> mesas cadastradas
+                    <span id="tableCount"><%= tablesError ? '—' : tables.length %></span> mesas cadastradas
                 </div>
             </div>
 
@@ -157,7 +125,7 @@
 
             <div
                 class="app-scroll hidden overflow-auto rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 sm:p-4 md:block">
-                <div id="restaurantMap" class="relative h-[520px] min-w-[800px] rounded-2xl bg-white"></div>
+                <div id="restaurantMap" class="relative h-[520px] min-w-[800px] rounded-2xl bg-white"><%- include('table-map') %></div>
             </div>
         </article>
 
@@ -166,7 +134,29 @@
                 <h2 id="tables-list-title" class="text-xl font-bold">Lista de mesas</h2>
                 <p class="text-sm text-slate-500">Edite ou remova uma mesa cadastrada</p>
             </div>
-            <div id="tablesList" class="grid grid-cols-2 gap-3 sm:grid-cols-3"></div>
+            <div id="tablesList" data-initial-tables="<%= JSON.stringify(tables) %>" data-load-error="<%= tablesError %>" class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <% if (tablesError) { %>
+                    <p role="alert" class="col-span-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 sm:col-span-3"><%= tablesError %></p>
+                <% } else if (!tables.length) { %>
+                    <p class="col-span-2 rounded-2xl border border-slate-200 p-4 text-sm text-slate-500 sm:col-span-3">Nenhuma mesa cadastrada.</p>
+                <% } else { tables.forEach((table) => { %>
+                    <div class="rounded-2xl border border-slate-200 p-3 sm:p-4">
+                        <div class="flex h-full flex-col justify-between gap-3">
+                            <div class="min-w-0">
+                                <h3 class="font-bold">Mesa <%= table.numero %></h3>
+                                <p class="text-sm text-slate-500">Capacidade: <%= table.capacidade %> pessoas</p>
+                                <p class="text-sm text-slate-500">Posição: (<%= table.posicaoX %>, <%= table.posicaoY %>)</p>
+                                <p class="text-sm text-slate-500">Orientação: <%= table.rotacao === 90 ? 'Vertical' : 'Horizontal' %></p>
+                                <p class="mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold <%= table.status === 'disponivel' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700' %>"><%= table.status %></p>
+                            </div>
+                            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <button type="button" data-edit="<%= table.id %>" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Editar</button>
+                                <button type="button" data-delete="<%= table.id %>" class="rounded-xl border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Excluir</button>
+                            </div>
+                        </div>
+                    </div>
+                <% }); } %>
+            </div>
         </article>
     </main>
 
@@ -182,30 +172,14 @@
                     class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Fechar</button>
             </div>
             <div class="app-scroll flex-1 overflow-auto bg-slate-50 p-3">
-                <div id="restaurantMapModal" class="relative rounded-2xl bg-white"></div>
+                <div id="restaurantMapModal" class="relative h-[520px] min-w-[800px] rounded-2xl bg-white"><%- include('table-map') %></div>
             </div>
         </div>
     </div>
 
-    <footer class="border-t border-slate-200 bg-white">
-        <div class="app-container grid gap-4 py-5 text-sm text-slate-600 md:grid-cols-[auto_1fr_auto] md:items-center">
-            <div class="flex items-center gap-3">
-                <img src="../assets/logo-reservae.png" alt="Reservaê" class="h-8 w-auto" />
-                <img src="../assets/logo-bistro.jpeg" alt="Dona Maragô Bistrô"
-                    class="h-10 w-10 rounded-md object-cover" />
-            </div>
-            <div>
-                <p class="font-semibold text-slate-900">Dona Maragô Bistrô</p>
-                <p>Reservas online para crepes, pizzas e momentos especiais.</p>
-            </div>
-            <div class="md:text-right">
-                <p class="font-medium text-slate-700">Atendimento conforme funcionamento do restaurante.</p>
-                <p>Gerencie reservas com praticidade e segurança.</p>
-            </div>
-        </div>
-    </footer>
+    <%- include('../partials/footer') %>
 
-    <script type="module" src="../js/admin.js"></script>
+    <script type="module" src="/js/admin.js"></script>
 </body>
 
 </html>
