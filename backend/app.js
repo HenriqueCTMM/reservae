@@ -2,6 +2,13 @@ require('./config/env');
 const path = require('node:path');
 const express = require('express');
 const session = require('express-session');
+const User = require('./models/user');
+const Table = require('./models/table');
+const OperatingHours = require('./models/operatingHours');
+const Availability = require('./models/availability');
+const Reservation = require('./models/reservation');
+const Message = require('./models/message');
+const Report = require('./models/report');
 const createAuthRoutes = require('./routes/authRoutes');
 const createTableRoutes = require('./routes/tableRoutes');
 const createOperatingHoursRoutes = require('./routes/operatingHoursRoutes');
@@ -11,35 +18,42 @@ const createMessageRoutes = require('./routes/messageRoutes');
 const createReportRoutes = require('./routes/reportRoutes');
 const createPageRoutes = require('./routes/pageRoutes');
 const createAuthMiddleware = require('./middlewares/authMiddleware');
+const { SESSION_MAX_AGE } = require('./config/sessionStore');
+const { serverSettings } = require('./config/settings');
+const checkHealth = require('./config/healthCheck');
 
-function createApp({
-    User = require('./models/user'),
-    Table = require('./models/table'),
-    OperatingHours = require('./models/operatingHours'),
-    Availability = require('./models/availability'),
-    Reservation = require('./models/reservation'),
-    Message = require('./models/message'),
-    Report = require('./models/report'),
-    sessionSecret = process.env.SESSION_SECRET
-} = {}) {
-    if (!sessionSecret) throw new Error('Configure SESSION_SECRET em backend/.env.');
+function createApp(sessionStore) {
+    const { production, sessionSecret } = serverSettings();
 
     const app = express();
     app.disable('x-powered-by');
+    if (production) app.set('trust proxy', 1);
     app.set('view engine', 'ejs');
     app.set('views', path.join(__dirname, 'views'));
     app.locals.user = null;
+    // Independente de autenticação e da leitura/gravação de sessões.
+    app.get('/health', async (req, res) => {
+        res.set('Cache-Control', 'no-store');
+        try {
+            await checkHealth();
+            res.json({ status: 'ok' });
+        } catch (error) {
+            console.error('Falha no health check:', error.message);
+            res.status(503).json({ status: 'unavailable' });
+        }
+    });
     app.use(express.json({ limit: '16kb' }));
     app.use(session({
         name: 'reservae.sid',
         secret: sessionSecret,
+        store: sessionStore,
         resave: false,
         saveUninitialized: false,
         cookie: {
             httpOnly: true,
             sameSite: 'strict',
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 8 * 60 * 60 * 1000
+            secure: production,
+            maxAge: SESSION_MAX_AGE
         }
     }));
     app.use('/api', (req, res, next) => {

@@ -9,10 +9,10 @@ Aplicação MVC para reservas de mesas de restaurante, com páginas EJS, arquivo
 ## Tecnologias
 
 - Frontend: HTML, CSS com Tailwind via CDN e JavaScript ES Modules.
-- Backend: Node.js 22+, Express 4 e templates EJS.
+- Backend: Node.js 22 ou 24 LTS, Express 4 e templates EJS.
 - Banco: MySQL 8.4.
 - Autenticação por e-mail/senha, com bcrypt e express-session, seguindo o projeto `auth-site-aula`.
-- npm workspace do backend: comandos na raiz, instalação centralizada e um único `package-lock.json`.
+- Um único pacote npm na raiz, sem workspaces, com dependências e comandos centralizados.
 
 ## Estrutura
 
@@ -36,15 +36,16 @@ backend/
   sql/schema.sql       # Tabelas, relacionamentos e configurações básicas
   scripts/init-db.js    # Inicialização do banco sem apagar dados existentes
   .env.example
-  package.json
 compose.yaml           # MySQL local opcional
-package.json           # Comandos da aplicação e workspace do backend
+package.json           # Comandos e dependências da aplicação
 package-lock.json
 ```
 
 ## Executar localmente
 
-1. Instale Node.js 22+ e as dependências, a partir da raiz:
+Para produção, consulte o [guia de publicação no Render](docs/deploy-render.md), com configuração do serviço, TLS, sessões persistentes e preparação do banco.
+
+1. Instale Node.js 22 ou 24 LTS e as dependências, a partir da raiz:
 
    ```sh
    npm install
@@ -125,7 +126,7 @@ Os fluxos foram conferidos via HTTP e MySQL 8.4 descartável; a validação visu
 
 Estão implementados autenticação, gestão de mesas, horários semanais, exceções por data, disponibilidade, criação/histórico/gestão de reservas, mensagens (envio/histórico do cliente e listagem/resposta administrativa) e relatório de reservas. Mesas (`/admin/mesas`), Configurações (`/admin/configuracoes`), Nova reserva (`/reservas`), Minhas reservas (`/minhas-reservas`), Contato (`/contato`), Reservas administrativas (`/admin/reservas`) e Mensagens administrativas (`/admin/mensagens`) renderizam seus dados ou estados iniciais pelo servidor e mantêm as interações assíncronas necessárias. As interações usam endpoints explícitos por módulo; os dados de demonstração são preparados pelos comandos do backend.
 
-O comando `npm run db:init` prepara as tabelas `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
+O comando `npm run db:init` prepara as tabelas `sessions`, `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
 A inicialização pode ser repetida: tabelas existentes não são recriadas e registros/configurações salvos não são apagados nem sobrescritos. Para bancos das etapas anteriores, ela adiciona o campo de controle `demo_hours_seeded`, utilizado pelo seed de horários. Outras diferenças em estruturas antigas não são atualizadas automaticamente.
 
@@ -201,7 +202,7 @@ O cadastro recebe `{ nome, email, senha }`; o login recebe `{ email, senha }`. E
 
 Usuários ficam na tabela `users` do MySQL. Login e sessão atual retornam `{ id, uid, nome, email, perfil, authProvider }`, sem o hash da senha, compatível com os serviços existentes do frontend.
 
-Como no projeto de aula, sessões ficam na memória do servidor e são encerradas ao reiniciá-lo. O cookie tem duração de 8 horas, é HttpOnly e SameSite=Strict; com `NODE_ENV=production`, também é Secure e requer HTTPS. As páginas recebem a identidade e o perfil do servidor; `/api/auth/me` permanece disponível para consulta de sessão pela API. O navegador não mantém identidade, perfil ou dados de negócio no localStorage.
+Sessões ficam na tabela `sessions` do MySQL, compartilhando o pool da aplicação, e sobrevivem a reinícios e deploys enquanto o banco e `SESSION_SECRET` forem mantidos. Execute `npm run db:init` também em bancos existentes para criar essa tabela antes de iniciar a versão atual. O cookie tem duração de 8 horas, é HttpOnly e SameSite=Strict; com `NODE_ENV=production`, também é Secure e requer HTTPS. Sessões vencidas são removidas periodicamente. As páginas recebem a identidade e o perfil do servidor; `/api/auth/me` permanece disponível para consulta de sessão pela API. O navegador não mantém identidade, perfil ou dados de negócio no localStorage.
 
 A sessão é compartilhada pelas páginas e por toda a API. Cadastro e login continuam públicos; a consulta `/api/auth/me` e as demais rotas de dados exigem autenticação. O middleware consulta o usuário no MySQL e disponibiliza `req.user` e, nas views, `res.locals.user`, sem o hash da senha. Sessão ausente resulta em 401 JSON na API ou redirecionamento ao login nas páginas protegidas; usuário removido também encerra a sessão e limpa o cookie.
 
@@ -622,7 +623,6 @@ Para conferir a consolidação da integração manualmente:
 5. No navegador, conferir a aba Rede de cada página conforme a tabela acima e a ausência de gravações de dados/perfil no localStorage ou seed ao abrir telas. Conferir carregamentos independentes, erros/recarga, erro persistente do mapa, formulário de mesa reconciliado após recarga e ausência de dados antigos após falhas.
 6. Encerrar a sessão em outra aba ou reiniciar o servidor e tentar consultar/gravar em uma tela já aberta: conferir retorno ao login, sem repetir a gravação. Conferir login incorreto e 403 sem redirecionamento de sessão. Simular falha de consulta ao abrir uma página protegida, conferir erro HTML sem dados internos e recuperação após restabelecer o serviço e recarregar. Esses redirecionamentos e interações visuais ainda precisam de execução manual e registro de evidências pela equipe.
 
-O comando `npm test` está configurado para o test runner do Node.js, mas esta versão ainda não contém arquivos de teste automatizado.
 
 ## Dados anteriores
 

@@ -7,4 +7,4 @@ coverage/
 
 # Documentação local de planejamento da migração
 /PLANO-MIGRACAO.md
-/docs/migracao/
+/docs/*

@@ -2,19 +2,28 @@
   "name": "restaurante-app",
   "version": "1.0.0",
   "private": true,
-  "workspaces": ["backend"],
-  "engines": { "node": ">=22" },
+  "engines": { "node": "22.x || 24.x" },
   "scripts": {
-    "dev": "npm run dev --workspace backend",
-    "start": "npm start --workspace backend",
-    "db:init": "npm run db:init --workspace backend",
-    "db:admin": "npm run db:admin --workspace backend",
-    "db:seed": "npm run db:seed --workspace backend",
-    "test": "npm test --workspace backend"
+    "dev": "node --watch backend/server.js",
+    "start": "node backend/server.js",
+    "db:init": "node backend/scripts/init-db.js",
+    "db:admin": "node backend/scripts/create-admin.js",
+    "db:seed": "node backend/scripts/seed-db.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "dependencies": {}
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "ejs": "^7.0.2",
+    "express": "^4.21.2",
+    "express-mysql-session": "^3.0.3",
+    "express-session": "^1.18.1",
+    "mysql2": "^3.24.6"
+  },
+  "overrides": {
+    "mysql2": "$mysql2"
+  }
 }
