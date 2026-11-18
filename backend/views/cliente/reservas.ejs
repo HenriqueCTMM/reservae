@@ -13,6 +13,16 @@
     <main id="conteudo-principal" tabindex="-1"
         class="app-container grid flex-1 gap-5 py-5 md:gap-6 md:py-6 lg:grid-cols-[minmax(320px,360px)_1fr]"
         aria-labelledby="reservation-page-title">
+        <section id="reservationSuccess" tabindex="-1" role="status" aria-live="polite" aria-atomic="true"
+            aria-labelledby="reservation-success-title"
+            class="hidden rounded-2xl border-2 border-emerald-400 bg-emerald-50 p-6 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 lg:col-span-2">
+            <p class="text-sm font-semibold uppercase tracking-wide text-emerald-700">Tudo certo!</p>
+            <h2 id="reservation-success-title" class="mt-1 text-2xl font-bold text-emerald-950">Reserva confirmada!</h2>
+            <p class="mt-2 text-sm text-emerald-800">Sua mesa está reservada. Confira os detalhes:</p>
+            <dl id="reservationSuccessDetails" class="mt-4 grid grid-cols-2 gap-4 text-emerald-950 sm:grid-cols-4"></dl>
+            <a href="/minhas-reservas" class="mt-5 inline-flex rounded-xl bg-emerald-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800">Ver minhas reservas</a>
+        </section>
+
         <section class="app-card rounded-2xl bg-white p-6 shadow-sm" aria-labelledby="reservation-form-title">
             <div class="mb-6">
                 <h2 id="reservation-form-title" class="text-xl font-bold">Dados da reserva</h2>
@@ -22,7 +32,7 @@
             <form id="reservationForm" class="space-y-4" aria-labelledby="reservation-form-title">
                 <div>
                     <label for="reservationDate" class="mb-1 block text-sm font-medium">Data</label>
-                    <input id="reservationDate" type="date" min="<%= minDate %>" max="9999-12-31" aria-describedby="reservationDateHelp reservationDateError"
+                    <input id="reservationDate" type="date" value="<%= minDate %>" min="<%= minDate %>" max="9999-12-31" aria-describedby="reservationDateHelp reservationDateError"
                         class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                         required />
                     <p id="reservationDateHelp" class="app-help-text mt-1">Escolha uma data de funcionamento do
@@ -110,14 +120,19 @@
     <div id="mobileMapModal" class="fixed inset-0 z-50 hidden bg-slate-950/70 p-3 md:hidden" role="dialog"
         aria-modal="true" aria-labelledby="mobile-map-title">
         <div class="flex max-h-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div class="flex items-start justify-between gap-3 border-b border-slate-200 p-4">
+            <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 p-4">
                 <div>
                     <h2 id="mobile-map-title" class="text-lg font-bold">Selecionar mesa</h2>
                     <p class="text-sm text-slate-500">Arraste o mapa e toque em uma mesa disponível</p>
                 </div>
-                <button id="closeMobileMapButton" type="button"
-                    class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Fechar</button>
+                <div class="flex flex-wrap gap-2">
+                    <button id="reloadMobileAvailabilityButton" type="button"
+                        class="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Atualizar mesas</button>
+                    <button id="closeMobileMapButton" type="button"
+                        class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Fechar</button>
+                </div>
             </div>
+            <p id="mobileMapStatus" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-700" role="status" aria-live="polite" aria-atomic="true"></p>
             <div class="app-scroll flex-1 overflow-auto bg-slate-50 p-3">
                 <div id="clientRestaurantMapModal" class="relative h-[520px] min-w-[800px] rounded-2xl bg-white"><%- include('reservation-map-initial') %></div>
             </div>

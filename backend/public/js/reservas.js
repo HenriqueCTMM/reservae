@@ -1,11 +1,13 @@
 import './auth.js';
-import { clearMessage, escapeHtml, setFieldError, showMessage, trapFocus } from './ui.js';
+import { clearMessage, escapeHtml, formatDate, setFieldError, showMessage, trapFocus } from './ui.js';
 import { formatDuration } from './services/operating-hours-service.js';
 import { getAvailability, watchAvailability } from './services/availability-service.js';
 import { createReservation } from './services/reservations-service.js';
 
 const reservationForm = document.getElementById('reservationForm');
 const reservationMessage = document.getElementById('reservationMessage');
+const reservationSuccess = document.getElementById('reservationSuccess');
+const reservationSuccessDetails = document.getElementById('reservationSuccessDetails');
 const clientRestaurantMap = document.getElementById('clientRestaurantMap');
 const clientRestaurantMapModal = document.getElementById('clientRestaurantMapModal');
 const openMobileMapButton = document.getElementById('openMobileMapButton');
@@ -24,6 +26,8 @@ const reservationTableError = document.getElementById('reservationTableError');
 const mapStatusMessage = document.getElementById('mapStatusMessage');
 const tableStatusList = document.getElementById('tableStatusList');
 const reloadAvailabilityButton = document.getElementById('reloadAvailabilityButton');
+const reloadMobileAvailabilityButton = document.getElementById('reloadMobileAvailabilityButton');
+const mobileMapStatus = document.getElementById('mobileMapStatus');
 const confirmReservationButton = document.getElementById('confirmReservationButton');
 
 let tables = [];
@@ -35,6 +39,7 @@ let stopWatchingAvailability = null;
 let availabilityController = null;
 let availabilityRequest = 0;
 let reservationSaving = false;
+let lastAvailabilityFilters = null;
 
 function setMinDate() {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
@@ -90,6 +95,8 @@ function updateMobileMapButtonState() {
     reservationDate.disabled = reservationSaving;
     reservationPeople.disabled = reservationSaving;
     reloadAvailabilityButton.disabled = reservationSaving || availabilityLoading;
+    reloadMobileAvailabilityButton.disabled = reservationSaving || availabilityLoading;
+    reloadMobileAvailabilityButton.textContent = availabilityLoading ? 'Atualizando...' : 'Atualizar mesas';
     confirmReservationButton.disabled = !canOpenMap || getSelectedTable()?.visualStatus !== 'disponivel';
     confirmReservationButton.textContent = reservationSaving ? 'Confirmando reserva...' : 'Confirmar reserva';
     reservationForm.setAttribute('aria-busy', String(reservationSaving));
@@ -310,6 +317,10 @@ function renderMap() {
     renderMapContainer(clientRestaurantMap);
     renderMapContainer(clientRestaurantMapModal, { closeOnSelect: true });
     renderTableStatusSummary();
+    mobileMapStatus.textContent = getMapSummaryText();
+    mobileMapStatus.setAttribute('aria-live', availabilityError ? 'assertive' : 'polite');
+    mobileMapStatus.classList.toggle('text-rose-700', Boolean(availabilityError));
+    clientRestaurantMapModal.setAttribute('aria-busy', String(availabilityLoading));
 }
 
 function renderReservationTimeOptions() {
@@ -374,14 +385,23 @@ function showAvailabilityError(error) {
     renderReservationTimeOptions();
     updateSelectedTableBox();
     renderMap();
-    if (changed) showMessage(reservationMessage, message, 'error');
+    if (changed) {
+        if (mobileMapModal.classList.contains('hidden')) {
+            const feedback = reservationSuccess.classList.contains('hidden') ? message
+                : `Sua reserva já foi confirmada. Não foi possível atualizar a disponibilidade: ${message}`;
+            showMessage(reservationMessage, feedback, 'error');
+        } else {
+            reloadMobileAvailabilityButton.focus({ preventScroll: true });
+        }
+    }
 }
 
-async function refreshAvailability() {
+async function refreshAvailability(filters = null) {
     if (reservationSaving) return;
     stopAvailabilityRealtime();
     const requestId = ++availabilityRequest;
-    const filters = { data: reservationDate.value, pessoas: Number(reservationPeople.value), horario: reservationTime.value };
+    filters = filters || { data: reservationDate.value, pessoas: Number(reservationPeople.value), horario: reservationTime.value };
+    lastAvailabilityFilters = { ...filters };
     availability = null;
     availabilityError = '';
     tables = [];
@@ -420,27 +440,31 @@ reservationForm.addEventListener('submit', async (event) => {
         mesaId: selectedTableId, data: reservationDate.value,
         horario: reservationTime.value, pessoas: Number(reservationPeople.value)
     };
+    reservationSuccess.classList.add('hidden');
     reservationSaving = true;
     availabilityRequest += 1;
     stopAvailabilityRealtime();
     if (!mobileMapModal.classList.contains('hidden')) closeMobileMap();
     renderReservationTimeOptions();
     renderMap();
-    let message;
-    let tone;
     try {
         const reservation = await createReservation(data);
-        const date = reservation.data.split('-').reverse().join('/');
-        message = `Reserva confirmada! Mesa ${reservation.mesaNumero}, dia ${date}, das ${reservation.horario} às ${reservation.fimPrevisto}, para ${reservation.pessoas} pessoa(s).`;
-        tone = 'success';
+        const details = [
+            ['Mesa', reservation.mesaNumero], ['Data', formatDate(reservation.data)],
+            ['Horário', `${reservation.horario} às ${reservation.fimPrevisto}`], ['Pessoas', reservation.pessoas]
+        ];
+        reservationSuccessDetails.innerHTML = details.map(([label, value]) =>
+            `<div><dt class="text-sm text-emerald-800">${label}</dt><dd class="mt-1 text-lg font-bold">${escapeHtml(String(value))}</dd></div>`
+        ).join('');
+        reservationSuccess.classList.remove('hidden');
+        reservationSuccess.focus({ preventScroll: true });
+        reservationSuccess.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
-        message = error.message || 'Não foi possível confirmar a reserva. Recarregue a disponibilidade e tente novamente.';
-        tone = 'error';
+        showMessage(reservationMessage, error.message || 'Não foi possível confirmar a reserva. Recarregue a disponibilidade e tente novamente.', 'error');
     } finally {
         reservationSaving = false;
         // Limpar a seleção e consultar o estado real após sucesso ou rejeição, sem repetir o POST.
         await refreshAvailability();
-        showMessage(reservationMessage, message, tone);
     }
 });
 
@@ -463,12 +487,15 @@ reservationPeople.addEventListener('input', () => {
     refreshAvailability();
 });
 
-reloadAvailabilityButton.addEventListener('click', () => {
+function reloadAvailability() {
     clearMessage(reservationMessage);
     clearReservationFieldErrors();
     setMinDate();
-    refreshAvailability();
-});
+    refreshAvailability(availabilityError ? lastAvailabilityFilters : null);
+}
+
+reloadAvailabilityButton.addEventListener('click', reloadAvailability);
+reloadMobileAvailabilityButton.addEventListener('click', reloadAvailability);
 
 openMobileMapButton.addEventListener('click', openMobileMap);
 

@@ -26,11 +26,13 @@ function createApp(sessionStore) {
     const { production, sessionSecret } = serverSettings();
 
     const app = express();
+    
     app.disable('x-powered-by');
     if (production) app.set('trust proxy', 1);
     app.set('view engine', 'ejs');
     app.set('views', path.join(__dirname, 'views'));
     app.locals.user = null;
+    
     // Independente de autenticação e da leitura/gravação de sessões.
     app.get('/health', async (req, res) => {
         res.set('Cache-Control', 'no-store');
