@@ -167,6 +167,10 @@ function applyTableSize(element, table) {
     element.style.height = `${dimensions.height}px`;
 }
 
+function formatReservationPeriod({ horario, fimPrevisto, duracaoMinutos }) {
+    return `Permanência prevista: ${horario} às ${fimPrevisto} (${formatDuration(duracaoMinutos)})`;
+}
+
 function updateSelectedTableBox() {
     const table = getSelectedTable();
 
@@ -179,8 +183,7 @@ function updateSelectedTableBox() {
         return;
     }
 
-    const durationMinutes = availability.duracaoMinutos;
-    selectedTableBox.textContent = `Mesa ${table.numero} • ${table.capacidade} lugares • permanência prevista ${formatDuration(durationMinutes)}`;
+    selectedTableBox.textContent = `Mesa ${table.numero} • ${table.capacidade} lugares • ${formatReservationPeriod(availability)}`;
     selectedTableBox.className = 'rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700';
     openMobileMapButton.textContent = 'Trocar mesa';
     updateMobileMapButtonState();
@@ -340,9 +343,10 @@ function renderReservationTimeOptions() {
 
     if (slots.includes(selectedTime)) reservationTime.value = selectedTime;
     reservationTime.disabled = reservationSaving || availabilityLoading || !slots.length;
-    reservationTimeHelp.textContent = availability?.reason || (availability
-        ? `Permanência prevista: ${formatDuration(availability.duracaoMinutos)}. Horários calculados pelo restaurante, com antecedência mínima de 3 horas.`
-        : 'Selecione data e quantidade de pessoas para consultar os horários.');
+    const period = availability?.horarioPermitido && availability.fimPrevisto && reservationTime.value
+        ? formatReservationPeriod(availability) : '';
+    const timeHint = availability?.reason || period;
+    if (reservationTimeHelp.textContent !== timeHint) reservationTimeHelp.textContent = timeHint;
     updateMobileMapButtonState();
 }
 

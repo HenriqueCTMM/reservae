@@ -71,15 +71,24 @@ module.exports = function createTableController(Table) {
             }
 
             const { numero, capacidade, status, posicaoX, posicaoY, rotacao } = req.body;
+            let connection;
             try {
-                const id = await Table.create({ numero, capacidade, status, posicaoX, posicaoY, rotacao });
-                const table = await Table.findById(id);
+                connection = await pool.getConnection();
+                await connection.beginTransaction();
+                // Uma nova mesa menor pode alterar a elegibilidade de mesas de 4 lugares.
+                await Table.lockSettings(connection);
+                const id = await Table.create({ numero, capacidade, status, posicaoX, posicaoY, rotacao }, connection);
+                const table = await Table.findById(id, connection);
+                await connection.commit();
                 res.status(201).json(publicTable(table));
             } catch (error) {
+                if (connection) await connection.rollback();
                 if (error.code === 'ER_DUP_ENTRY') {
                     return res.status(409).json({ message: 'Já existe uma mesa com esse número.' });
                 }
                 next(error);
+            } finally {
+                if (connection) connection.release();
             }
         },
 

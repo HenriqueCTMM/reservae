@@ -128,7 +128,7 @@ Estão implementados autenticação, gestão de mesas, horários semanais, exce�
 
 O comando `npm run db:init` prepara as tabelas `sessions`, `users`, `tables`, `reservations`, `messages`, `operating_settings`, `weekly_operating_hours` e `operating_exceptions`, incluindo chaves estrangeiras, índices e restrições básicas. Também cria a configuração de antecedência de 180 minutos, intervalo de 30 minutos e os sete dias da semana inicialmente fechados.
 
-A inicialização pode ser repetida: tabelas existentes não são recriadas e registros/configurações salvos não são apagados nem sobrescritos. Para bancos das etapas anteriores, ela adiciona o campo de controle `demo_hours_seeded`, utilizado pelo seed de horários. Outras diferenças em estruturas antigas não são atualizadas automaticamente.
+A inicialização pode ser repetida: tabelas existentes não são recriadas e registros/configurações salvos não são apagados nem sobrescritos. Para bancos existentes, ela adiciona, quando necessário, o campo de controle `demo_hours_seeded` e o vínculo opcional `messages.reserva_id`. **Execute `npm run db:init` ao atualizar para a versão com mensagens vinculadas a reservas.** Mensagens antigas continuam sem vínculo.
 
 ## Criar o administrador inicial
 
@@ -315,7 +315,7 @@ A resposta contém `data`, `pessoas`, `horario`, `duracaoMinutos`, `fimPrevisto`
 
 - Sem horário: retorna os slots, `horario: null`, `fimPrevisto: null`, `horarioPermitido: false` e `mesas: []`.
 - Com horário permitido: retorna término previsto e todas as mesas ordenadas por número, com os campos públicos de Mesa, mais `visualStatus` e `motivo`.
-- Mesa desativada ou sem capacidade fica `indisponivel`; caso contrário, conflito com reserva ativa resulta em `reservada`; nos demais casos, `disponivel`.
+- Mesa desativada, sem capacidade ou incompatível com as faixas de grupo fica `indisponivel`, com o motivo correspondente. Entre as mesas aptas, conflito com reserva ativa resulta em `reservada`; nos demais casos, `disponivel`.
 - Há sobreposição quando a reserva começa antes do término consultado e termina após o início consultado. Períodos encostados são permitidos; reservas canceladas/finalizadas/não comparecimento ou de outra data não bloqueiam.
 - Dia fechado: 200, `closed: true`, sem slots/mesas e motivo explicando o fechamento. Dia aberto sem slots também retorna 200, com `closed: false`.
 - Horário real fora dos slots: 200, `horarioPermitido: false`, término nulo, sem mesas e motivo orientando outra escolha.
@@ -340,9 +340,11 @@ Todos os campos são obrigatórios. `mesaId` é uma string decimal positiva até
 - **400:** entrada inválida, data passada ou período que não atende funcionamento/antecedência.
 - **401/403:** sem sessão / perfil diferente de cliente.
 - **404:** mesa inexistente.
-- **409:** mesa desativada, capacidade insuficiente ou sobreposição com reserva ativa.
+- **409:** mesa desativada, grupo incompatível com a mesa ou sobreposição com reserva ativa.
 
-O controller inicia uma transação e sua primeira leitura é `SELECT id FROM operating_settings WHERE id = 1 FOR UPDATE`, a trava comum às alterações de disponibilidade. Depois bloqueia a mesa, consulta o funcionamento e revalida os slots com o relógio de São Paulo atualizado após a espera. Consulta conflitos, insere e lê a resposta pela mesma conexão antes do commit. Falhas desfazem a operação e a conexão é sempre liberada. Duas criações conflitantes são serializadas: apenas uma confirma. Períodos encostados continuam permitidos.
+O mapa e a confirmação usam as mesmas faixas para novas reservas: mesas de **4 lugares** para **3 a 4 pessoas**, de **6 lugares** para **5 a 6 pessoas** e de **8 lugares** para **6 a 8 pessoas**. Para **2 pessoas**, uma mesa de 4 lugares também pode ser reservada se não houver nenhuma mesa de 2 ou 3 lugares disponível durante todo o período. Essa exceção não se aplica a reservas individuais. Reservas já confirmadas são preservadas.
+
+O controller inicia uma transação e sua primeira leitura é `SELECT id FROM operating_settings WHERE id = 1 FOR UPDATE`, a trava comum às alterações de disponibilidade, inclusive ao cadastro de novas mesas. Depois bloqueia a mesa, consulta o funcionamento e revalida os slots com o relógio de São Paulo atualizado após a espera. Quando aplicável, confere a disponibilidade de mesas menores no mesmo período. Consulta conflitos, insere e lê a resposta pela mesma conexão antes do commit. Falhas desfazem a operação e a conexão é sempre liberada. Duas criações conflitantes são serializadas: apenas uma confirma. Períodos encostados continuam permitidos.
 
 Na tela, Confirmar reserva só fica habilitado com filtros completos e uma mesa disponível selecionada. Durante o envio, filtros, seleção e recarga ficam bloqueados, o botão mostra “Confirmando reserva...” e o acompanhamento de disponibilidade é cancelado. Novos envios são ignorados enquanto o primeiro aguarda resposta. Sucesso exibe imediatamente um painel destacado acima do formulário, com foco/rolagem, mesa/data/período/pessoas retornados pela API e link para Minhas reservas, sem aguardar a recarga de disponibilidade; rejeição exibe a mensagem do servidor. Nos dois casos a seleção é limpa e a disponibilidade é consultada novamente, sem repetir automaticamente o POST.
 
@@ -396,15 +398,19 @@ Conflitos de edição de mesa ou funcionamento retornam 409 com data e número d
 
 ### Contato e mensagens do cliente
 
-`POST /api/messages` é exclusivo de cliente autenticado. Enviar somente:
+`POST /api/messages` é exclusivo de cliente autenticado. Exemplo de mensagem vinculada a uma reserva:
 
 ```json
-{ "assunto": "Dúvida sobre acesso", "mensagem": "O restaurante possui entrada acessível?" }
+{ "assunto": "Dúvida sobre acesso", "mensagem": "O restaurante possui entrada acessível?", "reservaId": "42" }
 ```
 
 Os dois campos são textos obrigatórios, não vazios após trim, com até 80 e 500 caracteres respectivamente. Campos extras, tipos inválidos e parâmetros de query retornam 400. O servidor obtém a identidade pela sessão e cria a mensagem com status `aberta` e timestamp do banco. Não aceita identidade, status, resposta ou timestamps do navegador.
 
-Retorna 201 com `id`, `usuarioId`, `usuarioNome`, `usuarioEmail`, `assunto`, `mensagem`, `status`, `createdAt`, `resposta`, `respostaEm`, `respostaPor` e `respostaPorNome`. IDs são strings, timestamps numéricos em milissegundos e os quatro campos de resposta inicialmente são nulos. A inserção e a leitura da resposta usam a mesma conexão transacional; falhas fazem rollback e a conexão é sempre liberada. Esse envio não altera disponibilidade e não usa a trava comum de reservas.
+O campo opcional `reservaId` aceita um ID decimal em string (até 4294967295); omitir ou enviar `null` cria uma mensagem geral. Um ID inválido retorna 400; reserva inexistente ou de outro cliente retorna o mesmo 404. Reservas ativas e encerradas do cliente podem ser vinculadas. As respostas de criação, listagem e resposta administrativa incluem `reserva: null` ou `reserva: { id, mesaNumero, data, horario }`.
+
+O link **Enviar mensagem**, no card em Minhas reservas, abre Contato com a reserva pré-selecionada. Também é possível escolher uma reserva no formulário ou enviar uma mensagem geral. A referência aparece no histórico do cliente e nas mensagens administrativas.
+
+Retorna 201 com `id`, `usuarioId`, `usuarioNome`, `usuarioEmail`, `assunto`, `mensagem`, `status`, `createdAt`, `resposta`, `respostaEm`, `respostaPor`, `respostaPorNome` e `reserva`. IDs são strings, timestamps numéricos em milissegundos e os quatro campos de resposta inicialmente são nulos. A inserção e a leitura da resposta usam a mesma conexão transacional; falhas fazem rollback e a conexão é sempre liberada. Esse envio não altera disponibilidade e não usa a trava comum de reservas.
 
 `GET /api/messages/mine` é exclusivo de cliente e não aceita filtros ou corpo. Retorna 200 com array limitado no SQL ao usuário da sessão, ordenado por criação e ID decrescentes, incluindo mensagens abertas e respondidas. Sem mensagens retorna `[]`; `usuarioId` na query retorna 400. Dados do remetente e do administrador que respondeu vêm dos relacionamentos, sem hashes. Os dois endpoints retornam 401 sem sessão e 403 para administrador.
 
@@ -489,6 +495,8 @@ Em uma tela protegida, um 401 de endpoint de dados emite o evento `reservae:sess
 Outro integrante deve executar este roteiro a partir de uma instalação limpa para concluir o aceite de preparação e apresentação. As conferências detalhadas por módulo seguem abaixo.
 
 ### Conferências funcionais
+
+Para conferir as faixas das mesas de 4, 6 e 8 lugares, compare o mapa e a criação pela API com grupos abaixo do mínimo, no mínimo, no máximo e acima da capacidade. Para 2 pessoas, confira a mesa de 4 com uma mesa menor livre, com todas as menores ocupadas ou desativadas e com uma reserva em mesa menor que só começa após o término do período. Para conferir o vínculo de mensagens, abra Contato pelo card de uma reserva ativa e de uma encerrada, confira a pré-seleção e envie uma mensagem geral e outra vinculada. Confira os dois históricos e tente enviar com o ID de uma reserva de outro cliente (404, sem inserir mensagem). Em um banco de teste da versão anterior, rode `npm run db:init` duas vezes e confirme que as mensagens antigas continuam no histórico com `reserva: null`.
 
 Validação exclusivamente manual: cadastrar cliente, repetir o e-mail, tentar senha incorreta, entrar, recarregar a página autenticada e sair.
 

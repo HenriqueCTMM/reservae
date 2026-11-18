@@ -16,6 +16,12 @@ async function main() {
         if (columns.length === 0) {
             await pool.query('ALTER TABLE operating_settings ADD COLUMN demo_hours_seeded BOOLEAN NOT NULL DEFAULT FALSE');
         }
+        const [reservationColumns] = await pool.query("SHOW COLUMNS FROM messages LIKE 'reserva_id'");
+        if (reservationColumns.length === 0) {
+            await pool.query(`ALTER TABLE messages ADD COLUMN reserva_id INT UNSIGNED NULL AFTER usuario_id,
+                ADD CONSTRAINT messages_reservation_fk FOREIGN KEY (reserva_id)
+                REFERENCES reservations (id) ON DELETE RESTRICT ON UPDATE RESTRICT`);
+        }
         console.log('Tabelas e configurações básicas inicializadas com sucesso.');
     } finally {
         await pool.end();

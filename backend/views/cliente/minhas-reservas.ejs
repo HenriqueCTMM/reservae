@@ -45,6 +45,7 @@
                                     <div><dt class="text-slate-500">Permanência prevista</dt><dd class="mt-1 font-semibold text-slate-700"><%= formatDuration(reservation.duracaoMinutos) %></dd></div>
                                     <div><dt class="text-slate-500">Capacidade da mesa</dt><dd class="mt-1 font-semibold text-slate-700"><%= reservation.mesaCapacidade %> lugares</dd></div>
                                 </dl>
+                                <a href="/contato?reserva=<%= reservation.id %>" class="mt-5 self-start rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Enviar mensagem</a>
                             </div>
                         </article>
                     <% }); %>

@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS reservations (
 CREATE TABLE IF NOT EXISTS messages (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     usuario_id INT UNSIGNED NOT NULL,
+    reserva_id INT UNSIGNED NULL,
     assunto VARCHAR(80) NOT NULL,
     mensagem VARCHAR(500) NOT NULL,
     status ENUM('aberta', 'respondida') NOT NULL DEFAULT 'aberta',
@@ -106,6 +107,8 @@ CREATE TABLE IF NOT EXISTS messages (
     KEY messages_user_created (usuario_id, created_at),
     CONSTRAINT messages_user_fk FOREIGN KEY (usuario_id)
         REFERENCES users (id) ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT messages_reservation_fk FOREIGN KEY (reserva_id)
+        REFERENCES reservations (id) ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT messages_reply_user_fk FOREIGN KEY (resposta_por)
         REFERENCES users (id) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

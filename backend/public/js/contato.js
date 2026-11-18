@@ -1,9 +1,10 @@
 import './auth.js';
 import { createMessage, getMyMessages } from './services/messages-service.js';
-import { clearMessage, escapeHtml, setFieldInvalid, showMessage } from './ui.js';
+import { clearMessage, escapeHtml, renderMessageReservation, setFieldInvalid, showMessage } from './ui.js';
 
 const contactForm = document.getElementById('contactForm');
 const contactSubject = document.getElementById('contactSubject');
+const contactReservation = document.getElementById('contactReservation');
 const contactMessageText = document.getElementById('contactMessageText');
 const contactMessage = document.getElementById('contactMessage');
 const clientMessagesList = document.getElementById('clientMessagesList');
@@ -52,6 +53,7 @@ function renderClientMessages() {
         </div>
         <span class="rounded-full px-3 py-1 text-xs font-semibold ${statusClasses}">${message.status === 'respondida' ? 'Respondida' : 'Aberta'}</span>
       </div>
+      ${renderMessageReservation(message.reserva)}
       <p class="text-sm text-slate-600">${escapeHtml(message.mensagem)}</p>
       ${message.resposta ? `
         <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
@@ -68,6 +70,7 @@ function renderClientMessages() {
 function setContactBusy(busy, saving = false) {
     contactBusy = busy;
     contactSubject.disabled = busy;
+    contactReservation.disabled = busy || contactReservation.options.length <= 1;
     contactMessageText.disabled = busy;
     sendMessageButton.disabled = busy;
     reloadMyMessagesButton.disabled = busy;
@@ -116,11 +119,13 @@ contactForm.addEventListener('submit', async (event) => {
     try {
         await createMessage({
             assunto: subject,
-            mensagem: text
+            mensagem: text,
+            reservaId: contactReservation.value || undefined
         });
 
         sent = true;
         contactForm.reset();
+        contactReservation.value = '';
         showMessage(contactMessage, 'Mensagem enviada com sucesso.');
     } catch (error) {
         showMessage(contactMessage, error.message || 'Não foi possível enviar a mensagem. Tente novamente.', 'error');

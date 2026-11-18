@@ -11,9 +11,9 @@
     <%- include('../partials/navigation', { pageTitle: 'Painel do Restaurante', pageDescription: 'Gerenciamento de mesas e reservas', titleId: 'admin-page-title', activePage: '/admin/mesas' }) %>
 
     <main id="conteudo-principal" tabindex="-1"
-        class="app-container grid flex-1 items-start gap-5 py-5 md:grid-cols-[minmax(240px,260px)_1fr] md:gap-6 md:py-6"
+        class="app-container grid flex-1 items-start gap-5 py-5 md:grid-cols-[minmax(280px,300px)_1fr] md:gap-6 md:py-6"
         aria-labelledby="admin-page-title">
-        <section class="app-card rounded-2xl bg-white p-3 shadow-sm md:col-start-1 md:row-start-1 md:self-start"
+        <section class="app-card rounded-2xl bg-white p-4 shadow-sm md:col-start-1 md:row-start-1 md:self-start"
             aria-labelledby="table-form-title">
             <div class="mb-6 md:mb-3">
                 <h2 id="table-form-title" class="text-xl font-bold">Criar nova mesa</h2>
@@ -37,19 +37,17 @@
 
                 <div class="grid gap-4 md:grid-cols-2 md:gap-3">
                     <div>
-                        <label for="numero" class="mb-1 block text-sm font-medium">Número da mesa</label>
-                        <input id="numero" type="number" min="1" max="65535" value="<%= nextTableNumber %>" aria-describedby="numeroHelp"
+                        <label for="numero" class="mb-1 block text-sm font-medium">Nº da mesa</label>
+                        <input id="numero" type="number" min="1" max="65535" value="<%= nextTableNumber %>"
                             class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                             required />
-                        <p id="numeroHelp" class="app-help-text mt-1">Use um número único para identificar a mesa.</p>
                     </div>
 
                     <div>
                         <label for="capacidade" class="mb-1 block text-sm font-medium">Capacidade</label>
-                        <input id="capacidade" type="number" min="1" max="8" value="4" aria-describedby="capacidadeHelp"
+                        <input id="capacidade" type="number" min="1" max="8" value="4"
                             class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                             required />
-                        <p id="capacidadeHelp" class="app-help-text mt-1">Informe de 1 a 8 lugares.</p>
                     </div>
                 </div>
 
@@ -77,18 +75,16 @@
 
                 <div id="positionFields" class="grid gap-4 sm:grid-cols-2" hidden>
                     <div>
-                        <label for="posicaoX" class="mb-1 block text-sm font-medium">Posição X</label>
-                        <input id="posicaoX" type="number" min="0" value="352" aria-describedby="posicaoXHelp"
+                        <label for="posicaoX" class="mb-1 block text-sm font-medium">Posição horizontal (X)</label>
+                        <input id="posicaoX" type="number" min="0" value="352"
                             class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                             required />
-                        <p id="posicaoXHelp" class="app-help-text mt-1">Distância da esquerda no mapa.</p>
                     </div>
                     <div>
-                        <label for="posicaoY" class="mb-1 block text-sm font-medium">Posição Y</label>
-                        <input id="posicaoY" type="number" min="0" value="212" aria-describedby="posicaoYHelp"
+                        <label for="posicaoY" class="mb-1 block text-sm font-medium">Posição vertical (Y)</label>
+                        <input id="posicaoY" type="number" min="0" value="212"
                             class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                             required />
-                        <p id="posicaoYHelp" class="app-help-text mt-1">Distância do topo no mapa.</p>
                     </div>
                 </div>
 

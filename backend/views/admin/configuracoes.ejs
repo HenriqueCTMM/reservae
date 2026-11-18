@@ -51,21 +51,17 @@
                         <legend class="sr-only">Exceção de funcionamento</legend>
                         <div>
                             <label for="exceptionDate" class="mb-1 block text-sm font-medium">Data da exceção</label>
-                            <input id="exceptionDate" type="date" min="1000-01-01" max="9999-12-31" aria-describedby="exceptionDateHelp"
+                            <input id="exceptionDate" type="date" min="1000-01-01" max="9999-12-31"
                                 class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                                 required />
-                            <p id="exceptionDateHelp" class="app-help-text mt-1">Escolha a data que terá funcionamento
-                                diferente do padrão semanal. A data identifica a exceção; salvar outra data cria ou substitui outro registro.</p>
                         </div>
                         <div>
                             <label for="exceptionOpen" class="mb-1 block text-sm font-medium">Funcionamento</label>
-                            <select id="exceptionOpen" aria-describedby="exceptionOpenHelp"
+                            <select id="exceptionOpen"
                                 class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">
                                 <option value="true">Aberto com horário especial</option>
                                 <option value="false">Fechado</option>
                             </select>
-                            <p id="exceptionOpenHelp" class="app-help-text mt-1">Use fechado para bloquear reservas
-                                nesta data.</p>
                         </div>
                         <div class="grid gap-3 sm:grid-cols-2">
                             <div>
@@ -94,13 +90,10 @@
                             </div>
                         </div>
                         <div>
-                            <label for="exceptionReason" class="mb-1 block text-sm font-medium">Motivo</label>
+                            <label for="exceptionReason" class="mb-1 block text-sm font-medium">Motivo (opcional)</label>
                             <input id="exceptionReason" type="text" maxlength="120"
-                                aria-describedby="exceptionReasonHelp"
                                 class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                                 placeholder="Ex.: Feriado, evento especial" />
-                            <p id="exceptionReasonHelp" class="app-help-text mt-1">Opcional. Esse texto ajuda a equipe a
-                                entender a exceção.</p>
                         </div>
                         <div class="app-mobile-stack flex flex-wrap gap-3">
                             <button type="submit"

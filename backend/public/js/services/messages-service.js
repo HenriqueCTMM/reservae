@@ -10,7 +10,7 @@ export async function getMyMessages() {
 
 export async function createMessage(message) {
     return request('/messages', {
-        method: 'POST', body: JSON.stringify({ assunto: message.assunto, mensagem: message.mensagem })
+        method: 'POST', body: JSON.stringify({ assunto: message.assunto, mensagem: message.mensagem, reservaId: message.reservaId })
     });
 }
 

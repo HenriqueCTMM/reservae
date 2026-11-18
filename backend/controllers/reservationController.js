@@ -1,7 +1,7 @@
 const pool = require('../config/database');
 const Availability = require('../models/availability');
 const { getRestaurantDateTime, isDate, isTime, timeToMinutes, minutesToTime } = require('../utils/dateTime');
-const { getReservationDurationMinutes, getAllowedSlots } = require('../utils/reservationRules');
+const { getReservationDurationMinutes, getAllowedSlots, getTableEligibilityReason, hasFreeSmallerTableForPair } = require('../utils/reservationRules');
 const { publicReservation } = require('../utils/reservationResponse');
 const RESERVATION_STATUSES = ['ativa', 'finalizada', 'cancelada', 'nao_compareceu'];
 
@@ -144,14 +144,17 @@ module.exports = function createReservationController(Reservation) {
                     await connection.rollback();
                     return res.status(400).json({ message: 'O período não atende ao funcionamento ou à antecedência mínima de 3 horas. Escolha outro horário.' });
                 }
-                if (table.status !== 'disponivel' || table.capacidade < data.pessoas) {
-                    await connection.rollback();
-                    return res.status(409).json({ message: 'A mesa está indisponível ou não comporta a quantidade de pessoas. Escolha outra mesa.' });
-                }
                 data.fimPrevisto = minutesToTime(timeToMinutes(data.horario) + data.duracaoMinutos);
+                const smallerTableAvailable = table.status === 'disponivel' && table.capacidade === 4 && data.pessoas === 2
+                    && hasFreeSmallerTableForPair(await Availability.findTables(data.data, data.horario, data.fimPrevisto, connection));
+                const tableEligibilityReason = getTableEligibilityReason(table, data.pessoas, smallerTableAvailable);
+                if (tableEligibilityReason) {
+                    await connection.rollback();
+                    return res.status(409).json({ message: `${tableEligibilityReason} Escolha outra mesa.` });
+                }
                 if (await Reservation.hasConflict(data, connection)) {
                     await connection.rollback();
-                    return res.status(409).json({ message: 'A mesa selecionada já possui reserva neste período. Escolha outra mesa ou horário.' });
+                    return res.status(409).json({ message: 'Essa mesa não está mais disponível neste horário. Escolha outra mesa ou horário para continuar.' });
                 }
                 const id = await Reservation.create(data, connection);
                 const reservation = await Reservation.findById(id, connection);

@@ -28,4 +28,22 @@ function getAllowedSlots(date, schedule, durationMinutes, now) {
     return slots;
 }
 
-module.exports = { getReservationDurationMinutes, getAllowedSlots };
+const MIN_GROUP_BY_CAPACITY = { 4: 3, 6: 5, 8: 6 };
+
+function hasFreeSmallerTableForPair(tables) {
+    return tables.some((table) => (table.capacidade === 2 || table.capacidade === 3)
+        && table.status === 'disponivel' && Number(table.has_conflict) === 0);
+}
+
+function getTableEligibilityReason(table, people, smallerTableAvailable) {
+    if (table.status !== 'disponivel') return 'Mesa marcada como indisponível pelo restaurante.';
+    if (table.capacidade < people) return `Capacidade menor que ${people} pessoas.`;
+    if (table.capacidade === 4 && people === 2) {
+        return smallerTableAvailable ? 'Há uma mesa menor disponível para 2 pessoas neste período.' : '';
+    }
+    const minimum = MIN_GROUP_BY_CAPACITY[table.capacidade];
+    if (minimum && people < minimum) return `Mesa de ${table.capacidade} lugares disponível para grupos de ${minimum} a ${table.capacidade} pessoas.`;
+    return '';
+}
+
+module.exports = { getReservationDurationMinutes, getAllowedSlots, getTableEligibilityReason, hasFreeSmallerTableForPair };

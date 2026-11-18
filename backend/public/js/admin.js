@@ -14,7 +14,7 @@ import {
 import { getReservations, updateReservationStatus } from './services/reservations-service.js';
 import { getReservationsReport } from './services/reports-service.js';
 import { getTables, removeTable, saveTable, updateTable } from './services/tables-service.js';
-import { clearMessage, escapeHtml, formatDate, setFieldInvalid, showMessage, trapFocus } from './ui.js';
+import { clearMessage, escapeHtml, formatDate, renderMessageReservation, setFieldInvalid, showMessage, trapFocus } from './ui.js';
 
 const tableForm = document.getElementById('tableForm');
 const tableFormTitle = document.getElementById('table-form-title');
@@ -825,6 +825,7 @@ function renderMessages() {
             <h3 class="font-bold">${escapeHtml(message.assunto)}</h3>
             <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">${message.status === 'respondida' ? 'Respondida' : 'Aberta'}</span>
           </div>
+          ${renderMessageReservation(message.reserva)}
           <p class="whitespace-pre-wrap text-sm text-slate-600">${escapeHtml(message.mensagem)}</p>
           <p class="mt-3 text-xs text-slate-500">${escapeHtml(message.usuarioNome || 'Usuário')} • ${escapeHtml(message.usuarioEmail || 'Sem e-mail')} • ${formatDateTime(message.createdAt)}</p>
           ${message.resposta ? `

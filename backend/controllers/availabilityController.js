@@ -1,19 +1,17 @@
 const pool = require('../config/database');
 const { getRestaurantDateTime, isDate, isTime, timeToMinutes, minutesToTime } = require('../utils/dateTime');
-const { getReservationDurationMinutes, getAllowedSlots } = require('../utils/reservationRules');
+const { getReservationDurationMinutes, getAllowedSlots, getTableEligibilityReason, hasFreeSmallerTableForPair } = require('../utils/reservationRules');
 
-function publicTable(table, people) {
+function publicTable(table, people, smallerTableAvailable) {
     let visualStatus = 'disponivel';
-    let motivo = 'Pode ser selecionada para esta reserva.';
-    if (table.status === 'indisponivel') {
+    let motivo = getTableEligibilityReason(table, people, smallerTableAvailable);
+    if (motivo) {
         visualStatus = 'indisponivel';
-        motivo = 'Mesa marcada como indisponível pelo restaurante.';
-    } else if (table.capacidade < people) {
-        visualStatus = 'indisponivel';
-        motivo = `Capacidade menor que ${people} pessoas.`;
     } else if (Number(table.has_conflict) === 1) {
         visualStatus = 'reservada';
         motivo = 'Mesa já reservada neste período.';
+    } else {
+        motivo = 'Pode ser selecionada para esta reserva.';
     }
     return {
         id: String(table.id), numero: table.numero, capacidade: table.capacidade, status: table.status,
@@ -61,11 +59,12 @@ module.exports = function createAvailabilityController(Availability) {
                 else if (!slots.length) reason = 'Não há horários disponíveis para esta data e quantidade de pessoas. Escolha outro dia.';
                 else if (time !== null && !allowed) reason = 'O horário selecionado não está disponível. Escolha outro horário.';
                 const tables = allowed ? await Availability.findTables(date, time, end, connection) : [];
+                const smallerTableAvailable = Number(people) === 2 && hasFreeSmallerTableForPair(tables);
                 await connection.commit();
                 res.json({
                     data: date, pessoas: Number(people), horario: time, duracaoMinutos: durationMinutes,
                     fimPrevisto: end, closed, horarioPermitido: allowed, slots, reason,
-                    mesas: tables.map((table) => publicTable(table, Number(people)))
+                    mesas: tables.map((table) => publicTable(table, Number(people), smallerTableAvailable))
                 });
             } catch (error) {
                 if (connection) await connection.rollback();

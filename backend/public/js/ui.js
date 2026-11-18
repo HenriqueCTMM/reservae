@@ -88,6 +88,11 @@ export function formatDate(date) {
     return new Intl.DateTimeFormat('pt-BR').format(new Date(`${date}T00:00:00`));
 }
 
+export function renderMessageReservation(reservation) {
+    if (!reservation) return '';
+    return `<p class="mb-2 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700"><strong>Reserva #${escapeHtml(reservation.id)}</strong> · Mesa ${escapeHtml(reservation.mesaNumero)} · ${formatDate(reservation.data)} às ${escapeHtml(reservation.horario)}</p>`;
+}
+
 export function escapeHtml(value) {
     return String(value || '')
         .replaceAll('&', '&amp;')

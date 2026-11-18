@@ -77,8 +77,12 @@ module.exports = function createMessageController(Message) {
             }
             const body = req.body;
             if (!body || typeof body !== 'object' || Array.isArray(body)
-                || Object.keys(body).some((field) => !['assunto', 'mensagem'].includes(field))) {
-                return res.status(400).json({ message: 'Envie apenas assunto e mensagem em um objeto JSON.' });
+                || Object.keys(body).some((field) => !['assunto', 'mensagem', 'reservaId'].includes(field))) {
+                return res.status(400).json({ message: 'Envie apenas assunto, mensagem e, opcionalmente, reservaId em um objeto JSON.' });
+            }
+            const reservaId = body.reservaId ?? null;
+            if (reservaId !== null && (typeof reservaId !== 'string' || !/^[1-9]\d{0,9}$/.test(reservaId) || Number(reservaId) > 4294967295)) {
+                return res.status(400).json({ message: 'Informe um ID de reserva válido.' });
             }
             const assunto = typeof body.assunto === 'string' ? body.assunto.trim() : '';
             const mensagem = typeof body.mensagem === 'string' ? body.mensagem.trim() : '';
@@ -89,7 +93,11 @@ module.exports = function createMessageController(Message) {
             try {
                 connection = await pool.getConnection();
                 await connection.beginTransaction();
-                const id = await Message.create({ usuarioId: req.user.id, assunto, mensagem }, connection);
+                const id = await Message.create({ usuarioId: req.user.id, assunto, mensagem, reservaId }, connection);
+                if (id === null) {
+                    await connection.rollback();
+                    return res.status(404).json({ message: 'Reserva não encontrada entre as suas reservas.' });
+                }
                 const message = await Message.findById(id, connection);
                 await connection.commit();
                 res.status(201).json(publicMessage(message));
